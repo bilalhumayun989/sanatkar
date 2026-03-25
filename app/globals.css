@@ -1,26 +1,163 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
+
+@theme {
+  --color-primary: #e11d48;
+  /* More vibrant professional red */
+  --color-primary-dark: #be123c;
+  --color-secondary: #0f172a;
+  /* Slate 900 */
+  --color-accent: #10b981;
+  /* Emerald 500 */
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+
+  --shadow-premium: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
+  --shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --muted: #f8fafc;
+  --border: #e2e8f0;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+}
+
+/* Typography polish */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  @apply font-bold tracking-tight text-secondary;
+}
+
+/* Container */
+.container-wide {
+  @apply max-w-[1500px] mx-auto px-[10px] md:px-[20px] lg:px-[40px];
+}
+
+/* Global Padding */
+body {
+  @apply px-[10px] md:px-0;
+}
+
+/* Professional Buttons */
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 bg-gradient-to-br from-primary to-primary-dark text-white font-bold py-4 px-8 rounded-2xl transition-all duration-300 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5 active:scale-[0.98] cursor-pointer shadow-lg shadow-primary/20 backdrop-blur-sm;
+}
+
+.btn-secondary {
+  @apply inline-flex items-center justify-center gap-2 bg-white text-secondary border border-border font-bold py-4 px-8 rounded-2xl transition-all duration-300 hover:bg-muted hover:border-secondary hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] cursor-pointer shadow-sm;
+}
+
+.btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 text-secondary font-bold py-2.5 px-5 rounded-xl transition-all duration-300 hover:bg-muted hover:text-primary cursor-pointer tracking-tight;
+}
+
+/* Premium Card */
+.card-premium {
+  @apply bg-white rounded-3xl border border-border shadow-premium overflow-hidden transition-all duration-500 hover:shadow-hover hover:-translate-y-2;
+}
+
+/* Custom Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+/* Glass effect */
+.glass {
+  @apply bg-white/70 backdrop-blur-xl border border-white/20;
+}
+
+.glass-dark {
+  @apply bg-secondary/80 backdrop-blur-xl border border-white/10;
+}
+
+/* Animated Link Underline */
+.link-underline {
+  @apply relative cursor-pointer text-secondary transition-colors duration-300;
+}
+
+.link-underline::after {
+  content: '';
+  @apply absolute left-0 bottom-[-4px] w-0 h-[2px] bg-primary transition-all duration-300;
+}
+
+.link-underline:hover::after {
+  @apply w-full;
+}
+
+.link-underline:hover {
+  @apply text-primary;
+}
+
+/* Animations */
+@keyframes revealUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal-up {
+  animation: revealUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.stagger-1 {
+  animation-delay: 0.1s;
+}
+
+.stagger-2 {
+  animation-delay: 0.2s;
+}
+
+.stagger-3 {
+  animation-delay: 0.3s;
+}
+
+/* Filter Badge */
+.filter-badge {
+  @apply px-4 py-2 rounded-full text-sm font-semibold border border-border hover:border-primary hover:text-primary transition-all cursor-pointer bg-white;
+}
+
+.filter-badge.active {
+  @apply bg-primary text-white border-primary shadow-lg shadow-primary/20;
 }
