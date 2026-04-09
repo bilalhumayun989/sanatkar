@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 export default function MiniAdminRedirect() {
     const router = useRouter();
     useEffect(() => {
-        router.replace('/admin/login');
+        router.replace('/admin/dashboard');
     }, [router]);
 
     return (

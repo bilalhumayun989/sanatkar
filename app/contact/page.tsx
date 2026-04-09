@@ -4,8 +4,10 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { Mail, Phone, MapPin, Send, MessageSquare, Clock, ArrowRight, Instagram, Twitter, Facebook } from 'lucide-react';
 import { useState } from 'react';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function ContactPage() {
+    const {t} = useLanguage();
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -43,14 +45,14 @@ export default function ContactPage() {
 
                     <div className="container-wide relative z-10 text-center px-4 animate-in fade-in slide-in-from-bottom-8 duration-1000">
                         <span className="inline-block px-4 py-1.5 bg-primary/20 text-primary text-[10px] font-black uppercase tracking-[0.3em] rounded-full mb-6 backdrop-blur-md border border-primary/20">
-                            Get In Touch
+                            {t("contact_title")}
                         </span>
                         <h1 className="text-5xl md:text-7xl font-black !text-white tracking-tighter mb-6 leading-tight">
-                            Let's Start a <br />
-                            <span className="text-primary italic">Conversation</span>
+                            {t("contact_main_heading")} <br />
+                            <span className="text-primary italic">{t("contact_main_heading_span")}</span>
                         </h1>
                         <p className="text-gray-300 text-lg md:text-xl max-w-2xl mx-auto font-medium leading-relaxed">
-                            Have questions about our industrial parts inventory or want to list your machine parts? Our specialist team is here to assist you 24/7.
+                            {t("contact_desc")}
                         </p>
                     </div>
                 </section>
@@ -63,8 +65,8 @@ export default function ContactPage() {
                             {/* Left Side: Contact Info */}
                             <div className="lg:col-span-5 space-y-10 animate-in fade-in slide-in-from-left-8 duration-1000">
                                 <div className="space-y-4">
-                                    <h2 className="text-4xl font-black !text-white tracking-tight">Contact Information</h2>
-                                    <p className="text-gray-400 font-medium italic">Reach out through any of these channels.</p>
+                                    <h2 className="text-4xl font-black !text-white tracking-tight">{t('contact_info_title')}</h2>
+                                    <p className="text-gray-400 font-medium italic">{t('contact_info_desc')}</p>
                                 </div>
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-6">
@@ -73,8 +75,8 @@ export default function ContactPage() {
                                         <div className="w-14 h-14 bg-[#0a0f1c] border border-white/10 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-black/50 group-hover:bg-primary group-hover:scale-110 group-hover:border-primary transition-all duration-500">
                                             <Mail size={24} className="text-primary group-hover:text-white transition-colors" />
                                         </div>
-                                        <h3 className="text-lg font-black !text-white mb-2 uppercase tracking-tight">Email Us</h3>
-                                        <p className="text-gray-500 text-sm font-bold mb-1">General Inquiries</p>
+                                        <h3 className="text-lg font-black !text-white mb-2 uppercase tracking-tight">{t('email_us')}</h3>
+                                        <p className="text-gray-500 text-sm font-bold mb-1">{t('general_inquiries')}</p>
                                         <a href="mailto:hello@SANATkar.com" className="text-gray-300 font-black hover:text-primary transition-colors">hello@SANATkar.com</a>
                                     </div>
 
@@ -83,8 +85,8 @@ export default function ContactPage() {
                                         <div className="w-14 h-14 bg-[#0a0f1c] border border-white/10 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-black/50 group-hover:bg-primary group-hover:scale-110 group-hover:border-primary transition-all duration-500">
                                             <Phone size={24} className="text-primary group-hover:text-white transition-colors" />
                                         </div>
-                                        <h3 className="text-lg font-black !text-white mb-2 uppercase tracking-tight">Call Support</h3>
-                                        <p className="text-gray-500 text-sm font-bold mb-1">Mon-Fri from 9am to 6pm</p>
+                                        <h3 className="text-lg font-black !text-white mb-2 uppercase tracking-tight">{t('call_support')}</h3>
+                                        <p className="text-gray-500 text-sm font-bold mb-1">{t('support_hours')}</p>
                                         <a href="tel:+923001234567" className="text-gray-300 font-black hover:text-primary transition-colors">+92 300 123 4567</a>
                                     </div>
 
@@ -93,15 +95,15 @@ export default function ContactPage() {
                                         <div className="w-14 h-14 bg-[#0a0f1c] border border-white/10 rounded-2xl flex items-center justify-center mb-6 shadow-xl shadow-black/50 group-hover:bg-primary group-hover:scale-110 group-hover:border-primary transition-all duration-500">
                                             <MapPin size={24} className="text-primary group-hover:text-white transition-colors" />
                                         </div>
-                                        <h3 className="text-lg font-black !text-white mb-2 uppercase tracking-tight">Industrial Hub</h3>
-                                        <p className="text-gray-500 text-sm font-bold mb-1">Visit our showroom</p>
-                                        <p className="text-gray-300 font-black leading-snug">Industrial Estate Phase 2,<br />Faisalabad, Pakistan</p>
+                                        <h3 className="text-lg font-black !text-white mb-2 uppercase tracking-tight">{t('industrial_hub')}</h3>
+                                        <p className="text-gray-500 text-sm font-bold mb-1">{t('visit_showroom')}</p>
+                                        <p className="text-gray-300 font-black leading-snug">{t('address')}</p>
                                     </div>
                                 </div>
 
                                 {/* Social Links */}
                                 <div className="pt-6 border-t border-white/5">
-                                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-6">Follow our journey</p>
+                                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-6">{t('follow_journey')}</p>
                                     <div className="flex gap-4">
                                         {[Instagram, Twitter, Facebook].map((Icon, idx) => (
                                             <a key={idx} href="#" className="w-12 h-12 bg-white/5 border border-white/10 text-white rounded-xl flex items-center justify-center hover:bg-primary hover:border-primary hover:-translate-y-1 transition-all shadow-lg hover:shadow-primary/20">
@@ -123,37 +125,37 @@ export default function ContactPage() {
                                             <div className="w-24 h-24 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
                                                 <Send size={40} className="animate-bounce" />
                                             </div>
-                                            <h3 className="text-3xl font-black !text-white tracking-tight">Message Received!</h3>
+                                            <h3 className="text-3xl font-black !text-white tracking-tight">{t('message_received')}</h3>
                                             <p className="text-gray-400 font-medium max-w-sm mx-auto leading-relaxed">
-                                                Thank you for reaching out. One of our specialist advisors will contact you shortly.
+                                                {t('thank_you_msg')}
                                             </p>
                                             <button
                                                 onClick={() => setSubmitted(false)}
                                                 className="mt-8 px-10 py-4 bg-white/5 border border-white/10 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary hover:border-primary transition-all shadow-xl hover:shadow-primary/20"
                                             >
-                                                Send Another Message
+                                                {t('send_another')}
                                             </button>
                                         </div>
                                     ) : (
                                         <form onSubmit={handleSubmit} className="space-y-8 relative z-10">
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                                 <div className="space-y-3 group">
-                                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">Your Name</label>
+                                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">{t('your_name')}</label>
                                                     <input
                                                         type="text"
                                                         required
-                                                        placeholder="e.g. Sajid Khan"
+                                                        placeholder={t('name_placeholder')}
                                                         className="w-full px-8 py-5 rounded-2xl bg-[#0a0f1c] border border-white/10 focus:border-primary focus:bg-[#0a0f1c] focus:ring-4 focus:ring-primary/10 text-sm font-bold text-white transition-all outline-none placeholder:text-gray-600"
                                                         value={formData.name}
                                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                                     />
                                                 </div>
                                                 <div className="space-y-3 group">
-                                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">Email Address</label>
+                                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">{t('email_address')}</label>
                                                     <input
                                                         type="email"
                                                         required
-                                                        placeholder="sajid@SANATkar.com"
+                                                        placeholder={t('email_placeholder')}
                                                         className="w-full px-8 py-5 rounded-2xl bg-[#0a0f1c] border border-white/10 focus:border-primary focus:bg-[#0a0f1c] focus:ring-4 focus:ring-primary/10 text-sm font-bold text-white transition-all outline-none placeholder:text-gray-600"
                                                         value={formData.email}
                                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -162,27 +164,27 @@ export default function ContactPage() {
                                             </div>
 
                                             <div className="space-y-3 group">
-                                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">Subject</label>
+                                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">{t('subject')}</label>
                                                 <select
                                                     className="w-full px-8 py-5 rounded-2xl bg-[#0a0f1c] border border-white/10 focus:border-primary focus:bg-[#0a0f1c] focus:ring-4 focus:ring-primary/10 text-sm font-bold text-white transition-all outline-none appearance-none"
                                                     value={formData.subject}
                                                     onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                                                 >
-                                                    <option value="">Select a topic</option>
-                                                    <option>Buying Machine Parts</option>
-                                                    <option>Selling Surplus Stock</option>
-                                                    <option>Industrial Partnerships</option>
-                                                    <option>Technical Support</option>
-                                                    <option>Other</option>
+                                                    <option value="">{t('select_topic')}</option>
+                                                    <option>{t('buy_machine_parts')}</option>
+                                                    <option>{t('sell_surplus')}</option>
+                                                    <option>{t('ind_partnerships')}</option>
+                                                    <option>{t('tech_support')}</option>
+                                                    <option>{t('other_topic')}</option>
                                                 </select>
                                             </div>
 
                                             <div className="space-y-3 group">
-                                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">Message</label>
+                                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">{t('message_label')}</label>
                                                 <textarea
                                                     required
                                                     rows={6}
-                                                    placeholder="How can we help you today?"
+                                                    placeholder={t('message_placeholder')}
                                                     className="w-full px-8 py-6 rounded-[2rem] bg-[#0a0f1c] border border-white/10 focus:border-primary focus:bg-[#0a0f1c] focus:ring-4 focus:ring-primary/10 text-sm font-medium text-white resize-none transition-all outline-none placeholder:text-gray-600"
                                                     value={formData.message}
                                                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
@@ -197,11 +199,11 @@ export default function ContactPage() {
                                                 {isSubmitting ? (
                                                     <>
                                                         <span className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin" />
-                                                        <span>Processing Your Request...</span>
+                                                        <span>{t('processing')}</span>
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <span>Send Message Now</span>
+                                                        <span>{t('send_message')}</span>
                                                         <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
                                                     </>
                                                 )}
@@ -220,10 +222,10 @@ export default function ContactPage() {
                                         ))}
                                     </div>
                                     <div>
-                                        <p className="text-sm font-black text-white tracking-tight">Our support team is online</p>
+                                        <p className="text-sm font-black text-white tracking-tight">{t('support_team_online')}</p>
                                         <p className="text-[10px] text-green-500 font-bold uppercase tracking-widest flex items-center gap-1.5">
                                             <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                                            Average response: 12 minutes
+                                            {t('avg_response')}
                                         </p>
                                     </div>
                                 </div>

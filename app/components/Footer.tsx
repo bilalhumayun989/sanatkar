@@ -1,7 +1,13 @@
+'use client';
+
 import { Facebook, Twitter, Instagram, Youtube, Mail, MapPin, Phone, Package } from 'lucide-react';
 import Link from 'next/link';
+import { useLanguage } from '@/lib/LanguageContext';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function Footer() {
+    const { t } = useLanguage();
+    const { isAdmin } = useAuth();
     return (
         <footer className="relative bg-secondary text-white pt-24 pb-12 overflow-hidden border-t border-white/5" id="contact">
             {/* Animated Ambient Background Gradients */}
@@ -20,10 +26,10 @@ export default function Footer() {
                                 <Package size={26} className="text-white drop-shadow-md" />
                                 <div className="absolute inset-0 bg-white/20 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
                             </div>
-                            <span className="text-3xl font-black tracking-tighter">SANAT<span className="text-primary drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]">KAR</span></span>
+                            <span className="text-3xl font-black tracking-tighter">{t('brand_name_1')}<span className="text-primary drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]">{t('brand_name_2')}</span></span>
                         </Link>
                         <p className="text-gray-400 text-base leading-relaxed max-w-sm font-medium">
-                            Pakistan's most trusted embroidery machine parts portal. We provide a premium marketplace for buying, selling and maintaining your industrial machinery with complete peace of mind.
+                            {t('footer_desc')}
                         </p>
                         <div className="flex gap-4 pt-2">
                             {[Facebook, Twitter, Instagram, Youtube].map((Icon, i) => (
@@ -37,24 +43,26 @@ export default function Footer() {
                     {/* Quick Links */}
                     <div className="lg:col-span-2 lg:col-start-6">
                         <h4 className="text-lg font-bold mb-6 flex items-center gap-3 text-white">
-                            Explore
+                            {t('explore')}
                         </h4>
                         <ul className="space-y-4 text-gray-400 font-medium">
-                            {['Used Parts', 'New Parts', 'Sell Your Parts', 'Technical Reviews', 'Industry News'].map((item, i) => (
-                                <li key={i}>
-                                    <Link href="#" className="hover:text-primary transition-all duration-300 inline-flex items-center gap-2 group">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-primary group-hover:scale-150 transition-all"></span>
-                                        <span className="group-hover:translate-x-1 transition-transform">{item}</span>
-                                    </Link>
-                                </li>
-                            ))}
+                            {['Used Parts', 'New Parts', 'Sell Your Parts', 'Technical Reviews', 'Industry News']
+                                .filter(item => isAdmin || item !== 'Sell Your Parts')
+                                .map((item, i) => (
+                                    <li key={i}>
+                                        <Link href="#" className="hover:text-primary transition-all duration-300 inline-flex items-center gap-2 group">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-white/20 group-hover:bg-primary group-hover:scale-150 transition-all"></span>
+                                            <span className="group-hover:translate-x-1 transition-transform">{item}</span>
+                                        </Link>
+                                    </li>
+                                ))}
                         </ul>
                     </div>
 
                     {/* Contact Info */}
                     <div className="lg:col-span-3">
                         <h4 className="text-lg font-bold mb-6 flex items-center gap-3 text-white">
-                            Get In Touch
+                            {t('get_in_touch')}
                         </h4>
                         <ul className="space-y-4 font-medium">
                             <li className="flex items-start gap-4 group">
@@ -81,9 +89,9 @@ export default function Footer() {
                     {/* Newsletter */}
                     <div className="lg:col-span-3">
                         <h4 className="text-lg font-bold mb-6 flex items-center gap-3 text-white">
-                            Newsletter
+                            {t('newsletter')}
                         </h4>
-                        <p className="text-gray-400 mb-6 text-sm font-medium leading-relaxed">Join 50,000+ professionals getting weekly updates.</p>
+                        <p className="text-gray-400 mb-6 text-sm font-medium leading-relaxed">{t('join_community')}</p>
                         <div className="space-y-4">
                             <div className="relative group/input">
                                 <input
@@ -100,7 +108,7 @@ export default function Footer() {
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent/80 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
                                 </span>
-                                No spam. Unsubscribe at any time.
+                                {t('no_spam')}
                             </p>
                         </div>
                     </div>
@@ -109,12 +117,12 @@ export default function Footer() {
                 {/* Bottom Bar */}
                 <div className="pt-8 pb-4 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-6 relative">
                     <p className="text-gray-500 text-sm font-medium order-2 md:order-1">
-                        © 2026 SANATKAR. Crafted with precision for manufacturing excellence.
+                        {t('crafted_with')}
                     </p>
                     <div className="flex gap-8 text-sm font-medium text-gray-500 order-1 md:order-2">
-                        <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-                        <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-                        <a href="#" className="hover:text-white transition-colors">Cookie Settings</a>
+                        <a href="#" className="hover:text-white transition-colors">{t('privacy_policy')}</a>
+                        <a href="#" className="hover:text-white transition-colors">{t('terms_of_service')}</a>
+                        <a href="#" className="hover:text-white transition-colors">{t('cookie_settings')}</a>
                     </div>
                 </div>
             </div>

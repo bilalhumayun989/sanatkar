@@ -5,12 +5,14 @@ import Link from 'next/link';
 import { Part } from '../data/mockData';
 import { Settings, RotateCcw, Package, MapPin, Heart, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
+import { useLanguage } from '@/lib/LanguageContext';
 
 interface PartCardProps {
     part: Part;
 }
 
 export default function PartCard({ part }: PartCardProps) {
+    const { t, language } = useLanguage();
     const [isHovered, setIsHovered] = useState(false);
     const [isLiked, setIsLiked] = useState(false);
 
@@ -34,11 +36,11 @@ export default function PartCard({ part }: PartCardProps) {
 
                 <div className="absolute top-4 left-4 flex gap-2">
                     <span className="bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg shadow-primary/20 backdrop-blur-sm">
-                        NEW ARRIVAL
+                        {t('new_arrival')}
                     </span>
                     {part.featured && (
                         <span className="bg-secondary text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg backdrop-blur-sm">
-                            FEATURED
+                            {t('featured_badge')}
                         </span>
                     )}
                 </div>
@@ -85,8 +87,8 @@ export default function PartCard({ part }: PartCardProps) {
 
                 <div className="flex items-center justify-between">
                     <div>
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">Part Price</p>
-                        <p className="text-secondary font-black text-xl tracking-tighter">PKR {part.price.toLocaleString()}</p>
+                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">{t('part_price')}</p>
+                        <p className="text-secondary font-black text-xl tracking-tighter">{language === 'ur' ? 'روپے' : 'PKR'} {part.price.toLocaleString()}</p>
                     </div>
                     <Link
                         href={`/buyer/${part.id}`}

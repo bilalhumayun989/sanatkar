@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Package, Mail, Lock, User, Loader2, ArrowRight } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function SignupPage() {
     const router = useRouter();
+    const { refreshAuth } = useAuth();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -33,8 +35,8 @@ export default function SignupPage() {
                 return;
             }
 
+            await refreshAuth();
             router.push('/');
-            router.refresh(); // Refresh page to trigger layout/navbar update
         } catch (err: any) {
             setError('Failed to connect to the server.');
             setLoading(false);

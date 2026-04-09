@@ -1,14 +1,58 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { Package, Eye, EyeOff, AlertCircle, LogOut, Camera, ArrowRight, User, Lock, Save, Send, Loader2 } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Package, Eye, EyeOff, AlertCircle, LogOut, Camera, ArrowRight, User, Lock, Save, Send, Loader2, X, Plus, Star, ChevronDown } from 'lucide-react';
 
-export default function SellerPage() {
+function SellerContent() {
+    const { isAdmin, loading: authLoading } = useAuth();
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const editId = searchParams?.get('id');
+
+    useEffect(() => {
+        if (!authLoading && !isAdmin) {
+            router.push('/');
+        }
+    }, [isAdmin, authLoading, router]);
+
     const [user, setUser] = useState<any>(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [checkingAuth, setCheckingAuth] = useState(true);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [showPass, setShowPass] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+    const [uploadSuccess, setUploadSuccess] = useState(false);
+    const [formData, setFormData] = useState({
+        brand: '',
+        category: '',
+        compatibility: '',
+        price: '',
+        description: '',
+        condition: 'new',
+        stockStatus: 'In Stock',
+        location: '',
+    });
+    const [publishLoading, setPublishLoading] = useState(false);
+    const [publishError, setPublishError] = useState('');
+    const [publishSuccess, setPublishSuccess] = useState(false);
+    const [categories, setCategories] = useState<any[]>([]);
+    const [newCategoryName, setNewCategoryName] = useState('');
+    const [addingCategory, setAddingCategory] = useState(false);
+    const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+
+    useEffect(() => {
+        if (!authLoading && !isAdmin) {
+            router.push('/');
+        }
+    }, [isAdmin, authLoading, router]);
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -27,14 +71,45 @@ export default function SellerPage() {
         };
         checkAuth();
     }, []);
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [showPass, setShowPass] = useState(false);
-    const [uploading, setUploading] = useState(false);
-    const [uploadedImages, setUploadedImages] = useState<string[]>([]);
-    const [uploadSuccess, setUploadSuccess] = useState(false);
+
+    useEffect(() => {
+        if (editId) {
+            fetch(`/api/cars/${editId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && !data.message) {
+                        setFormData({
+                            brand: data.make || '',
+                            category: data.model || '',
+                            compatibility: data.description?.match(/^Compatibility: (.*?)(?:\. |$)/)?.[1] || '',
+                            price: data.price ? data.price.toString() : '',
+                            description: data.description?.replace(/^Compatibility: .*?(?:\. |$)/, '') || data.description || '',
+                            condition: data.condition || 'new',
+                            stockStatus: data.transmission || 'In Stock',
+                            location: data.location || '',
+                        });
+                        if (data.images && data.images.length > 0) {
+                            setUploadedImages(data.images);
+                        }
+                    }
+                })
+                .catch(console.error);
+        }
+    }, [editId]);
+
+    useEffect(() => {
+        fetchCategories();
+    }, []);
+
+    const fetchCategories = async () => {
+        try {
+            const res = await fetch('/api/categories');
+            const data = await res.json();
+            if (data.success) setCategories(data.categories);
+        } catch (err) {
+            console.error('Failed to fetch categories:', err);
+        }
+    };
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -63,21 +138,6 @@ export default function SellerPage() {
         }
     };
 
-    const [formData, setFormData] = useState({
-        brand: '',
-        category: '',
-        compatibility: '',
-        price: '',
-        description: '',
-        condition: 'new',
-        stockStatus: 'In Stock',
-        location: 'Faisalabad',
-    });
-
-    const [publishLoading, setPublishLoading] = useState(false);
-    const [publishError, setPublishError] = useState('');
-    const [publishSuccess, setPublishSuccess] = useState(false);
-
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -89,9 +149,17 @@ export default function SellerPage() {
         setPublishError('');
         setPublishSuccess(false);
 
+        if (!formData.category) {
+            setPublishError('Please select a category.');
+            setPublishLoading(false);
+            return;
+        }
+
         try {
-            const res = await fetch('/api/cars', { // API still uses /api/cars for now
-                method: 'POST',
+            const url = editId ? `/api/cars/${editId}` : '/api/cars';
+            const method = editId ? 'PUT' : 'POST';
+            const res = await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     make: formData.brand,
@@ -123,7 +191,7 @@ export default function SellerPage() {
                 description: '',
                 condition: 'new',
                 stockStatus: 'In Stock',
-                location: 'Faisalabad',
+                location: '',
             });
         } catch (err: any) {
             setPublishError(err.message);
@@ -157,6 +225,55 @@ export default function SellerPage() {
             setUploading(false);
         }
     };
+
+    const handleAddCategory = async () => {
+        if (!newCategoryName.trim()) return;
+        setAddingCategory(true);
+        try {
+            const res = await fetch('/api/categories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newCategoryName.trim() }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setNewCategoryName('');
+                fetchCategories();
+            } else {
+                alert(data.message || 'Failed to add category');
+            }
+        } catch (err) {
+            console.error('Add category error:', err);
+        } finally {
+            setAddingCategory(false);
+        }
+    };
+
+    const togglePopular = async (e: React.MouseEvent, id: string, currentStatus: boolean) => {
+        e.stopPropagation();
+        e.preventDefault();
+        try {
+            const res = await fetch(`/api/categories/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isPopular: !currentStatus }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                setCategories(prev => prev.map(c => c._id === id ? { ...c, isPopular: !currentStatus } : c));
+            }
+        } catch (err) {
+            console.error('Toggle popular error:', err);
+        }
+    };
+
+    if (authLoading || !isAdmin) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-white">
+                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
 
     if (checkingAuth) {
         return (
@@ -294,7 +411,7 @@ export default function SellerPage() {
                                     <div className="absolute inset-0 bg-gradient-to-br from-primary/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                                 </div>
                                 <div>
-                                    <h1 className="text-4xl font-black text-secondary tracking-tight">Post Your <span className="text-primary italic">Machine Parts</span></h1>
+                                    <h1 className="text-4xl font-black text-secondary tracking-tight">{editId ? 'Update Your' : 'Post Your'} <span className="text-primary italic">Machine Parts</span></h1>
                                 </div>
                             </div>
                         </div>
@@ -346,32 +463,72 @@ export default function SellerPage() {
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                         <div className="space-y-3 group">
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">Brand / Manufacturer</label>
-                                            <select
+                                            <input
                                                 name="brand"
                                                 value={formData.brand}
                                                 onChange={handleInputChange}
                                                 required
-                                                className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-primary/20 focus:bg-white focus:ring-4 focus:ring-primary/5 text-sm font-bold text-secondary transition-all outline-none appearance-none"
-                                            >
-                                                <option value="">Select Brand</option>
-                                                <option>Tajima</option>
-                                                <option>Barudan</option>
-                                                <option>Janome</option>
-                                                <option>Brother</option>
-                                                <option>SWF</option>
-                                                <option>Universal</option>
-                                            </select>
-                                        </div>
-                                        <div className="space-y-3 group">
-                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">Category</label>
-                                            <input
-                                                name="category"
-                                                value={formData.category}
-                                                onChange={handleInputChange}
-                                                required
-                                                placeholder="e.g. Rotary Hook"
+                                                placeholder="e.g. Tajima"
                                                 className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-primary/20 focus:bg-white focus:ring-4 focus:ring-primary/5 text-sm font-bold text-secondary transition-all outline-none"
                                             />
+                                        </div>
+                                        <div className="space-y-3 group relative">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">Category</label>
+                                            <div
+                                                onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                                                className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent hover:border-primary/20 cursor-pointer flex items-center justify-between transition-all"
+                                            >
+                                                <span className={`text-sm font-bold ${formData.category ? 'text-secondary' : 'text-gray-400'}`}>
+                                                    {formData.category || 'Select Category'}
+                                                </span>
+                                                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showCategoryDropdown ? 'rotate-180' : ''}`} />
+                                            </div>
+
+                                            {showCategoryDropdown && (
+                                                <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-2xl border border-gray-100 shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                                    <div className="max-h-60 overflow-y-auto p-2 custom-scrollbar">
+                                                        {categories.map((c) => (
+                                                            <div
+                                                                key={c._id}
+                                                                onClick={() => {
+                                                                    setFormData(prev => ({ ...prev, category: c.name }));
+                                                                    setShowCategoryDropdown(false);
+                                                                }}
+                                                                className="flex items-center justify-between px-4 py-3 rounded-xl hover:bg-primary/5 transition-colors cursor-pointer group/item"
+                                                            >
+                                                                <span className="text-sm font-bold text-gray-700">{c.name}</span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => togglePopular(e, c._id, c.isPopular)}
+                                                                    className={`p-1.5 rounded-lg transition-all ${c.isPopular ? 'text-red-500 bg-red-50/50' : 'text-gray-300 hover:text-red-500 hover:bg-red-50/50'}`}
+                                                                >
+                                                                    <Star className={`w-3.5 h-3.5 ${c.isPopular ? 'fill-current' : ''}`} />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                        {categories.length === 0 && (
+                                                            <div className="px-4 py-8 text-center text-gray-400 text-xs font-medium">No categories created yet</div>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    <div className="p-3 bg-gray-50 border-t border-gray-100 flex gap-2">
+                                                        <input
+                                                            value={newCategoryName}
+                                                            onChange={(e) => setNewCategoryName(e.target.value)}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            placeholder="New category..."
+                                                            className="flex-grow px-4 py-2 rounded-xl border border-gray-200 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 bg-white"
+                                                        />
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleAddCategory(); }}
+                                                            disabled={addingCategory}
+                                                            className="w-10 h-10 bg-primary text-white rounded-xl flex items-center justify-center hover:bg-primary-dark transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
+                                                        >
+                                                            {addingCategory ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-5 h-5" />}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="space-y-3 group">
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">Compatibility</label>
@@ -437,17 +594,13 @@ export default function SellerPage() {
                                         </div>
                                         <div className="space-y-3 group">
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 group-focus-within:text-primary transition-colors">Location</label>
-                                            <select
+                                            <input
                                                 name="location"
                                                 value={formData.location}
                                                 onChange={handleInputChange}
-                                                className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-primary/20 focus:bg-white focus:ring-4 focus:ring-primary/5 text-sm font-bold text-secondary transition-all outline-none appearance-none"
-                                            >
-                                                <option>Faisalabad</option>
-                                                <option>Karachi</option>
-                                                <option>Lahore</option>
-                                                <option>Islamabad</option>
-                                            </select>
+                                                placeholder="e.g. Faisalabad"
+                                                className="w-full px-6 py-4 rounded-2xl bg-gray-50 border-2 border-transparent focus:border-primary/20 focus:bg-white focus:ring-4 focus:ring-primary/5 text-sm font-bold text-secondary transition-all outline-none"
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -480,13 +633,33 @@ export default function SellerPage() {
                                         <Camera size={32} className="text-primary mb-4" />
                                         <p className="text-lg font-black text-secondary">Upload High Quality Images</p>
                                     </label>
+                                    
+                                    {uploadedImages.length > 0 && (
+                                        <div className="flex flex-wrap gap-4 mt-4">
+                                            {uploadedImages.map((img, idx) => (
+                                                <div key={idx} className="relative w-24 h-24 rounded-2xl overflow-hidden shadow-sm border border-gray-200">
+                                                    <img src={img} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            setUploadedImages(prev => prev.filter((_, i) => i !== idx));
+                                                        }}
+                                                        className="absolute top-1 right-1 bg-red-500/90 hover:bg-red-600 text-white p-1 rounded-full backdrop-blur-sm transition-colors"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
                             <div className="flex flex-col sm:flex-row gap-6 justify-end pt-10 border-t border-gray-50">
                                 <button type="submit" disabled={publishLoading} className="bg-primary text-white px-12 py-5 rounded-2xl text-sm font-black shadow-2xl shadow-primary/30 hover:shadow-primary/40 transition-all flex items-center justify-center gap-3">
                                     {publishLoading ? <Loader2 className="animate-spin" /> : <Send size={20} />}
-                                    <span>List Part Globally</span>
+                                    <span>{editId ? 'Update Part Details' : 'List Part Globally'}</span>
                                 </button>
                             </div>
                         </form>
@@ -495,5 +668,17 @@ export default function SellerPage() {
             </main>
             <Footer />
         </div>
+    );
+}
+
+export default function SellerPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-secondary">
+                <Loader2 className="w-12 h-12 text-primary animate-spin" />
+            </div>
+        }>
+            <SellerContent />
+        </Suspense>
     );
 }

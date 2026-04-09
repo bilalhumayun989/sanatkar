@@ -8,7 +8,7 @@ export interface ICar {
     description: string;
     images: string[];
     seller: mongoose.Types.ObjectId;
-    condition: 'new' | 'used';
+    condition: 'new' | 'used' | 'refurbished';
     mileage: number;
     location: string;
     status: 'available' | 'sold';
@@ -47,7 +47,7 @@ const CarSchema: Schema = new Schema({
     },
     condition: {
         type: String,
-        enum: ['new', 'used'],
+        enum: ['new', 'used', 'refurbished'],
         required: true,
     },
     mileage: {

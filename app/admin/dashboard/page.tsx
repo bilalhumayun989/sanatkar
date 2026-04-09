@@ -3,8 +3,9 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Package, Users, LayoutDashboard, Settings, FileText, Menu, Search, Filter, Shield, Bell, CheckCircle2, Clock, XCircle, Download, ArrowUpRight, LogOut, Loader2, Save, Megaphone } from 'lucide-react';
+import { Package, Users, LayoutDashboard, Settings, Menu, Search, Filter, Shield, Bell, CheckCircle2, Clock, XCircle, ArrowUpRight, LogOut, Loader2, Save, Megaphone } from 'lucide-react';
 import AdConfigForm from '../../components/AdConfigForm';
+import { useAuth } from '@/lib/AuthContext';
 
 const stats = {
     totalParts: 1250,
@@ -31,7 +32,7 @@ const users = [
     { id: 5, name: 'Usman Siddiq', email: 'usman@example.com', listings: 4, joined: 'Dec 9, 2025', status: 'active' },
 ];
 
-type Tab = 'dashboard' | 'listings' | 'users' | 'reports' | 'ads' | 'settings';
+type Tab = 'dashboard' | 'listings' | 'users' | 'ads' | 'settings';
 
 function StatusBadge({ status }: { status: string }) {
     const config: Record<string, { bg: string, text: string, icon: any }> = {
@@ -76,6 +77,7 @@ function StatCard({ title, value, icon: Icon, change, trend = 'up' }: any) {
 function AdminDashboardContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { user, isAdmin, loading: authLoading } = useAuth();
     const [activeTab, setActiveTab] = useState<Tab>((searchParams.get('tab') as Tab) || 'dashboard');
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarExpanded, setSidebarExpanded] = useState(true);
@@ -98,28 +100,29 @@ function AdminDashboardContent() {
     const [adMessage, setAdMessage] = useState('');
 
     useEffect(() => {
-        const auth = sessionStorage.getItem('adminAuth');
-        if (!auth) {
-            router.replace('/admin/login');
-        } else {
-            setIsAuthed(true);
-            // Load live data from real APIs
-            setDataLoading(true);
-            Promise.all([
-                fetch('/api/admin/users').then(r => r.json()),
-                fetch('/api/admin/cars').then(r => r.json()),
-                fetch('/api/ad').then(r => r.json()),
-            ]).then(([uData, cData, aData]) => {
-                if (uData.success) setLiveUsers(uData.users);
-                if (cData.success) setLiveCars(cData.cars);
-                if (aData.success && aData.ad) setAdConfig(aData.ad);
-            }).catch(console.error).finally(() => setDataLoading(false));
+        if (!authLoading) {
+            if (!user || !isAdmin) {
+                setIsAuthed(false);
+            } else {
+                setIsAuthed(true);
+                // Load live data from real APIs
+                setDataLoading(true);
+                Promise.all([
+                    fetch('/api/admin/users').then(r => r.json()),
+                    fetch('/api/admin/cars').then(r => r.json()),
+                    fetch('/api/ad').then(r => r.json()),
+                ]).then(([uData, cData, aData]) => {
+                    if (uData.success) setLiveUsers(uData.users);
+                    if (cData.success) setLiveCars(cData.cars);
+                    if (aData.success && aData.ad) setAdConfig(aData.ad);
+                }).catch(console.error).finally(() => setDataLoading(false));
+            }
         }
-    }, [router]);
+    }, [authLoading, user, isAdmin]);
 
-    const handleLogout = () => {
-        sessionStorage.removeItem('adminAuth');
-        router.push('/admin/login');
+    const handleLogout = async () => {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        window.location.href = '/';
     };
 
     const handleDeleteUser = async (id: string) => {
@@ -159,10 +162,25 @@ function AdminDashboardContent() {
     };
 
 
-    if (!isAuthed) {
+    if (authLoading || (isAuthed && dataLoading)) {
         return (
             <div className="min-h-screen bg-[#0f1729] flex items-center justify-center">
                 <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    if (!isAuthed) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+                <div className="text-center max-w-md w-full bg-white rounded-3xl p-10 shadow-xl border border-gray-100">
+                    <h1 className="text-6xl font-black text-gray-900 mb-6 tracking-tighter">404</h1>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">Page Not Found</h2>
+                    <p className="text-gray-500 mb-8 font-medium">The page you are looking for doesn't exist or has been removed.</p>
+                    <Link href="/" className="inline-flex items-center justify-center w-full bg-primary text-white py-4 rounded-xl font-bold hover:bg-primary-dark transition-all duration-300 shadow-[0_4px_14px_0_rgba(239,68,68,0.39)] hover:shadow-[0_6px_20px_rgba(239,68,68,0.23)] active:scale-[0.98]">
+                        Return to Home
+                    </Link>
+                </div>
             </div>
         );
     }
@@ -171,7 +189,6 @@ function AdminDashboardContent() {
         { tab: 'dashboard', label: 'Dashboard Overview', icon: LayoutDashboard },
         { tab: 'listings', label: 'Manage Inventory', icon: Package, count: stats.pendingApprovals },
         { tab: 'users', label: 'User Directory', icon: Users },
-        { tab: 'reports', label: 'System Reports', icon: FileText },
         { tab: 'ads', label: 'Ad Content', icon: Megaphone },
         { tab: 'settings', label: 'Platform Settings', icon: Settings },
     ];
@@ -489,9 +506,9 @@ function AdminDashboardContent() {
                                                             >
                                                                 Delete
                                                             </button>
-                                                            <button className="text-xs font-bold bg-gray-50 text-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
+                                                            <Link href={`/seller?id=${l._id}`} className="text-xs font-bold bg-gray-50 text-gray-700 px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors inline-block text-center">
                                                                 Manage
-                                                            </button>
+                                                            </Link>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -573,42 +590,6 @@ function AdminDashboardContent() {
                                         </table>
                                     </div>
                                 )}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* REPORTS TAB */}
-                    {activeTab === 'reports' && (
-                        <div className="space-y-6 fade-in-up">
-                            <h2 className="text-xl font-bold text-gray-900 mb-6">Generated Intelligence</h2>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                                {[
-                                    { title: 'Market Trends Q1 2026', desc: 'Pricing shifts and demand analysis', type: 'PDF Document', date: 'Mar 1, 2026' },
-                                    { title: 'User Acquisition Source', desc: 'Marketing channels ROI breakdown', type: 'Excel Sheet', date: 'Mar 1, 2026' },
-                                    { title: 'Revenue Optimization Model', desc: 'Commission structures and ad placements', type: 'Data Model', date: 'Feb 28, 2026' },
-                                    { title: 'Pending Review Audit', desc: 'SLA compliance for manual approvals', type: 'CSV Export', date: 'Mar 9, 2026' },
-                                ].map((r, i) => (
-                                    <div key={i} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 hover:shadow-lg transition-all duration-300 group flex flex-col h-full">
-                                        <div className="flex items-start justify-between mb-4">
-                                            <div className="w-12 h-12 bg-primary/10 text-primary rounded-2xl flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
-                                                <FileText className="w-6 h-6" />
-                                            </div>
-                                            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-md border border-gray-200">
-                                                {r.type}
-                                            </span>
-                                        </div>
-                                        <div className="flex-1">
-                                            <h3 className="font-bold text-gray-900 mb-1">{r.title}</h3>
-                                            <p className="text-gray-500 text-sm font-medium mb-4">{r.desc}</p>
-                                        </div>
-                                        <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-auto">
-                                            <span className="text-xs font-bold text-gray-400 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {r.date}</span>
-                                            <button className="flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/5 hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-colors">
-                                                <Download className="w-3.5 h-3.5" /> Download
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
                             </div>
                         </div>
                     )}

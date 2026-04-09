@@ -1,11 +1,33 @@
 'use client';
 
+import { useLanguage } from '@/lib/LanguageContext';
+import { useAuth } from '@/lib/AuthContext';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import AdConfigForm from '../../components/AdConfigForm';
 import { Megaphone, ShieldCheck, Zap, TrendingUp, Sparkles } from 'lucide-react';
 
 export default function PromotePage() {
+    const { t } = useLanguage();
+    const { isAdmin, loading: authLoading } = useAuth();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (!authLoading && !isAdmin) {
+            router.push('/');
+        }
+    }, [isAdmin, authLoading, router]);
+
+    if (authLoading || !isAdmin) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a]">
+                <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-[#fafafa] flex flex-col">
             <Navbar forceSolid={true} />

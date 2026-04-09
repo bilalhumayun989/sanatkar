@@ -4,9 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Package, Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function LoginPage() {
     const router = useRouter();
+    const { refreshAuth } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -32,8 +34,8 @@ export default function LoginPage() {
                 return;
             }
 
+            await refreshAuth();
             router.push('/');
-            router.refresh();
         } catch (err: any) {
             setError('Failed to connect to the server.');
             setLoading(false);

@@ -1,28 +1,75 @@
 import Image from 'next/image';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
-import { mockCars } from '../../data/mockData';
-import { use } from 'react';
+import dbConnect from '@/lib/dbConn';
+import Car from '@/lib/models/Car';
+import Link from 'next/link';
+import { ArrowLeft, MapPin, ShieldCheck, Settings, Package, BadgeCheck } from 'lucide-react';
 
-export default function PartDetailPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = use(params);
-    const part = mockCars.find(c => c.id === id) || mockCars[0];
+export default async function PartDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    await dbConnect();
+    const { id } = await params;
+    
+    let partDoc;
+    try {
+        partDoc = await Car.findById(id).lean();
+    } catch (err) {
+        console.error('Fetch error:', err);
+    }
+
+    if (!partDoc) {
+        return (
+            <div className="min-h-screen flex flex-col bg-white">
+                <Navbar forceSolid />
+                <div className="flex-grow flex flex-col items-center justify-center p-8">
+                    <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-6 text-4xl">🔍</div>
+                    <h2 className="text-3xl font-black text-secondary mb-4">Part Not Found</h2>
+                    <p className="text-gray-500 mb-8 font-medium">The machine part you are looking for does not exist or has been removed.</p>
+                    <Link href="/buyer" className="btn-primary px-8 py-4 rounded-2xl flex items-center gap-2">
+                        <ArrowLeft size={18} /> Back to Search
+                    </Link>
+                </div>
+                <Footer />
+            </div>
+        );
+    }
+
+    // Map DB fields to UI fields
+    const part = {
+        id: partDoc._id.toString(),
+        brand: partDoc.make || 'General',
+        partName: partDoc.model || 'Machine Part',
+        price: partDoc.price || 0,
+        location: partDoc.location || 'Unknown',
+        image: partDoc.images?.[0] || 'https://www.har-tech.com/wp-content/uploads/2024/02/usinage-pieces-mecaniques.jpg',
+        compatibility: partDoc.mileage || 'Universal Compatibility',
+        condition: partDoc.fuelType || 'New',
+        stockStatus: partDoc.transmission || 'In Stock',
+        category: partDoc.category || 'Mechanical',
+        description: partDoc.description || `High-performance industrial part designed for professional use. This component ensures high precision and longevity even under heavy workload.`
+    };
 
     return (
         <div className="min-h-screen flex flex-col bg-[#fafafa]">
-            <Navbar />
+            <Navbar forceSolid />
 
-            <main className="flex-grow py-8 px-4">
+            <main className="flex-grow pt-32 pb-8 px-4">
                 <div className="max-w-7xl mx-auto">
                     {/* Breadcrumbs */}
-                    <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-8">
-                        Home / Industrial Parts / {part.brand} / <span className="text-primary">{part.partName}</span>
+                    <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
+                        <Link href="/" className="hover:text-primary transition-colors">HOME</Link> 
+                        <span>/</span> 
+                        <Link href="/buyer" className="hover:text-primary transition-colors">INDUSTRIAL PARTS</Link> 
+                        <span>/</span> 
+                        {part.brand.toUpperCase()} 
+                        <span>/</span> 
+                        <span className="text-primary">{part.partName.toUpperCase()}</span>
                     </div>
 
                     <div className="flex flex-col lg:flex-row gap-8">
                         {/* Left Column: Images & Specs */}
                         <div className="flex-1 space-y-8">
-                            <div className="bg-white rounded-[2.5rem] shadow-premium border border-gray-100 overflow-hidden group">
+                            <div className="bg-white rounded-[2.5rem] shadow-premium border border-gray-100 overflow-hidden group relative">
                                 <div className="h-[400px] md:h-[600px] w-full relative">
                                     <Image
                                         src={part.image}
@@ -32,7 +79,9 @@ export default function PartDetailPage({ params }: { params: Promise<{ id: strin
                                         priority
                                     />
                                     <div className="absolute top-6 left-6">
-                                        <span className="bg-primary text-white text-[10px] font-black px-4 py-1.5 rounded-full shadow-xl">GENUINE PART</span>
+                                        <span className="bg-primary text-white text-[10px] font-black px-4 py-1.5 rounded-full shadow-xl flex items-center gap-1.5 backdrop-blur-md">
+                                            <BadgeCheck size={14} /> GENUINE PART
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -40,40 +89,63 @@ export default function PartDetailPage({ params }: { params: Promise<{ id: strin
                             <div className="bg-white rounded-[2.5rem] shadow-premium border border-gray-100 p-10">
                                 <h2 className="text-3xl font-black mb-10 text-secondary tracking-tight">Technical <span className="text-primary italic">Specifications</span></h2>
                                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-                                    <SpecItem label="Manufacturer" value={part.brand} icon="🏭" />
+                                    <SpecItem label="Manufacturer" value={part.brand} icon={<Settings />} />
                                     <SpecItem label="Model" value={part.partName} icon="🏷️" />
-                                    <SpecItem label="Condition" value={part.condition || 'New'} icon="✨" />
-                                    <SpecItem label="Category" value={part.category || 'Mechanical'} icon="📦" />
-                                    <SpecItem label="Compatibility" value={part.compatibility || 'Universal'} icon="⚙️" />
-                                    <SpecItem label="Origin" value="Japan" icon="🌏" />
-                                    <SpecItem label="Warranty" value="6 Months" icon="🛡️" />
-                                    <SpecItem label="Stock Status" value={part.stockStatus || 'In Stock'} icon="📊" />
+                                    <SpecItem label="Condition" value={part.condition} icon="✨" />
+                                    <SpecItem label="Category" value={part.category} icon={<Package />} />
+                                    <SpecItem label="Compatibility" value={part.compatibility} icon="⚙️" />
+                                    <SpecItem label="Origin" value="Global" icon="🌏" />
+                                    <SpecItem label="Warranty" value="Verified Quality" icon={<ShieldCheck />} />
+                                    <SpecItem label="Stock Status" value={part.stockStatus} icon="📊" />
                                 </div>
                             </div>
 
                             <div className="bg-white rounded-[2.5rem] shadow-premium border border-gray-100 p-10">
                                 <h2 className="text-2xl font-black mb-6 text-secondary tracking-tight">Technical Description</h2>
                                 <p className="text-gray-600 leading-relaxed font-medium">
-                                    High-performance {part.brand} {part.partName} designed for industrial embroidery machines. This component ensures high precision and longevity even under heavy workload. 
-                                    Compatible with {part.compatibility}. All units go through rigorous quality control before dispatch.
+                                    {part.description}
                                     <br /><br />
-                                    For bulk orders or technical assembly support, please contact our authorized service center.
+                                    For bulk orders or technical assembly support, please contact our authorized industrial solutions team. All units go through rigorous quality control before dispatch.
                                 </p>
                             </div>
                         </div>
 
                         {/* Right Column: Contact & Price */}
                         <aside className="w-full lg:w-[400px] space-y-6">
-                            <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-secondary/5 border border-gray-100 p-10 md:sticky md:top-24 mt-2 lg:mt-0">
+                            <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-secondary/5 border border-gray-100 p-10 md:sticky md:top-32 mt-2 lg:mt-0">
                                 <div className="mb-8">
                                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Part Investment</p>
-                                    <p className="text-secondary text-4xl font-black tracking-tighter">PKR {part.price.toLocaleString()}</p>
-                                    <p className="text-gray-400 text-[10px] font-bold mt-2 flex items-center gap-1.5 uppercase tracking-wider italic">
+                                    <div className="flex items-baseline gap-1">
+                                        <span className="text-secondary text-base font-bold">PKR</span>
+                                        <p className="text-secondary text-5xl font-black tracking-tighter">{part.price.toLocaleString()}</p>
+                                    </div>
+                                    <div className="text-gray-400 text-[10px] font-bold mt-4 flex items-center gap-1.5 uppercase tracking-wider italic">
                                         <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Available for immediate dispatch
-                                    </p>
+                                    </div>
                                 </div>
 
-                                <p className="text-gray-500 text-sm font-bold mb-8 flex items-center gap-2">📍 {part.location}, Pakistan</p>
+                                <div className="p-4 bg-muted rounded-2xl mb-8 flex items-center gap-3">
+                                    <div className="p-2 bg-white rounded-lg shadow-sm text-primary">
+                                        <MapPin size={18} />
+                                    </div>
+                                    <p className="text-gray-600 text-sm font-bold">{part.location}, Pakistan</p>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <button className="w-full bg-secondary text-white py-5 rounded-[1.5rem] font-black text-sm tracking-widest hover:bg-slate-800 transition-all active:scale-[0.98] shadow-xl shadow-secondary/20">VIEW CONTACT NUMBER</button>
+                                    <Link href="/contact" className="block">
+                                        <button className="w-full border-2 border-primary text-primary py-5 rounded-[1.5rem] font-black text-sm tracking-widest hover:bg-primary/5 transition-all">SEND INQUIRY</button>
+                                    </Link>
+                                </div>
+
+                                <div className="mt-10 pt-10 border-t border-gray-100 flex items-center gap-5">
+                                    <div className="w-14 h-14 bg-gradient-to-br from-gray-50 to-gray-200 rounded-2xl flex items-center justify-center text-xl shadow-inner border border-white">⚙️</div>
+                                    <div>
+                                        <p className="font-black text-secondary tracking-tight">Industrial Provider</p>
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Verified Seller • Pakistan</p>
+                                    </div>
+                                </div>
+                            </div>
 
                                 <div className="space-y-4">
                                     <button className="w-full bg-secondary text-white py-5 rounded-[1.5rem] font-black text-sm tracking-widest hover:bg-slate-800 transition-all active:scale-[0.98] shadow-xl shadow-secondary/20">VIEW CONTACT NUMBER</button>
