@@ -5,6 +5,29 @@ import dbConnect from '@/lib/dbConn';
 import Car from '@/lib/models/Car';
 import Link from 'next/link';
 import { ArrowLeft, MapPin, ShieldCheck, Settings, Package, BadgeCheck } from 'lucide-react';
+import type { Metadata } from 'next';
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+    const { id } = await params;
+    await dbConnect();
+    const partDoc: any = await Car.findById(id).lean();
+    
+    if (!partDoc) return { title: 'Part Not Found | SanatKaar' };
+    
+    const title = `${partDoc.model || 'Machine Part'} - ${partDoc.make || 'Industrial'} | SanatKaar`;
+    const description = partDoc.description?.substring(0, 160) || `High-quality industrial ${partDoc.model} machine part. Verified and available for immediate dispatch in Pakistan.`;
+    
+    return {
+        title,
+        description,
+        openGraph: {
+            title,
+            description,
+            images: partDoc.images?.[0] ? [{ url: partDoc.images[0] }] : [],
+        }
+    };
+}
+
 
 export default async function PartDetailPage({ params }: { params: Promise<{ id: string }> }) {
     await dbConnect();
@@ -75,6 +98,7 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
                                         src={part.image}
                                         alt={part.partName}
                                         fill
+                                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 800px"
                                         className="object-cover transition-transform duration-700 group-hover:scale-105"
                                         priority
                                     />
@@ -139,20 +163,6 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
                                 </div>
 
                                 <div className="mt-10 pt-10 border-t border-gray-100 flex items-center gap-5">
-                                    <div className="w-14 h-14 bg-gradient-to-br from-gray-50 to-gray-200 rounded-2xl flex items-center justify-center text-xl shadow-inner border border-white">⚙️</div>
-                                    <div>
-                                        <p className="font-black text-secondary tracking-tight">Industrial Provider</p>
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Verified Seller • Pakistan</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                                <div className="space-y-4">
-                                    <button className="w-full bg-secondary text-white py-5 rounded-[1.5rem] font-black text-sm tracking-widest hover:bg-slate-800 transition-all active:scale-[0.98] shadow-xl shadow-secondary/20">VIEW CONTACT NUMBER</button>
-                                    <button className="w-full border-2 border-primary text-primary py-5 rounded-[1.5rem] font-black text-sm tracking-widest hover:bg-primary/5 transition-all">SEND INQUIRY</button>
-                                </div>
-
-                                <div className="mt-10 pt-10 border-t border-gray-100 flex items-center gap-5">
                                     <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center text-xl shadow-inner border border-gray-100">👤</div>
                                     <div>
                                         <p className="font-black text-secondary tracking-tight">Sajid Industrial Solutions</p>
@@ -160,6 +170,7 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
                                     </div>
                                 </div>
                             </div>
+
 
                             {/* Sidebar Ad */}
                             <div className="bg-[#131b2f] text-white p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">

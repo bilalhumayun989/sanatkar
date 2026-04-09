@@ -10,6 +10,7 @@ export interface Part {
   condition: string; // "New", "Used", etc.
   stockStatus: string;
   category: string;
+  createdAt?: string;
 }
 
 export const mockCars: any[] = [ // Keeping name as mockCars for now to avoid breaking imports everywhere immediately, but updating content
