@@ -7,6 +7,8 @@ export interface Part {
   location: string;
   image: string;
   featured?: boolean;
+  isFeatured?: boolean;
+  sellerRole?: string;
   condition: string; // "New", "Used", etc.
   stockStatus: string;
   category: string;

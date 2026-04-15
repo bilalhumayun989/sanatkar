@@ -12,6 +12,7 @@ interface User {
 interface AuthContextType {
     user: User | null;
     isAdmin: boolean;
+    isSeller: boolean;
     loading: boolean;
     refreshAuth: () => Promise<void>;
 }
@@ -44,9 +45,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const isAdmin = user?.role === 'admin';
+    const isSeller = user?.role === 'seller' || user?.role === 'admin';
 
     return (
-        <AuthContext.Provider value={{ user, isAdmin, loading, refreshAuth }}>
+        <AuthContext.Provider value={{ user, isAdmin, isSeller, loading, refreshAuth }}>
             {children}
         </AuthContext.Provider>
     );

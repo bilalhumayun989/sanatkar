@@ -5,19 +5,20 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useAuth } from '@/lib/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Package, Eye, EyeOff, AlertCircle, LogOut, Camera, ArrowRight, User, Lock, Save, Send, Loader2, X, Plus, Star, ChevronDown } from 'lucide-react';
 
 function SellerContent() {
-    const { isAdmin, loading: authLoading } = useAuth();
+    const { user: authUser, loading: authLoading } = useAuth();
     const router = useRouter();
     const searchParams = useSearchParams();
     const editId = searchParams?.get('id');
 
     useEffect(() => {
-        if (!authLoading && !isAdmin) {
-            router.push('/');
+        if (!authLoading && !authUser) {
+            router.push('/login');
         }
-    }, [isAdmin, authLoading, router]);
+    }, [authUser, authLoading, router]);
 
     const [user, setUser] = useState<any>(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -49,10 +50,10 @@ function SellerContent() {
     const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 
     useEffect(() => {
-        if (!authLoading && !isAdmin) {
-            router.push('/');
+        if (!authLoading && !authUser) {
+            router.push('/login');
         }
-    }, [isAdmin, authLoading, router]);
+    }, [authUser, authLoading, router]);
 
     useEffect(() => {
         const checkAuth = async () => {
@@ -267,7 +268,7 @@ function SellerContent() {
         }
     };
 
-    if (authLoading || !isAdmin) {
+    if (authLoading || !authUser) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-white">
                 <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -307,7 +308,7 @@ function SellerContent() {
                                     <div className="w-20 h-20 bg-primary rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-xl shadow-primary/20 rotate-3 hover:rotate-0 transition-transform duration-500">
                                         <Package size={40} className="text-white" />
                                     </div>
-                                    <h1 className="text-3xl font-black text-white tracking-tight mb-2">Inventory Portal</h1>
+                                    <h1 className="text-3xl font-black text-white tracking-tight mb-2">Trader Portal</h1>
                                     <p className="text-gray-400 text-sm font-medium tracking-wide">Enter your credentials to list your parts</p>
                                 </div>
 
@@ -383,7 +384,7 @@ function SellerContent() {
                                             <span className="text-[10px] font-mono font-bold text-primary bg-primary/10 px-2 py-1 rounded">seller123</span>
                                         </div>
                                     </div>
-                                    <p className="text-[10px] text-gray-600 font-medium">© 2026 SANATKAR Industrial Network</p>
+                                    <p className="text-[10px] text-gray-600 font-medium">© 2026 SANATKAR Trader Network</p>
                                 </div>
                             </div>
                         </div>
@@ -435,6 +436,21 @@ function SellerContent() {
                                 <Package size={28} className="text-primary" />
                             </div>
                         </div>
+
+                        {authUser?.role === 'user' && (
+                            <div className="mx-10 mt-6 bg-primary/10 border border-primary/20 rounded-2xl p-6 flex items-start gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                                <AlertCircle className="text-primary shrink-0 mt-1" size={24} />
+                                <div className="space-y-1">
+                                    <h4 className="text-sm font-black text-secondary tracking-tight">Free Usage Tier: 3 Listings Max</h4>
+                                    <p className="text-xs text-gray-600 font-medium leading-relaxed">
+                                        As a regular user, you can list up to 3 products for free. To unlock unlimited listings and professional seller trust badges, 
+                                        <Link href="/seller/signup" className="text-primary font-bold hover:underline ml-1">
+                                            Register as a Professional Seller
+                                        </Link>.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
 
                         <form onSubmit={handlePublish} className="p-10 space-y-12">
                             {publishSuccess && (

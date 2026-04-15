@@ -15,6 +15,7 @@ export interface ICar {
     mileage: number;
     location: string;
     status: 'available' | 'sold';
+    isFeatured: boolean;
     createdAt: Date;
 }
 
@@ -77,6 +78,10 @@ const CarSchema: Schema = new Schema({
         type: String,
         enum: ['available', 'sold'],
         default: 'available',
+    },
+    isFeatured: {
+        type: Boolean,
+        default: false,
     },
     createdAt: {
         type: Date,

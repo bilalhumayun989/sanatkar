@@ -121,6 +121,7 @@ export const translations = {
         load_more_parts: 'Load More Parts',
         new_arrival: 'NEW ARRIVAL',
         featured_badge: 'FEATURED',
+        featured_by_sanatkar: 'FEATURED BY SANATKAR',
         part_price: 'Part Price',
 
         // Features
@@ -283,6 +284,7 @@ export const translations = {
         load_more_parts: 'مزید پرزے لوڈ کریں',
         new_arrival: 'نئی آمد',
         featured_badge: 'نمایاں',
+        featured_by_sanatkar: 'صنعت کار کی جانب سے نمایاں',
         part_price: 'پرزے کی قیمت',
     }
 };

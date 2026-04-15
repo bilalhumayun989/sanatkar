@@ -38,9 +38,9 @@ export default function PartCard({ part }: PartCardProps) {
                     <span className="bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg shadow-primary/20 backdrop-blur-sm">
                         {t('new_arrival')}
                     </span>
-                    {part.featured && (
+                    {part.isFeatured && (
                         <span className="bg-secondary text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg backdrop-blur-sm">
-                            {t('featured_badge')}
+                            {t('featured_by_sanatkar')}
                         </span>
                     )}
                 </div>
@@ -61,7 +61,9 @@ export default function PartCard({ part }: PartCardProps) {
                     <h3 className="text-secondary font-black text-lg leading-tight group-hover:text-primary transition-colors tracking-tight">
                         {part.brand} <span className="font-medium text-gray-500">{part.partName}</span>
                     </h3>
-                    <span className="text-primary font-bold text-[10px] bg-primary/5 px-2 py-0.5 rounded-lg uppercase tracking-wider">{part.category}</span>
+                    <span className="text-primary font-bold text-[10px] bg-primary/5 px-2 py-0.5 rounded-lg uppercase tracking-wider">
+                        {part.sellerRole === 'admin' ? 'SanatKaar' : (part.category || 'General')}
+                    </span>
                 </div>
 
                 <div className="flex items-center gap-1.5 text-gray-400 mb-5">

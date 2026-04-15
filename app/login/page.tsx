@@ -105,6 +105,15 @@ export default function LoginPage() {
                             </div>
                         </div>
 
+                        <div className="flex justify-end -mt-4">
+                            <Link 
+                                href="/forgot-password" 
+                                className="text-sm text-primary font-medium hover:underline transition-all"
+                            >
+                                Forgot Password?
+                            </Link>
+                        </div>
+
                         {error && (
                             <div className="animate-in slide-in-from-top-2 bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium rounded-xl px-4 py-3 flex items-center gap-3">
                                 {error}
@@ -130,11 +139,17 @@ export default function LoginPage() {
                         </button>
                     </form>
 
-                    <div className="mt-8 pt-6 border-t border-white/5 text-center">
+                    <div className="mt-8 pt-6 border-t border-white/5 text-center flex flex-col gap-3">
                         <p className="text-sm text-gray-400">
                             Don't have an account?{' '}
                             <Link href="/signup" className="text-primary font-bold hover:underline">
                                 Sign up
+                            </Link>
+                        </p>
+                        <p className="text-xs text-gray-500">
+                            Professional trader?{' '}
+                            <Link href="/seller/signup" className="text-gray-400 hover:text-white transition-colors underline">
+                                Register as a Seller
                             </Link>
                         </p>
                     </div>

@@ -35,7 +35,7 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
     
     let partDoc;
     try {
-        partDoc = await Car.findById(id).lean();
+        partDoc = await Car.findById(id).populate('seller', 'name role').lean();
     } catch (err) {
         console.error('Fetch error:', err);
     }
@@ -165,8 +165,12 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
                                 <div className="mt-10 pt-10 border-t border-gray-100 flex items-center gap-5">
                                     <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center text-xl shadow-inner border border-gray-100">👤</div>
                                     <div>
-                                        <p className="font-black text-secondary tracking-tight">Sajid Industrial Solutions</p>
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Verified Seller • 12 years</p>
+                                        <p className="font-black text-secondary tracking-tight">
+                                            {(partDoc as any).seller?.role === 'admin' ? 'SanatKaar' : ((partDoc as any).seller?.name || 'Sajid Industrial Solutions')}
+                                        </p>
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                                            {(partDoc as any).seller?.role === 'admin' ? 'Verified Platform Partner' : 'Verified Seller • 12 years'}
+                                        </p>
                                     </div>
                                 </div>
                             </div>

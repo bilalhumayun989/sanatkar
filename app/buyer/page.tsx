@@ -53,7 +53,8 @@ export default function BuyerPage() {
                     compatibility: item.mileage || 'Universal',
                     condition: item.fuelType || 'New',
                     stockStatus: item.transmission || 'In Stock',
-                    featured: item.status === 'available',
+                    isFeatured: item.isFeatured,
+                    sellerRole: item.seller?.role,
                     category: item.category || 'General',
                     createdAt: item.createdAt || new Date().toISOString()
                 }));

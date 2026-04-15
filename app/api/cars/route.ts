@@ -7,7 +7,9 @@ import { verifyToken } from '@/lib/auth';
 export async function GET() {
     try {
         await dbConnect();
-        const cars = await Car.find({ status: 'available' }).sort({ createdAt: -1 });
+        const cars = await Car.find({ status: 'available' })
+            .populate('seller', 'name role')
+            .sort({ createdAt: -1 });
         return NextResponse.json(cars, { status: 200 });
     } catch (error: any) {
         return NextResponse.json({ message: error.message }, { status: 500 });
@@ -29,6 +31,22 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ message: 'Session expired, please log in again' }, { status: 401 });
         }
 
+        // Fetch user to check role
+        const user = await User.findById(decoded.id);
+        if (!user) {
+            return NextResponse.json({ message: 'User not found' }, { status: 404 });
+        }
+
+        // Limit check for regular users
+        if (user.role === 'user') {
+            const listingCount = await Car.countDocuments({ seller: user._id });
+            if (listingCount >= 3) {
+                return NextResponse.json({ 
+                    message: 'Regular users are limited to 3 listings. Please upgrade to a Seller account for unlimited listings.' 
+                }, { status: 403 });
+            }
+        }
+
         const body = await req.json();
         const { make, model, year, price, description, condition, mileage, location, images } = body;
 
@@ -43,6 +61,7 @@ export async function POST(req: NextRequest) {
             location,
             images: images || [],
             seller: decoded.id,
+            isFeatured: user.role === 'admin',
         });
 
         return NextResponse.json(newCar, { status: 201 });
