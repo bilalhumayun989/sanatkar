@@ -6,16 +6,16 @@ import Image from 'next/image';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { useAuth } from '@/lib/AuthContext';
-import {
-    ShieldCheck,
-    Lock,
-    Truck,
-    ChevronLeft,
-    CreditCard,
-    MapPin,
-    Phone,
-    User,
-    CheckCircle2,
+import { 
+    ShieldCheck, 
+    Lock, 
+    Truck, 
+    ChevronLeft, 
+    CreditCard, 
+    MapPin, 
+    Phone, 
+    User, 
+    CheckCircle2, 
     Loader2,
     ArrowRight,
     Minus,
@@ -60,7 +60,7 @@ export default function CheckoutPage() {
         if (productId) fetchProduct();
     }, [productId]);
 
-    // Redirect if not logged in
+    // Ladlay if not logged in
     useEffect(() => {
         if (!authLoading && !user) {
             router.push(`/login?redirect=/checkout/${productId}`);
@@ -124,10 +124,10 @@ export default function CheckoutPage() {
                     <h1 className="text-4xl font-black text-secondary mb-4 tracking-tight">Order Placed <span className="text-primary italic">Successfully!</span></h1>
                     <p className="text-gray-500 text-lg mb-2 font-medium">Thank you for your purchase. Your order ID is <span className="text-secondary font-black">#{orderId.substring(orderId.length - 8).toUpperCase()}</span></p>
                     <p className="text-gray-400 mb-10">The seller will contact you shortly to coordinate the dispatch of your item.</p>
-
+                    
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
                         <Link href="/buyer" className="btn-primary w-full py-5 rounded-[1.5rem] flex items-center justify-center gap-2">
-                            Continue Shopping <ArrowRight size={18} />
+                             Continue Shopping <ArrowRight size={18} />
                         </Link>
                         <button onClick={() => window.print()} className="w-full border-2 border-secondary/10 text-secondary py-5 rounded-[1.5rem] font-black hover:bg-gray-50 transition-all">
                             Print Invoice
@@ -142,7 +142,7 @@ export default function CheckoutPage() {
     return (
         <div className="min-h-screen flex flex-col bg-[#fafafa]">
             <Navbar forceSolid />
-
+            
             <main className="flex-grow pt-24 md:pt-32 pb-16 px-4">
                 <div className="max-w-6xl mx-auto">
                     {/* Header */}
@@ -166,19 +166,19 @@ export default function CheckoutPage() {
                                     <div className="p-2 bg-primary/10 text-primary rounded-xl"><MapPin size={20} /></div>
                                     Shipping Information
                                 </h2>
-
+                                
                                 <form id="checkout-form" onSubmit={handleSubmit} className="space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="space-y-2">
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Full Name</label>
                                             <div className="relative">
                                                 <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                                                <input
+                                                <input 
                                                     required
-                                                    type="text"
+                                                    type="text" 
                                                     placeholder="John Doe"
                                                     value={formData.fullName}
-                                                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                                                    onChange={(e) => setFormData({...formData, fullName: e.target.value})}
                                                     className="w-full bg-gray-50 border border-transparent focus:border-primary/20 focus:bg-white rounded-[1.2rem] py-4 pl-12 pr-4 outline-none transition-all font-medium"
                                                 />
                                             </div>
@@ -187,12 +187,12 @@ export default function CheckoutPage() {
                                             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Phone Number</label>
                                             <div className="relative">
                                                 <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                                                <input
+                                                <input 
                                                     required
-                                                    type="tel"
+                                                    type="tel" 
                                                     placeholder="+92 300 1234567"
                                                     value={formData.phone}
-                                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
                                                     className="w-full bg-gray-50 border border-transparent focus:border-primary/20 focus:bg-white rounded-[1.2rem] py-4 pl-12 pr-4 outline-none transition-all font-medium"
                                                 />
                                             </div>
@@ -203,12 +203,12 @@ export default function CheckoutPage() {
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Complete Address</label>
                                         <div className="relative">
                                             <MapPin className="absolute left-4 top-4 text-gray-400" size={18} />
-                                            <textarea
+                                            <textarea 
                                                 required
                                                 rows={3}
                                                 placeholder="Street address, apartment, suite, unit, etc."
                                                 value={formData.address}
-                                                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                                                onChange={(e) => setFormData({...formData, address: e.target.value})}
                                                 className="w-full bg-gray-50 border border-transparent focus:border-primary/20 focus:bg-white rounded-[1.2rem] py-4 pl-12 pr-4 outline-none transition-all font-medium resize-none"
                                             ></textarea>
                                         </div>
@@ -216,10 +216,10 @@ export default function CheckoutPage() {
 
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">City</label>
-                                        <select
+                                        <select 
                                             required
                                             value={formData.city}
-                                            onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                                            onChange={(e) => setFormData({...formData, city: e.target.value})}
                                             className="w-full bg-gray-50 border border-transparent focus:border-primary/20 focus:bg-white rounded-[1.2rem] py-4 px-6 outline-none transition-all font-bold text-secondary appearance-none cursor-pointer shadow-sm"
                                         >
                                             <option value="">Select your city</option>
@@ -255,7 +255,7 @@ export default function CheckoutPage() {
                         <aside className="w-full lg:w-[400px]">
                             <div className="bg-white rounded-[2.5rem] shadow-premium border border-gray-100 p-8 sticky top-32">
                                 <h2 className="text-xl font-black text-secondary mb-8">Order Summary</h2>
-
+                                
                                 {product && (
                                     <div className="space-y-6">
                                         <div className="flex items-center gap-4 py-4 border-b border-gray-100">
@@ -273,7 +273,7 @@ export default function CheckoutPage() {
                                         <div className="bg-gray-50 rounded-2xl p-4 flex items-center justify-between">
                                             <span className="text-xs font-black text-secondary uppercase tracking-wider">Quantity</span>
                                             <div className="flex items-center gap-4">
-                                                <button
+                                                <button 
                                                     type="button"
                                                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
                                                     className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-secondary hover:text-primary transition-colors hover:border-primary/20"
@@ -281,7 +281,7 @@ export default function CheckoutPage() {
                                                     <Minus size={14} />
                                                 </button>
                                                 <span className="font-black text-secondary w-4 text-center">{quantity}</span>
-                                                <button
+                                                <button 
                                                     type="button"
                                                     onClick={() => setQuantity(quantity + 1)}
                                                     className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-secondary hover:text-primary transition-colors hover:border-primary/20"
@@ -306,7 +306,7 @@ export default function CheckoutPage() {
                                             </div>
                                         </div>
 
-                                        <button
+                                        <button 
                                             form="checkout-form"
                                             disabled={submitting}
                                             className="w-full bg-primary text-white py-5 rounded-[1.5rem] font-black text-sm tracking-widest hover:bg-primary-dark transition-all active:scale-[0.98] shadow-xl shadow-primary/20 flex items-center justify-center gap-3 mt-4 disabled:opacity-50 disabled:cursor-not-allowed group uppercase"
