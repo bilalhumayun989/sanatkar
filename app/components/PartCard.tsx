@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Part } from '../data/mockData';
-import { Settings, RotateCcw, Package, MapPin, Heart, ArrowRight } from 'lucide-react';
+import { Settings, RotateCcw, Package, MapPin, Heart, ArrowRight, User } from 'lucide-react';
 import { useState } from 'react';
 import { useLanguage } from '@/lib/LanguageContext';
 
@@ -66,10 +66,23 @@ export default function PartCard({ part }: PartCardProps) {
                     </span>
                 </div>
 
-                <div className="flex items-center gap-1.5 text-gray-400 mb-5">
+                <div className="flex items-center gap-1.5 text-gray-400 mb-3">
                     <MapPin size={12} className="text-primary/60" />
                     <span className="text-[10px] font-bold uppercase tracking-wider">{part.location}</span>
                 </div>
+
+                {part.sellerId && (
+                    <Link 
+                        href={`/seller-profile/${part.sellerId}`} 
+                        className="flex items-center gap-1.5 text-primary mb-4 p-2 bg-primary/5 rounded-xl border border-primary/10 hover:bg-primary/10 transition-all group/seller"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <User size={12} className="group-hover/seller:scale-110 transition-transform" />
+                        <span className="text-[10px] font-black uppercase tracking-widest truncate">
+                            {part.sellerRole === 'admin' ? 'SanatKaar Official' : (part.sellerName || 'Verified Seller')}
+                        </span>
+                    </Link>
+                )}
 
                 {/* Specs Grid */}
                 <div className="grid grid-cols-3 gap-1 mb-6 bg-muted/50 rounded-2xl p-3 border border-gray-100/50">

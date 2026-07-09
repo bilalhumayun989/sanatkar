@@ -1,50 +1,21 @@
-import mongoose from 'mongoose';
-import dns from 'dns';
+import { PrismaClient } from '@prisma/client'
+import { Pool } from 'pg'
+import { PrismaPg } from '@prisma/adapter-pg'
 
-// Explicitly define global DNS servers to Google and Cloudflare to bypass local network restrictions.
-dns.setServers(['8.8.8.8', '1.1.1.1']);
+const connectionString = `${process.env.DATABASE_URL}`
 
-const MONGODB_URI = process.env.MONGODB_URI || process.env.DATABASE_URL;
+const prismaClientSingleton = () => {
+  const pool = new Pool({ connectionString })
+  const adapter = new PrismaPg(pool)
+  return new PrismaClient({ adapter })
+}
 
 declare global {
-    var mongoose: any; // This must be a `var` and not a `let / const`
+  var prismaGlobal: undefined | ReturnType<typeof prismaClientSingleton>
 }
 
-let cached = global.mongoose;
+const prisma = globalThis.prismaGlobal ?? prismaClientSingleton()
 
-if (!cached) {
-    cached = global.mongoose = { conn: null, promise: null };
-}
+export default prisma
 
-async function dbConnect() {
-    if (cached.conn) {
-        return cached.conn;
-    }
-
-    if (!MONGODB_URI || MONGODB_URI.startsWith('file:')) {
-        throw new Error('Please define the MONGODB_URI environment variable pointing to your MongoDB Atlas cluster inside .env.local');
-    }
-
-    if (!cached.promise) {
-        const opts = {
-            bufferCommands: false,
-            family: 4, // Force IPv4
-        };
-
-
-        cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
-            return mongoose;
-        });
-    }
-
-    try {
-        cached.conn = await cached.promise;
-    } catch (e) {
-        cached.promise = null;
-        throw e;
-    }
-
-    return cached.conn;
-}
-
-export default dbConnect;
+if (process.env.NODE_ENV !== 'production') globalThis.prismaGlobal = prisma

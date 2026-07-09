@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/dbConn';
-import User from '@/lib/models/User';
+import prisma from '@/lib/dbConn';
 import bcrypt from 'bcryptjs';
 import { signToken } from '@/lib/auth';
 
 export async function POST(request: Request) {
     try {
-        await dbConnect();
+        // await dbConnect();
         const { email, password } = await request.json();
 
         if (!email || !password) {
@@ -40,7 +39,7 @@ export async function POST(request: Request) {
             return response;
         }
 
-        const user = await User.findOne({ email }).select('+password');
+        const user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
             return NextResponse.json({ success: false, message: 'Invalid credentials' }, { status: 401 });
         }
@@ -55,7 +54,7 @@ export async function POST(request: Request) {
 
 
         const token = await signToken({
-            id: user._id.toString(),
+            id: user.id,
             email: user.email,
             role: user.role,
         });
@@ -63,7 +62,7 @@ export async function POST(request: Request) {
         const response = NextResponse.json({
             success: true,
             message: 'Logged in successfully',
-            user: { id: user._id, name: user.name, email: user.email, role: user.role }
+            user: { id: user.id, name: user.name, email: user.email, role: user.role }
         });
 
         response.cookies.set({

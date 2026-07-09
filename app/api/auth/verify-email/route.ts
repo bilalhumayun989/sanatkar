@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/dbConn';
-import User from '@/lib/models/User';
+import prisma from '@/lib/dbConn';
 
 export async function GET(request: Request) {
     try {
-        await dbConnect();
+        // await dbConnect();
         
         const { searchParams } = new URL(request.url);
         const token = searchParams.get('token');
@@ -13,8 +12,8 @@ export async function GET(request: Request) {
             return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 400 });
         }
 
-        const user = await User.findOne({
-            verifyToken: token,
+        const user = await prisma.user.findFirst({
+            where: { verifyToken: token },
         });
 
         console.log('Verification attempt for token:', token);
@@ -35,10 +34,14 @@ export async function GET(request: Request) {
         }
 
         // Mark as verified
-        user.isVerified = true;
-        user.verifyToken = undefined;
-        user.verifyTokenExpire = undefined;
-        await user.save();
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                isVerified: true,
+                verifyToken: null,
+                verifyTokenExpire: null,
+            }
+        });
 
         return NextResponse.json({
             success: true,

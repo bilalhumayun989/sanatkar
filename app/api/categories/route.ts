@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/dbConn';
-import Category from '@/lib/models/Category';
+import prisma from '@/lib/dbConn';
 
 export async function GET() {
     try {
-        await dbConnect();
-        const categories = await Category.find({}).sort({ isPopular: -1, name: 1 });
+        const categories = await prisma.category.findMany({
+            orderBy: [
+                { isPopular: 'desc' },
+                { name: 'asc' }
+            ]
+        });
         return NextResponse.json({ success: true, categories });
     } catch (error: any) {
         return NextResponse.json({ success: false, message: error.message }, { status: 500 });
@@ -14,19 +17,26 @@ export async function GET() {
 
 export async function POST(req: Request) {
     try {
-        await dbConnect();
+        // await dbConnect();
         const { name } = await req.json();
 
         if (!name) {
             return NextResponse.json({ success: false, message: 'Name is required' }, { status: 400 });
         }
 
-        const existing = await Category.findOne({ name: { $regex: new RegExp(`^${name}$`, 'i') } });
+        const existing = await prisma.category.findFirst({
+            where: {
+                name: {
+                    equals: name,
+                    mode: 'insensitive'
+                }
+            }
+        });
         if (existing) {
             return NextResponse.json({ success: false, message: 'Category already exists' }, { status: 400 });
         }
 
-        const category = await Category.create({ name });
+        const category = await prisma.category.create({ data: { name } });
         return NextResponse.json({ success: true, category });
     } catch (error: any) {
         return NextResponse.json({ success: false, message: error.message }, { status: 500 });

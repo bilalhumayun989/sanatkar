@@ -1,22 +1,20 @@
 import Image from 'next/image';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
-import dbConnect from '@/lib/dbConn';
-import Car from '@/lib/models/Car';
+import prisma from '@/lib/dbConn';
 import Link from 'next/link';
-import { ArrowLeft, MapPin, ShieldCheck, Settings, Package, BadgeCheck } from 'lucide-react';
+import { ArrowLeft, MapPin, ShieldCheck, Settings, Package, BadgeCheck, ExternalLink, ShoppingCart, Clock, Truck, ShieldAlert } from 'lucide-react';
 import type { Metadata } from 'next';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
     const { id } = await params;
-    await dbConnect();
-    const partDoc: any = await Car.findById(id).lean();
-    
+    const partDoc = await prisma.car.findUnique({ where: { id } });
+
     if (!partDoc) return { title: 'Part Not Found | SanatKaar' };
-    
+
     const title = `${partDoc.model || 'Machine Part'} - ${partDoc.make || 'Industrial'} | SanatKaar`;
     const description = partDoc.description?.substring(0, 160) || `High-quality industrial ${partDoc.model} machine part. Verified and available for immediate dispatch in Pakistan.`;
-    
+
     return {
         title,
         description,
@@ -30,12 +28,14 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 
 export default async function PartDetailPage({ params }: { params: Promise<{ id: string }> }) {
-    await dbConnect();
     const { id } = await params;
-    
-    let partDoc;
+
+    let partDoc: any = null;
     try {
-        partDoc = await Car.findById(id).populate('seller', 'name role').lean();
+        partDoc = await prisma.car.findUnique({
+            where: { id },
+            include: { seller: { select: { id: true, name: true, role: true } } },
+        });
     } catch (err) {
         console.error('Fetch error:', err);
     }
@@ -59,7 +59,7 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
 
     // Map DB fields to UI fields
     const part = {
-        id: partDoc._id.toString(),
+        id: partDoc.id,
         brand: partDoc.make || 'General',
         partName: partDoc.model || 'Machine Part',
         price: partDoc.price || 0,
@@ -76,24 +76,23 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
         <div className="min-h-screen flex flex-col bg-[#fafafa]">
             <Navbar forceSolid />
 
-            <main className="flex-grow pt-32 pb-8 px-4">
+            <main className="flex-grow pt-24 md:pt-32 pb-8 px-4">
                 <div className="max-w-7xl mx-auto">
-                    {/* Breadcrumbs */}
-                    <div className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-8 flex items-center gap-2">
-                        <Link href="/" className="hover:text-primary transition-colors">HOME</Link> 
-                        <span>/</span> 
-                        <Link href="/buyer" className="hover:text-primary transition-colors">INDUSTRIAL PARTS</Link> 
-                        <span>/</span> 
-                        {part.brand.toUpperCase()} 
-                        <span>/</span> 
-                        <span className="text-primary">{part.partName.toUpperCase()}</span>
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-8 overflow-x-auto whitespace-nowrap pb-2 no-scrollbar">
+                        <Link href="/" className="hover:text-primary transition-colors flex-shrink-0">HOME</Link>
+                        <span className="opacity-30">/</span>
+                        <Link href="/buyer" className="hover:text-primary transition-colors flex-shrink-0">MARKETPLACE</Link>
+                        <span className="opacity-30">/</span>
+                        <span className="text-gray-300 flex-shrink-0">{part.brand.toUpperCase()}</span>
+                        <span className="opacity-30">/</span>
+                        <span className="text-primary font-black flex-shrink-0 truncate max-w-[200px]">{part.partName.toUpperCase()}</span>
                     </div>
 
                     <div className="flex flex-col lg:flex-row gap-8">
                         {/* Left Column: Images & Specs */}
                         <div className="flex-1 space-y-8">
                             <div className="bg-white rounded-[2.5rem] shadow-premium border border-gray-100 overflow-hidden group relative">
-                                <div className="h-[400px] md:h-[600px] w-full relative">
+                                <div className="h-[300px] sm:h-[450px] md:h-[600px] w-full relative">
                                     <Image
                                         src={part.image}
                                         alt={part.partName}
@@ -110,9 +109,9 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
                                 </div>
                             </div>
 
-                            <div className="bg-white rounded-[2.5rem] shadow-premium border border-gray-100 p-10">
-                                <h2 className="text-3xl font-black mb-10 text-secondary tracking-tight">Technical <span className="text-primary italic">Specifications</span></h2>
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+                            <div className="bg-white rounded-[2.5rem] shadow-premium border border-gray-100 p-8 md:p-12">
+                                <h2 className="text-3xl md:text-4xl font-black mb-8 md:mb-12 text-secondary tracking-tight">Technical <span className="text-primary italic">Specifications</span></h2>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
                                     <SpecItem label="Manufacturer" value={part.brand} icon={<Settings />} />
                                     <SpecItem label="Model" value={part.partName} icon="🏷️" />
                                     <SpecItem label="Condition" value={part.condition} icon="✨" />
@@ -124,24 +123,53 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
                                 </div>
                             </div>
 
-                            <div className="bg-white rounded-[2.5rem] shadow-premium border border-gray-100 p-10">
-                                <h2 className="text-2xl font-black mb-6 text-secondary tracking-tight">Technical Description</h2>
-                                <p className="text-gray-600 leading-relaxed font-medium">
+                            <div className="bg-white rounded-[2.5rem] shadow-premium border border-gray-100 p-8 md:p-12">
+                                <h2 className="text-3xl font-black mb-6 text-secondary tracking-tight">Part <span className="text-primary">Background</span> & Details</h2>
+                                <p className="text-gray-600 leading-[1.8] font-medium mb-10 text-lg">
                                     {part.description}
-                                    <br /><br />
-                                    For bulk orders or technical assembly support, please contact our authorized industrial solutions team. All units go through rigorous quality control before dispatch.
                                 </p>
+
+                                {/* Trust Badges */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8 border-t border-gray-100">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center text-green-600 shadow-sm border border-green-100/50">
+                                            <ShieldCheck size={28} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-black text-secondary uppercase tracking-tight">Secure Payment</p>
+                                            <p className="text-xs text-gray-400 font-bold">100% Protected</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 shadow-sm border border-blue-100/50">
+                                            <Truck size={28} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-black text-secondary uppercase tracking-tight">Fast Dispatch</p>
+                                            <p className="text-xs text-gray-400 font-bold">24-48 Hour Shipping</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 shadow-sm border border-purple-100/50">
+                                            <Clock size={28} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-black text-secondary uppercase tracking-tight">24/7 Support</p>
+                                            <p className="text-xs text-gray-400 font-bold">Expert Assistance</p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
                         {/* Right Column: Contact & Price */}
                         <aside className="w-full lg:w-[400px] space-y-6">
-                            <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-secondary/5 border border-gray-100 p-10 md:sticky md:top-32 mt-2 lg:mt-0">
+                            <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-secondary/5 border border-gray-100 p-6 md:p-10 lg:sticky lg:top-32 mt-2 lg:mt-0">
                                 <div className="mb-8">
                                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2">Part Investment</p>
-                                    <div className="flex items-baseline gap-1">
-                                        <span className="text-secondary text-base font-bold">PKR</span>
-                                        <p className="text-secondary text-5xl font-black tracking-tighter">{part.price.toLocaleString()}</p>
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="text-primary text-xl font-black">PKR</span>
+                                        <p className="text-secondary text-5xl md:text-6xl font-black tracking-tighter tabular-nums leading-none">{part.price.toLocaleString()}</p>
                                     </div>
                                     <div className="text-gray-400 text-[10px] font-bold mt-4 flex items-center gap-1.5 uppercase tracking-wider italic">
                                         <span className="inline-block w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Available for immediate dispatch
@@ -156,38 +184,67 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
                                 </div>
 
                                 <div className="space-y-4">
-                                    <button className="w-full bg-secondary text-white py-5 rounded-[1.5rem] font-black text-sm tracking-widest hover:bg-slate-800 transition-all active:scale-[0.98] shadow-xl shadow-secondary/20">VIEW CONTACT NUMBER</button>
-                                    <Link href="/contact" className="block">
-                                        <button className="w-full border-2 border-primary text-primary py-5 rounded-[1.5rem] font-black text-sm tracking-widest hover:bg-primary/5 transition-all">SEND INQUIRY</button>
+                                    <Link href={`/checkout/${id}`} className="block">
+                                        <button className="w-full bg-primary text-white py-5 rounded-[1.5rem] font-black text-sm tracking-widest hover:bg-primary-dark transition-all active:scale-[0.98] shadow-xl shadow-primary/20 flex items-center justify-center gap-3 uppercase">
+                                            <ShoppingCart size={20} /> BUY NOW
+                                        </button>
                                     </Link>
+                                    <button className="w-full group/report border-2 border-dashed border-gray-100 text-gray-400 py-5 rounded-[1.5rem] font-black text-sm tracking-widest hover:border-red-100 hover:text-red-500 hover:bg-red-50/50 transition-all flex items-center justify-center gap-3 uppercase">
+                                        <ShieldAlert size={20} className="group-hover/report:scale-110 transition-transform" /> REPORT PRODUCT
+                                    </button>
                                 </div>
 
-                                <div className="mt-10 pt-10 border-t border-gray-100 flex items-center gap-5">
-                                    <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center text-xl shadow-inner border border-gray-100">👤</div>
+                                <Link href={`/seller-profile/${partDoc.seller?.id || ''}`} className="mt-10 pt-10 border-t border-gray-100 flex items-center gap-5 group/seller transition-all hover:bg-gray-50/50 p-4 rounded-3xl -mx-4 cursor-pointer">
+                                    <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center text-xl shadow-inner border border-gray-100 group-hover/seller:bg-white group-hover/seller:shadow-md transition-all">👤</div>
                                     <div>
-                                        <p className="font-black text-secondary tracking-tight">
-                                            {(partDoc as any).seller?.role === 'admin' ? 'SanatKaar' : ((partDoc as any).seller?.name || 'Sajid Industrial Solutions')}
+                                        <p className="font-black text-secondary tracking-tight group-hover/seller:text-primary transition-colors flex items-center gap-2">
+                                            {partDoc.seller?.role === 'admin' ? 'SanatKaar' : (partDoc.seller?.name || 'Sajid Industrial Solutions')}
+                                            <ExternalLink size={12} className="opacity-0 group-hover/seller:opacity-100 transition-opacity" />
                                         </p>
                                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                                            {(partDoc as any).seller?.role === 'admin' ? 'Verified Platform Partner' : 'Verified Seller • 12 years'}
+                                            {partDoc.seller?.role === 'admin' ? 'Verified Platform Partner' : 'Verified Seller • 12 years'}
                                         </p>
                                     </div>
-                                </div>
+                                </Link>
                             </div>
 
 
-                            {/* Sidebar Ad */}
-                            <div className="bg-[#131b2f] text-white p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
+                            {/* Sidebar Info */}
+                            <div className="bg-secondary text-white p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-[60px] -mr-16 -mt-16"></div>
                                 <div className="relative z-10">
-                                    <h3 className="font-black text-2xl mb-3 tracking-tight">Need Machine <span className="text-primary italic">Servicing</span>?</h3>
-                                    <p className="text-sm text-gray-400 font-medium mb-8 leading-relaxed">Book a certified technician for your {part.brand} machines starting from PKR 5,000.</p>
-                                    <button className="bg-primary text-white px-8 py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-primary-dark transition-all shadow-xl shadow-primary/20">Book Technician</button>
+                                    <h3 className="!text-white text-2xl mb-4 tracking-tight">Safe <span className="text-primary italic">Transactions</span></h3>
+                                    <ul className="space-y-4">
+                                        <li className="flex items-start gap-3 text-sm text-gray-400 font-medium">
+                                            <div className="w-5 h-5 bg-primary/20 rounded-full flex-shrink-0 flex items-center justify-center text-primary text-[10px]">✓</div>
+                                            Verified machine components only
+                                        </li>
+                                        <li className="flex items-start gap-3 text-sm text-gray-400 font-medium">
+                                            <div className="w-5 h-5 bg-primary/20 rounded-full flex-shrink-0 flex items-center justify-center text-primary text-[10px]">✓</div>
+                                            Secure SanatKaar payment protection
+                                        </li>
+                                        <li className="flex items-start gap-3 text-sm text-gray-400 font-medium">
+                                            <div className="w-5 h-5 bg-primary/20 rounded-full flex-shrink-0 flex items-center justify-center text-primary text-[10px]">✓</div>
+                                            24/7 technical support available
+                                        </li>
+                                    </ul>
                                 </div>
-                                <div className="absolute -right-6 -bottom-6 text-7xl opacity-5 rotate-12 group-hover:rotate-0 transition-all duration-700">⚙️</div>
                             </div>
                         </aside>
                     </div>
+                </div>
+
+                {/* Mobile Sticky Buy Bar */}
+                <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-gray-100 p-4 z-[90] flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-500">
+                    <div>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Price</p>
+                        <p className="text-secondary font-black text-xl tracking-tight">PKR {part.price.toLocaleString()}</p>
+                    </div>
+                    <Link href={`/checkout/${id}`} className="flex-1">
+                        <button className="w-full bg-primary text-white py-4 rounded-2xl font-black text-sm tracking-widest hover:bg-primary-dark transition-all active:scale-[0.95] shadow-lg shadow-primary/20 flex items-center justify-center gap-2">
+                            <ShoppingCart size={18} /> BUY NOW
+                        </button>
+                    </Link>
                 </div>
             </main>
 

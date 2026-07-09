@@ -1,20 +1,19 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/dbConn';
-import User from '@/lib/models/User';
+import prisma from '@/lib/dbConn';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { sendVerificationEmail } from '@/lib/mail';
 
 export async function POST(request: Request) {
     try {
-        await dbConnect();
+        // await dbConnect();
         const { name, email, password, role, pakwheelsUrl, darazUrl } = await request.json();
 
         if (!name || !email || !password) {
             return NextResponse.json({ success: false, message: 'Please provide name, email and password' }, { status: 400 });
         }
 
-        const userExists = await User.findOne({ email });
+        const userExists = await prisma.user.findUnique({ where: { email } });
         if (userExists) {
             return NextResponse.json({ success: false, message: 'User already exists' }, { status: 400 });
         }
@@ -26,16 +25,18 @@ export async function POST(request: Request) {
         const verifyToken = crypto.randomBytes(32).toString('hex');
         const verifyTokenExpire = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-        const user = await User.create({
-            name,
-            email,
-            password: hashedPassword,
-            role: role || 'user',
-            pakwheelsUrl: role === 'seller' ? pakwheelsUrl : undefined,
-            darazUrl: role === 'seller' ? darazUrl : undefined,
-            isVerified: false,
-            verifyToken,
-            verifyTokenExpire,
+        const user = await prisma.user.create({
+            data: {
+                name,
+                email,
+                password: hashedPassword,
+                role: role || 'user',
+                pakwheelsUrl: role === 'seller' ? pakwheelsUrl : undefined,
+                darazUrl: role === 'seller' ? darazUrl : undefined,
+                isVerified: false,
+                verifyToken,
+                verifyTokenExpire,
+            }
         });
 
         // Send verification email
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
         return NextResponse.json({
             success: true,
             message: 'Registration successful! Please check your email to verify your account.',
-            user: { id: user._id, name: user.name, email: user.email, role: user.role }
+            user: { id: user.id, name: user.name, email: user.email, role: user.role }
         }, { status: 201 });
 
     } catch (error: any) {

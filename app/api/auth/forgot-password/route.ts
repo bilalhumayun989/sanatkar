@@ -1,19 +1,17 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/dbConn';
-import User from '@/lib/models/User';
+import prisma from '@/lib/dbConn';
 import crypto from 'crypto';
 import { sendPasswordResetEmail } from '@/lib/mail';
 
 export async function POST(request: Request) {
     try {
-        await dbConnect();
         const { email } = await request.json();
 
         if (!email) {
             return NextResponse.json({ success: false, message: 'Please provide an email' }, { status: 400 });
         }
 
-        const user = await User.findOne({ email });
+        const user = await prisma.user.findUnique({ where: { email } });
 
         if (!user) {
             // To prevent email enumeration, we still return a success message
@@ -27,9 +25,13 @@ export async function POST(request: Request) {
         const resetToken = crypto.randomBytes(32).toString('hex');
         const resetTokenExpire = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-        user.resetPasswordToken = resetToken;
-        user.resetPasswordExpire = resetTokenExpire;
-        await user.save();
+        await prisma.user.update({
+            where: { email },
+            data: {
+                resetPasswordToken: resetToken,
+                resetPasswordExpire: resetTokenExpire,
+            },
+        });
 
         // Send reset email
         try {

@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/dbConn';
-import User from '@/lib/models/User';
+import prisma from '@/lib/dbConn';
 import bcrypt from 'bcryptjs';
 
 export async function POST(request: Request) {
     try {
-        await dbConnect();
         const { token, password } = await request.json();
 
         if (!token || !password) {
@@ -16,9 +14,11 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: false, message: 'Password should be at least 6 characters' }, { status: 400 });
         }
 
-        const user = await User.findOne({
-            resetPasswordToken: token,
-            resetPasswordExpire: { $gt: Date.now() }
+        const user = await prisma.user.findFirst({
+            where: {
+                resetPasswordToken: token,
+                resetPasswordExpire: { gt: new Date() },
+            },
         });
 
         if (!user) {
@@ -30,10 +30,14 @@ export async function POST(request: Request) {
         const hashedPassword = await bcrypt.hash(password, salt);
 
         // Update password and clear reset fields
-        user.password = hashedPassword;
-        user.resetPasswordToken = undefined;
-        user.resetPasswordExpire = undefined;
-        await user.save();
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                password: hashedPassword,
+                resetPasswordToken: null,
+                resetPasswordExpire: null,
+            },
+        });
 
         return NextResponse.json({
             success: true,

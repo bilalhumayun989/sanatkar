@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/dbConn';
-import Car from '@/lib/models/Car';
+import prisma from '@/lib/dbConn';
 import { verifyToken } from '@/lib/auth';
 
 async function verifyAdmin(req: NextRequest) {
@@ -18,8 +17,8 @@ export async function GET(req: NextRequest) {
         if (!admin) {
             return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
         }
-        await dbConnect();
-        const cars = await Car.find({}).populate('seller', 'name email').sort({ createdAt: -1 });
+        // await dbConnect();
+        const cars = await prisma.car.findMany({ include: { seller: { select: { name: true, email: true } } }, orderBy: { createdAt: 'desc' } });
         return NextResponse.json({ success: true, cars });
     } catch (error: any) {
         return NextResponse.json({ message: error.message }, { status: 500 });
@@ -34,8 +33,8 @@ export async function DELETE(req: NextRequest) {
             return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
         }
         const { id } = await req.json();
-        await dbConnect();
-        await Car.findByIdAndDelete(id);
+        // await dbConnect();
+        await prisma.car.delete({ where: { id } });
         return NextResponse.json({ success: true, message: 'Car deleted' });
     } catch (error: any) {
         return NextResponse.json({ message: error.message }, { status: 500 });

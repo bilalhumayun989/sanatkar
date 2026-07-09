@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/dbConn';
-import User from '@/lib/models/User';
+import prisma from '@/lib/dbConn';
 import { verifyToken } from '@/lib/auth';
 
 async function verifyAdmin(req: NextRequest) {
@@ -17,8 +16,8 @@ export async function GET(req: NextRequest) {
         if (!admin) {
             return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
         }
-        await dbConnect();
-        const users = await User.find({}).select('-password').sort({ createdAt: -1 });
+        // await dbConnect();
+        const users = await prisma.user.findMany({ select: { id: true, name: true, email: true, role: true, isVerified: true, createdAt: true, pakwheelsUrl: true, darazUrl: true }, orderBy: { createdAt: 'desc' } });
         return NextResponse.json({ success: true, users });
     } catch (error: any) {
         return NextResponse.json({ message: error.message }, { status: 500 });
@@ -33,8 +32,8 @@ export async function DELETE(req: NextRequest) {
             return NextResponse.json({ message: 'Admin access required' }, { status: 403 });
         }
         const { id } = await req.json();
-        await dbConnect();
-        await User.findByIdAndDelete(id);
+        // await dbConnect();
+        await prisma.user.delete({ where: { id } });
         return NextResponse.json({ success: true, message: 'User deleted' });
     } catch (error: any) {
         return NextResponse.json({ message: error.message }, { status: 500 });

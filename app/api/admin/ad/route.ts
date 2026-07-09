@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/dbConn';
-import Ad from '@/lib/models/Ad';
+import prisma from '@/lib/dbConn';
 import { verifyToken } from '@/lib/auth';
 
 export async function PUT(request: Request) {
@@ -15,27 +14,30 @@ export async function PUT(request: Request) {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
         }
 
-        await dbConnect();
+        // await dbConnect();
         
         const body = await request.json();
         const { title, description, buttonText, buttonLink, imageUrl, badgeText, isActive } = body;
 
         // Try to find the existing config, else create a new one
-        let adContent = await Ad.findOne();
+        let adContent = await prisma.ad.findFirst();
 
         if (adContent) {
-            adContent.title = title ?? adContent.title;
-            adContent.description = description ?? adContent.description;
-            adContent.buttonText = buttonText ?? adContent.buttonText;
-            adContent.buttonLink = buttonLink ?? adContent.buttonLink;
-            adContent.imageUrl = imageUrl ?? adContent.imageUrl;
-            adContent.badgeText = badgeText ?? adContent.badgeText;
-            adContent.isActive = isActive !== undefined ? isActive : adContent.isActive;
-            
-            await adContent.save();
+            adContent = await prisma.ad.update({
+                where: { id: adContent.id },
+                data: {
+                    title: title ?? adContent.title,
+                    description: description ?? adContent.description,
+                    buttonText: buttonText ?? adContent.buttonText,
+                    buttonLink: buttonLink ?? adContent.buttonLink,
+                    imageUrl: imageUrl ?? adContent.imageUrl,
+                    badgeText: badgeText ?? adContent.badgeText,
+                    isActive: isActive !== undefined ? isActive : adContent.isActive
+                }
+            });
         } else {
-             adContent = await Ad.create({
-                 title, description, buttonText, buttonLink, imageUrl, badgeText, isActive
+             adContent = await prisma.ad.create({
+                 data: { title, description, buttonText, buttonLink, imageUrl, badgeText, isActive }
              });
         }
 

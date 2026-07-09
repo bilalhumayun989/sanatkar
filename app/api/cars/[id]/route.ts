@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/dbConn';
-import Car from '@/lib/models/Car';
+import prisma from '@/lib/dbConn';
 import { verifyToken } from '@/lib/auth';
 
 export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
     try {
-        await dbConnect();
         const params = await props.params;
-        const car = await Car.findById(params.id);
+        const car = await prisma.car.findUnique({ where: { id: params.id } });
         if (!car) {
             return NextResponse.json({ message: 'Car not found' }, { status: 404 });
         }
@@ -19,10 +17,6 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
 
 export async function PUT(req: NextRequest, props: { params: Promise<{ id: string }> }) {
     try {
-        await dbConnect();
-
-        // Optional: you can restrict editing to owner or admin.
-        // For now, let's just make sure they're logged in.
         const token = req.cookies.get('auth_token')?.value;
         if (!token) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
@@ -34,20 +28,35 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
 
         const body = await req.json();
         const params = await props.params;
-        
-        // Find existing car to ensure it exists
-        const existingCar = await Car.findById(params.id);
+
+        // Ensure car exists
+        const existingCar = await prisma.car.findUnique({ where: { id: params.id } });
         if (!existingCar) {
             return NextResponse.json({ message: 'Car not found' }, { status: 404 });
         }
-        
-        // Optionally map body back to schema
-        // The frontend sends make, model, year, etc.
-        const updatedCar = await Car.findByIdAndUpdate(
-            params.id,
-            { ...body },
-            { new: true, runValidators: true }
-        );
+
+        // Only allow updating relevant fields
+        const { make, model, year, price, description, condition, mileage, location, images, status, isFeatured, fuelType, transmission, category } = body;
+
+        const updatedCar = await prisma.car.update({
+            where: { id: params.id },
+            data: {
+                ...(make !== undefined && { make }),
+                ...(model !== undefined && { model }),
+                ...(year !== undefined && { year: Number(year) }),
+                ...(price !== undefined && { price: Number(price) }),
+                ...(description !== undefined && { description }),
+                ...(condition !== undefined && { condition }),
+                ...(mileage !== undefined && { mileage: Number(mileage) }),
+                ...(location !== undefined && { location }),
+                ...(images !== undefined && { images }),
+                ...(status !== undefined && { status }),
+                ...(isFeatured !== undefined && { isFeatured }),
+                ...(fuelType !== undefined && { fuelType }),
+                ...(transmission !== undefined && { transmission }),
+                ...(category !== undefined && { category }),
+            },
+        });
 
         return NextResponse.json(updatedCar, { status: 200 });
     } catch (error: any) {

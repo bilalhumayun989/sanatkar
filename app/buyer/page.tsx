@@ -44,7 +44,7 @@ export default function BuyerPage() {
                 
                 const list = Array.isArray(data) ? data : (data.data ?? []);
                 const mappedParts: any[] = list.map((item: any) => ({
-                    id: item._id,
+                    id: item.id,
                     brand: item.make,
                     partName: item.model,
                     price: item.price,
@@ -55,6 +55,8 @@ export default function BuyerPage() {
                     stockStatus: item.transmission || 'In Stock',
                     isFeatured: item.isFeatured,
                     sellerRole: item.seller?.role,
+                    sellerId: item.seller?.id,
+                    sellerName: item.seller?.name,
                     category: item.category || 'General',
                     createdAt: item.createdAt || new Date().toISOString()
                 }));

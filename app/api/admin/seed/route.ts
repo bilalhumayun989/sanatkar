@@ -1,30 +1,33 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/dbConn';
-import User from '@/lib/models/User';
+import prisma from '@/lib/dbConn';
 import bcrypt from 'bcryptjs';
 
 // One-time seed route to create/reset admin user
 // Call GET /api/admin/seed to create the admin
 export async function GET() {
     try {
-        await dbConnect();
-
         const email = 'admin@pakwheels.com';
         const plainPassword = 'admin123';
 
         const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
         // Upsert: update if exists, create if not
-        const admin = await User.findOneAndUpdate(
-            { email },
-            {
+        await prisma.user.upsert({
+            where: { email },
+            update: {
+                name: 'Admin',
+                password: hashedPassword,
+                role: 'admin',
+                isVerified: true,
+            },
+            create: {
                 name: 'Admin',
                 email,
                 password: hashedPassword,
                 role: 'admin',
+                isVerified: true,
             },
-            { upsert: true, new: true, runValidators: false }
-        );
+        });
 
         return NextResponse.json({
             success: true,
