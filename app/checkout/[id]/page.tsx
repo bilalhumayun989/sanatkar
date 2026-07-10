@@ -60,7 +60,7 @@ export default function CheckoutPage() {
         if (productId) fetchProduct();
     }, [productId]);
 
-    // Redirect if not logged in
+    // Ladlay if not logged in
     useEffect(() => {
         if (!authLoading && !user) {
             router.push(`/login?redirect=/checkout/${productId}`);
