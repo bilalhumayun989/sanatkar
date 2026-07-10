@@ -10,11 +10,10 @@ export default function Footer() {
     const { isAdmin } = useAuth();
     return (
         <footer className="relative bg-secondary text-white pt-24 pb-12 overflow-hidden border-t border-white/5" id="contact">
-            {/* Animated Ambient Background Gradients */}
+    
             <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3 pointer-events-none opacity-60"></div>
             <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[150px] translate-y-1/3 -translate-x-1/3 pointer-events-none opacity-50"></div>
 
-            {/* Grid Pattern Overlay */}
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))] opacity-[0.03] pointer-events-none"></div>
 
             <div className="container-wide relative z-10">
