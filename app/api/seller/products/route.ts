@@ -12,8 +12,8 @@ export async function GET(request: NextRequest) {
         }
 
         const payload = await verifyToken(token);
-        if (!payload) {
-            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        if (!payload || !payload.id) {
+            return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 403 });
         }
 
         const products = await prisma.car.findMany({

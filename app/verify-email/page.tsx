@@ -80,12 +80,12 @@ function VerifyEmailContent() {
 
                     {status === 'error' && (
                         <div className="flex flex-col items-center">
-                            <XCircle className="w-16 h-16 text-red-500 mb-6" />
+                            <XCircle className="w-16 h-16 text-amber-500 mb-6" />
                             <h1 className="text-2xl font-bold text-white mb-2">Verification Failed</h1>
                             <p className="text-gray-400 mb-8">{message}</p>
                             <Link 
                                 href="/signup"
-                                className="w-full bg-primary text-white py-4 rounded-xl font-bold text-sm tracking-wide hover:bg-primary-dark transition-all duration-300 shadow-[0_0_20px_rgba(239,68,68,0.3)]"
+                                className="w-full bg-primary text-white py-4 rounded-xl font-bold text-sm tracking-wide hover:bg-primary-dark transition-all duration-300 shadow-[0_0_20px_rgba(37,99,235,0.3)]"
                             >
                                 Try Signing Up Again
                             </Link>

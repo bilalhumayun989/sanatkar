@@ -23,6 +23,7 @@ export default function LoginPage() {
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
                 body: JSON.stringify({ email, password }),
             });
 
@@ -43,22 +44,24 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0a0f1c] flex items-center justify-center px-4 relative overflow-hidden pt-20">
+        <div className="min-h-screen bg-[#000] flex items-center justify-center px-4 relative overflow-hidden pt-20">
             {/* Ambient Background Effects */}
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-[120px] pointer-events-none opacity-60"></div>
-            <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-secondary/30 rounded-full blur-[150px] pointer-events-none opacity-40"></div>
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-black rounded-full blur-[120px] pointer-events-none opacity-60"></div>
+            <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[150px] pointer-events-none opacity-40"></div>
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-center opacity-[0.02] pointer-events-none"></div>
 
             <div className="w-full max-w-md relative z-10 fade-in-up">
                 {/* Header */}
                 <div className="text-center mb-8">
                     <Link href="/" className="inline-flex items-center gap-2 mb-6 group transition-transform active:scale-95">
-                        <div className="bg-primary p-2.5 rounded-2xl group-hover:rotate-6 transition-all duration-300 shadow-lg shadow-primary/20">
-                            <Package size={26} className="text-white" />
-                        </div>
-                        <div className="flex flex-col leading-tight text-left">
-                            <span className="text-xl font-black tracking-tighter text-white uppercase italic">SANAT<span className="text-primary">KAR</span></span>
-                        </div>
+                       
+                       <div className="flex items-center">
+  <img
+    src="/logo.png"
+    alt="Sanatkar Logo"
+    className="h-10 w-auto object-contain"
+  />
+</div>
                     </Link>
 
                     <h1 className="text-3xl font-bold text-white! mb-2">Welcome Back</h1>
@@ -115,7 +118,7 @@ export default function LoginPage() {
                         </div>
 
                         {error && (
-                            <div className="animate-in slide-in-from-top-2 bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium rounded-xl px-4 py-3 flex items-center gap-3">
+                            <div className="animate-in slide-in-from-top-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-medium rounded-xl px-4 py-3 flex items-center gap-3">
                                 {error}
                             </div>
                         )}
@@ -123,7 +126,7 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-primary text-white py-4 rounded-xl font-bold text-sm tracking-wide hover:bg-primary-dark transition-all duration-300 shadow-[0_0_20px_rgba(239,68,68,0.3)] hover:shadow-[0_0_30px_rgba(239,68,68,0.5)] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:shadow-none flex items-center justify-center gap-2 group mt-8"
+                            className="w-full bg-primary text-white py-4 rounded-xl font-bold text-sm tracking-wide hover:bg-primary-dark transition-all duration-300 shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:shadow-[0_0_30px_rgba(37,99,235,0.5)] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:shadow-none flex items-center justify-center gap-2 group mt-8"
                         >
                             {loading ? (
                                 <>

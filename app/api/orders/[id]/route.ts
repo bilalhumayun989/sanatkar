@@ -5,9 +5,10 @@ import { verifyToken } from '@/lib/auth';
 
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const token = request.cookies.get('auth_token')?.value;
 
         if (!token) {
@@ -24,18 +25,17 @@ export async function PATCH(
             return NextResponse.json({ success: false, message: 'Status is required' }, { status: 400 });
         }
 
-        const order = await prisma.order.findUnique({ where: { id: params.id } });
+        const order = await prisma.order.findUnique({ where: { id } });
         if (!order) {
             return NextResponse.json({ success: false, message: 'Order not found' }, { status: 404 });
         }
 
-        // Only the seller or an admin can update the status
         if (order.sellerId !== payload.id && payload.role !== 'admin') {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
         }
 
         const updatedOrder = await prisma.order.update({
-            where: { id: params.id },
+            where: { id },
             data: { status },
         });
 

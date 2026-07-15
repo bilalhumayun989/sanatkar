@@ -113,7 +113,7 @@ export default function ResetPasswordPage({ params }: { params: Promise<{ token:
                             </div>
 
                             {status === 'error' && (
-                                <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium rounded-xl px-4 py-3">
+                                <div className="bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-medium rounded-xl px-4 py-3">
                                     {message}
                                 </div>
                             )}
@@ -121,7 +121,7 @@ export default function ResetPasswordPage({ params }: { params: Promise<{ token:
                             <button
                                 type="submit"
                                 disabled={status === 'loading'}
-                                className="w-full bg-primary text-white py-4 rounded-xl font-bold text-sm tracking-wide hover:bg-primary-dark transition-all duration-300 shadow-[0_0_20px_rgba(239,68,68,0.3)] disabled:opacity-70 flex items-center justify-center gap-2"
+                                className="w-full bg-primary text-white py-4 rounded-xl font-bold text-sm tracking-wide hover:bg-primary-dark transition-all duration-300 shadow-[0_0_20px_rgba(37,99,235,0.3)] disabled:opacity-70 flex items-center justify-center gap-2"
                             >
                                 {status === 'loading' ? (
                                     <>

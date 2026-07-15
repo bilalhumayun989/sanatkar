@@ -1,17 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #e11d48;
-  /* More vibrant professional red */
-  --color-primary-dark: #be123c;
+  --color-primary: #2563eb;
+  /* Professional deep blue */
+  --color-primary-dark: #1d4ed8;
   --color-secondary: #0f172a;
   /* Slate 900 */
   --color-accent: #10b981;
+  
   /* Emerald 500 */
   --color-border: var(--border);
   --color-muted: var(--muted);
-  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-arimo), "Arimo", sans-serif;
 
   --shadow-premium: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
   --shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
@@ -57,7 +57,7 @@ h6 {
 
 /* Global Padding */
 body {
-  @apply px-[10px] md:px-0;
+  @apply px-[0px] md:px-0;
 }
 
 /* Professional Buttons */

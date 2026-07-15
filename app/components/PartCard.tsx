@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Part } from '../data/mockData';
-import { Settings, RotateCcw, Package, MapPin, Heart, ArrowRight, User } from 'lucide-react';
+import { Settings, Package, MapPin, Heart, Star } from 'lucide-react';
 import { useState } from 'react';
 import { useLanguage } from '@/lib/LanguageContext';
 
@@ -18,98 +18,94 @@ export default function PartCard({ part }: PartCardProps) {
 
     return (
         <div
-            className="card-premium group"
-            onMouseEnter={() => setIsHovered(true)}
+className="relative h-[420px] sm:h-[460px] lg:h-[550px] w-full rounded-[24px] sm:rounded-[28px] lg:rounded-[32px] overflow-hidden group block"            onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
-            <div className="relative h-56 w-full overflow-hidden">
-                <Image
-                    src={part.image}
-                    alt={`${part.brand} ${part.partName}`}
-                    fill
-                    className="object-cover transition-transform duration-700 group-hover:scale-110"
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                />
+            {/* Background Image */}
+            <Image
+                src={part.image}
+                alt={`${part.brand} ${part.partName}`}
+                fill
+                className="object-cover object-bottom transition-transform duration-700 group-hover:scale-110"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            />
 
-                {/* Overlay with Actions */}
-                <div className="absolute inset-0 bg-gradient-to-t from-secondary/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            {/* Same Color Overlay for all cards - Dark Slate/Black */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#15171a] via-[#15171a]/70 to-transparent/10"></div>
 
-                <div className="absolute top-4 left-4 flex gap-2">
-                    <span className="bg-primary text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg shadow-primary/20 backdrop-blur-sm">
-                        {t('new_arrival')}
-                    </span>
-                    {part.isFeatured && (
-                        <span className="bg-secondary text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg backdrop-blur-sm">
-                            {t('featured_by_sanatkar')}
-                        </span>
-                    )}
-                </div>
+            {/* Top Right Heart/Bookmark Icon */}
+            <button
+                onClick={(e) => { e.preventDefault(); setIsLiked(!isLiked); }}
+className="absolute top-4 right-4 sm:top-5 sm:right-5 p-2 sm:p-2.5 rounded-full bg-white/20 backdrop-blur-md text-white transition-all hover:bg-white hover:text-black z-10"            >
+                <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
+            </button>
 
-                <button
-                    onClick={(e) => { e.preventDefault(); setIsLiked(!isLiked); }}
-                    className={`absolute top-4 right-4 p-2 rounded-xl transition-all ${isLiked
-                        ? 'bg-primary text-white'
-                        : 'bg-white/20 text-white backdrop-blur-md hover:bg-white hover:text-primary shadow-lg'
-                        }`}
+            {/* Bottom Content Area */}
+            {/* Bottom Content Area */}
+            <div className="absolute bottom-0 left-0 w-full z-10 p-0">
+                <div
+                  className="
+relative
+border border-white/20
+bg-white/8
+backdrop-blur-sm
+p-4 sm:p-5 lg:p-6
+
+before:absolute
+before:top-0
+before:left-1/2
+before:-translate-x-1/2
+before:-translate-y-1/2
+before:h-16 sm:before:h-20
+before:w-full
+before:rounded-full
+before:bg-white/30
+before:blur-3xl
+before:content-['']
+"
                 >
-                    <Heart size={16} fill={isLiked ? "currentColor" : "none"} />
-                </button>
-            </div>
+                    {/* Title and Price Row */}
+                    <div className="flex justify-between items-start mb-2 gap-3">
+                        <div className="text-white font-bold text-lg sm:text-xl lg:text-2xl leading-tight tracking-tight">
+                            {part.brand}{" "}
+                            <span className="font-medium text-white/90">
+                                {part.partName}
+                            </span>
+                        </div>
 
-            <div className="p-6">
-                <div className="flex justify-between items-start mb-1">
-                    <h3 className="text-secondary font-black text-lg leading-tight group-hover:text-primary transition-colors tracking-tight">
-                        {part.brand} <span className="font-medium text-gray-500">{part.partName}</span>
-                    </h3>
-                    <span className="text-primary font-bold text-[10px] bg-primary/5 px-2 py-0.5 rounded-lg uppercase tracking-wider">
-                        {part.sellerRole === 'admin' ? 'SanatKaar' : (part.category || 'General')}
-                    </span>
-                </div>
-
-                <div className="flex items-center gap-1.5 text-gray-400 mb-3">
-                    <MapPin size={12} className="text-primary/60" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">{part.location}</span>
-                </div>
-
-                {part.sellerId && (
-                    <Link 
-                        href={`/seller-profile/${part.sellerId}`} 
-                        className="flex items-center gap-1.5 text-primary mb-4 p-2 bg-primary/5 rounded-xl border border-primary/10 hover:bg-primary/10 transition-all group/seller"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <User size={12} className="group-hover/seller:scale-110 transition-transform" />
-                        <span className="text-[10px] font-black uppercase tracking-widest truncate">
-                            {part.sellerRole === 'admin' ? 'SanatKaar Official' : (part.sellerName || 'Verified Seller')}
+                        <span className="text-white font-bold text-xs sm:text-sm bg-white/20 backdrop-blur-md px-2.5 sm:px-3 py-1.5 rounded-xl whitespace-nowrap">
+                            {language === "ur" ? "روپے" : "PKR"}{" "}
+                            {part.price.toLocaleString()}
                         </span>
-                    </Link>
-                )}
+                    </div>
 
-                {/* Specs Grid */}
-                <div className="grid grid-cols-3 gap-1 mb-6 bg-muted/50 rounded-2xl p-3 border border-gray-100/50">
-                    <div className="flex flex-col items-center gap-1">
-                        <Settings size={14} className="text-gray-400" />
-                        <span className="text-[9px] font-bold text-secondary text-center leading-[1.1]">{part.compatibility}</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1 border-x border-gray-200/50">
-                        <RotateCcw size={14} className="text-gray-400" />
-                        <span className="text-[10px] font-bold text-secondary">{part.condition}</span>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                        <Package size={14} className="text-gray-400" />
-                        <span className="text-[10px] font-bold text-secondary">{part.stockStatus}</span>
-                    </div>
-                </div>
+                    {/* Description */}
+                    <p className="text-white/75 text-xs sm:text-[13px] mb-4 sm:mb-5 line-clamp-2 leading-relaxed">
+                        Genuine {part.brand} industrial parts for your machinery.
+                        Verified condition and ready for dispatch in {part.location}.
+                    </p>
 
-                <div className="flex items-center justify-between">
-                    <div>
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] mb-0.5">{t('part_price')}</p>
-                        <p className="text-secondary font-black text-xl tracking-tighter">{language === 'ur' ? 'روپے' : 'PKR'} {part.price.toLocaleString()}</p>
+                    {/* Tags */}
+                    <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
+                        <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-white/10 px-3.5 py-1.5 text-[11px] font-semibold text-white backdrop-blur-md">
+                            <Star size={12} />
+                            4.9
+                        </span>
+
+                        <span className="rounded-full border border-white/10 bg-white/10 px-3.5 py-1.5 text-[11px] font-semibold text-white backdrop-blur-md">
+                            {part.category || "General"}
+                        </span>
+
+                        <span className="rounded-full border border-white/10 bg-white/10 px-3.5 py-1.5 text-[11px] font-semibold text-white backdrop-blur-md">
+                            {part.condition}
+                        </span>
                     </div>
+
+                    {/* Button */}
                     <Link
                         href={`/buyer/${part.id}`}
-                        className="w-11 h-11 bg-secondary text-white rounded-xl flex items-center justify-center hover:bg-primary transition-all shadow-lg active:scale-95 group/btn"
-                    >
-                        <ArrowRight size={20} className="group-hover/btn:translate-x-0.5 transition-transform" />
+className="flex w-full items-center justify-center rounded-full bg-primary text-white py-3 sm:py-4 text-sm sm:text-[15px] font-bold transition hover:scale-[1.02]"                    >
+                        View Details
                     </Link>
                 </div>
             </div>

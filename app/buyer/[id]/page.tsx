@@ -43,7 +43,7 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
     if (!partDoc) {
         return (
             <div className="min-h-screen flex flex-col bg-white">
-                <Navbar forceSolid />
+                <Navbar />
                 <div className="flex-grow flex flex-col items-center justify-center p-8">
                     <div className="w-24 h-24 bg-gray-50 rounded-full flex items-center justify-center mb-6 text-4xl">🔍</div>
                     <h2 className="text-3xl font-black text-secondary mb-4">Part Not Found</h2>
@@ -74,7 +74,7 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
 
     return (
         <div className="min-h-screen flex flex-col bg-[#fafafa]">
-            <Navbar forceSolid />
+            <Navbar />
 
             <main className="flex-grow pt-24 md:pt-32 pb-8 px-4">
                 <div className="max-w-7xl mx-auto">

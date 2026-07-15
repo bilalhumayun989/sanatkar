@@ -2,202 +2,183 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { Menu, X, Phone, Package, Search, User, ChevronDown, LogOut, Languages, ShieldCheck } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Menu, X, Phone, Package, User, LogOut, Languages, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 
-export default function Navbar({ forceSolid = false }: { forceSolid?: boolean } = {}) {
+export default function Navbar() {
     const { language, toggleLanguage, t } = useLanguage();
-    const { user: authUser, isAdmin, refreshAuth } = useAuth();
+    const { user: authUser, isAdmin } = useAuth();
     const [menuOpen, setMenuOpen] = useState(false);
-    const [adDropdown, setAdDropdown] = useState(false);
-    const [scrolled, setScrolled] = useState(false);
+    const [isScrolled, setIsScrolled] = useState(false);
+    const pathname = usePathname();
 
-    useEffect(() => {
-        const handleScroll = () => {
-            setScrolled(window.scrollY > 10);
-        };
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
+    // Only home page has a dark hero — navbar starts transparent there
+    const isSolid = isScrolled || pathname !== '/';
 
     const handleLogout = async () => {
         await fetch('/api/auth/logout', { method: 'POST' });
         window.location.reload();
     };
 
+    // Lock body scroll when drawer is open
+    useEffect(() => {
+        document.body.style.overflow = menuOpen ? 'hidden' : '';
+        return () => { document.body.style.overflow = ''; };
+    }, [menuOpen]);
+
+    // Scroll listener for home page transparency
+    useEffect(() => {
+        const onScroll = () => setIsScrolled(window.scrollY > 20);
+        window.addEventListener('scroll', onScroll, { passive: true });
+        return () => window.removeEventListener('scroll', onScroll);
+    }, []);
+
     return (
-        <nav className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 ${(scrolled || forceSolid) ? 'glass py-2 shadow-premium' : 'bg-transparent py-6'
+        <>
+            {/* ── Navbar bar ── */}
+            <nav className={`fixed top-0 left-0 right-0 z-[100] py-4 text-white transition-all duration-500 ${
+                isSolid
+                    ? 'bg-[#0a0f1c]/95 backdrop-blur-2xl border-b border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.25)]'
+                    : 'bg-transparent'
             }`}>
-            <div className="container-wide">
-                <div className="flex justify-between items-center">
+                <div className="container mx-auto px-6 md:px-8 flex justify-between items-center">
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-2 group transition-transform active:scale-95">
-                        <div className="bg-primary p-2.5 rounded-2xl group-hover:rotate-6 transition-all duration-300 shadow-lg shadow-primary/20">
-                            <Package size={26} className="text-white" />
-                        </div>
-                        <div className="flex flex-col leading-tight">
-                            <span className="text-2xl font-black tracking-tighter text-secondary">{t('brand_name_1')}<span className="text-primary">{t('brand_name_2')}</span></span>
-                            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em]">{t('tagline')}</span>
-                        </div>
+                        <img src="/logo.png" alt="SanatHub Logo" width={170} height={45} className="h-10 w-30" />
                     </Link>
 
-                    {/* Desktop Navigation */}
-                    <div className="hidden md:flex items-center gap-10">
-                        <nav className="flex items-center gap-8">
-                            <Link href="/buyer" className="link-underline text-sm font-bold flex items-center gap-1">
-                                {t('buy_parts')}
+                    {/* Desktop links */}
+                    <div className="hidden md:flex items-center gap-8 text-sm font-bold">
+                        <Link href="/buyer" className="hover:text-gray-300 transition-colors">{t('buy_parts')}</Link>
+                        {authUser && (
+                            <Link href="/seller" className="hover:text-gray-300 transition-colors">{t('post_ad')}</Link>
+                        )}
+                        {isAdmin && (
+                            <Link href="/admin/dashboard" className="hover:text-gray-300 transition-colors flex items-center gap-2">
+                                <ShieldCheck size={16} /> Admin
                             </Link>
-                            {authUser && (
-                                <Link href="/seller" className="link-underline text-sm font-bold flex items-center gap-1">
-                                    {t('post_ad')}
-                                </Link>
-                            )}
-
-                            {isAdmin && (
-                                <Link href="/admin/dashboard" className="link-underline text-sm font-bold flex items-center gap-2 text-primary">
-                                    <ShieldCheck size={16} /> Admin
-                                </Link>
-                            )}
-
-                            <Link href="/contact" className="link-underline text-sm font-bold">
-                                {t('contact')}
-                            </Link>
-                        </nav>
-
-                        <div className="h-6 w-[px] bg-gray-200/50"></div>
-
-                        <div className="flex items-center gap-4">
-                            <button className="text-secondary hover:text-primary transition-all p-2.5 rounded-xl hover:bg-primary/5 active:scale-90">
-                                <Search size={20} />
-                            </button>
-                            {authUser ? (
-                                <div className="flex items-center gap-3">
-                                    <div className="hidden lg:flex items-center gap-2 bg-secondary/5 px-4 py-2.5 rounded-2xl border border-secondary/10">
-                                        <User size={16} className="text-secondary" />
-                                        <span className="text-sm font-bold text-secondary max-w-[120px] truncate">{authUser.name}</span>
-                                    </div>
-                                    <button onClick={handleLogout} className="flex items-center gap-2 bg-red-50 text-red-600 px-5 py-2.5 rounded-2xl font-bold text-sm hover:bg-red-100 transition-all hover:shadow-md active:scale-95 border border-red-100">
-                                        <LogOut size={16} /> {t('sign_out')}
-                                    </button>
-                                </div>
-                            ) : (
-                                <Link href="/login" className="flex items-center gap-2 bg-secondary text-white px-6 py-3 rounded-2xl font-bold text-sm hover:bg-slate-800 transition-all hover:shadow-lg active:scale-95">
-                                    <User size={18} /> {t('sign_in')}
-                                </Link>
-                            )}
-
-                            <button 
-                                onClick={toggleLanguage}
-                                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border-2 border-primary/20 text-primary font-black text-xs hover:bg-primary hover:text-white transition-all duration-300 active:scale-95"
-                            >
-                                <Languages size={14} />
-                                {language === 'en' ? 'اردو' : 'English'}
-                            </button>
-                        </div>
+                        )}
+                        <Link href="/contact" className="hover:text-gray-300 transition-colors">{t('contact')}</Link>
                     </div>
 
-                    {/* Mobile Menu Button */}
-                    <div className="md:hidden flex items-center gap-3">
+                    {/* Desktop actions */}
+                    <div className="hidden md:flex items-center gap-6">
                         {authUser ? (
-                            <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2.5 text-red-600 bg-red-50 rounded-xl font-bold text-sm border border-red-100">
-                                <LogOut size={18} /> {t('sign_out')}
-                            </button>
+                            <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                    <User size={18} />
+                                    <span className="text-sm font-bold max-w-[120px] truncate">{authUser.name}</span>
+                                </div>
+                                <button onClick={handleLogout} className="hover:text-gray-300 transition-colors">
+                                    <LogOut size={18} />
+                                </button>
+                            </div>
                         ) : (
-                            <Link href="/login" className="p-2.5 text-secondary bg-muted rounded-xl">
-                                <User size={22} />
+                            <Link href="/login" className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold backdrop-blur-md transition-all hover:bg-white/20">
+                                <User size={18} />
+                                {t('sign_in')}
                             </Link>
                         )}
-                        <button
-                            onClick={() => setMenuOpen(!menuOpen)}
-                            className="p-2.5 rounded-xl bg-primary text-white shadow-lg shadow-primary/20 transition-all active:scale-90"
-                        >
-                            {menuOpen ? <X size={24} /> : <Menu size={24} />}
+                        <button onClick={toggleLanguage} className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold backdrop-blur-md transition-all hover:bg-white/20">
+                            <Languages size={18} />
+                            {language === 'en' ? 'اردو' : 'EN'}
                         </button>
                     </div>
+
+                    {/* Mobile hamburger */}
+                    <button
+                        className="md:hidden text-white p-1"
+                        onClick={() => setMenuOpen(true)}
+                        aria-label="Open menu"
+                    >
+                        <Menu size={26} />
+                    </button>
+                </div>
+            </nav>
+
+            {/* ── Backdrop (outside nav, body-level z-index) ── */}
+            <div
+                className={`fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm md:hidden transition-opacity duration-300 ${
+                    menuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                }`}
+                onClick={() => setMenuOpen(false)}
+            />
+
+            {/* ── Slide drawer (outside nav) ── */}
+            <div className={`fixed top-0 right-0 h-full w-[78%] max-w-[320px] z-[210] bg-[#0a0f1c] border-l border-white/10 shadow-2xl flex flex-col md:hidden transition-transform duration-300 ease-out ${
+                menuOpen ? 'translate-x-0' : 'translate-x-full'
+            }`}>
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
+                    <img src="/logo.png" alt="SanatKar" className="h-8 w-auto" />
+                    <button
+                        onClick={() => setMenuOpen(false)}
+                        className="p-2 rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+
+                {/* Links */}
+                <nav className="flex-1 flex flex-col gap-1 px-4 py-6 overflow-y-auto">
+                    <Link href="/buyer" onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-white font-semibold text-sm hover:bg-white/10 transition-colors">
+                        <Package size={18} className="text-primary" />
+                        {t('buy_parts')}
+                    </Link>
+                    {authUser && (
+                        <Link href="/seller" onClick={() => setMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-white font-semibold text-sm hover:bg-white/10 transition-colors">
+                            <Package size={18} className="text-primary" />
+                            {t('post_ad')}
+                        </Link>
+                    )}
+                    {isAdmin && (
+                        <Link href="/admin/dashboard" onClick={() => setMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-white font-semibold text-sm hover:bg-white/10 transition-colors">
+                            <ShieldCheck size={18} className="text-primary" />
+                            Admin Panel
+                        </Link>
+                    )}
+                    <Link href="/contact" onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-white font-semibold text-sm hover:bg-white/10 transition-colors">
+                        <Phone size={18} className="text-primary" />
+                        {t('contact_us')}
+                    </Link>
+                </nav>
+
+                {/* Bottom */}
+                <div className="px-4 py-6 border-t border-white/10 flex flex-col gap-3">
+                    <button
+                        onClick={() => { toggleLanguage(); setMenuOpen(false); }}
+                        className="flex items-center gap-3 px-4 py-3 rounded-2xl text-white/80 font-semibold text-sm hover:bg-white/10 transition-colors w-full"
+                    >
+                        <Languages size={18} className="text-primary" />
+                        {language === 'en' ? 'اردو' : 'English'}
+                    </button>
+                    {authUser ? (
+                        <>
+                            <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/5 border border-white/10">
+                                <User size={18} className="text-primary shrink-0" />
+                                <span className="text-sm font-bold text-white truncate">{authUser.name}</span>
+                            </div>
+                            <button onClick={handleLogout}
+                                className="flex items-center gap-3 px-4 py-3 rounded-2xl text-amber-400 font-semibold text-sm hover:bg-amber-500/10 transition-colors w-full">
+                                <LogOut size={18} />
+                                {t('sign_out')}
+                            </button>
+                        </>
+                    ) : (
+                        <Link href="/login" onClick={() => setMenuOpen(false)}
+                            className="flex items-center justify-center gap-2 bg-primary text-white py-3.5 rounded-2xl font-bold text-sm hover:bg-primary-dark transition-colors">
+                            <User size={18} />
+                            {t('sign_in')}
+                        </Link>
+                    )}
                 </div>
             </div>
-
-            {/* Mobile Menu */}
-            <div className={`fixed inset-0 top-[72px] bg-white/95 backdrop-blur-xl z-[90] transition-all duration-500 md:hidden ${menuOpen ? 'translate-x-0 opacity-100' : 'translate-x-[10%] opacity-0 pointer-events-none'
-                }`}>
-                <div className="p-8 flex flex-col gap-8 h-full overflow-y-auto">
-                    <div className="space-y-4">
-                        <Link
-                            href="/buyer"
-                            className="flex items-center justify-between text-xl font-extrabold text-secondary p-5 rounded-3xl bg-muted/80 border border-border/50 hover:bg-muted transition-colors"
-                            onClick={() => setMenuOpen(false)}
-                        >
-                            {t('buy_parts')}
-                        </Link>
-
-                        {authUser && (
-                            <>
-                                {/* Classified Ad */}
-                                <Link
-                                    href="/seller"
-                                    className="flex items-center gap-5 text-lg font-black text-secondary p-5 rounded-3xl bg-muted/80 border border-border/50 hover:bg-muted transition-colors"
-                                    onClick={() => setMenuOpen(false)}
-                                >
-                                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm">
-                                        <Package size={24} />
-                                    </div>
-                                    <div>
-                                        <p>{t('sell_parts')}</p>
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{t('standard_classified')}</p>
-                                    </div>
-                                </Link>
-
-                            </>
-                        )}
-
-                        <Link
-                            href="/contact"
-                            className="block text-xl font-extrabold text-secondary p-5 rounded-3xl hover:bg-muted transition-colors"
-                            onClick={() => setMenuOpen(false)}
-                        >
-                            {t('contact_us')}
-                        </Link>
-                    </div>
-
-                    <div className="mt-auto space-y-6 pb-12">
-                        <div className="flex items-center gap-4 p-5 rounded-3xl border border-border/50 bg-secondary/5">
-                            <div className="bg-primary/10 p-3 rounded-2xl text-primary">
-                                <Phone size={24} />
-                            </div>
-                            <div>
-                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{t('need_help')}</p>
-                                <p className="font-black text-secondary text-lg">0800-SANAT-KAR</p>
-                            </div>
-                        </div>
-                        <button 
-                            onClick={() => { toggleLanguage(); setMenuOpen(false); }}
-                            className="flex items-center justify-center gap-3 w-full bg-secondary text-white py-5 rounded-3xl font-bold text-lg shadow-xl shadow-secondary/30 transition-all active:scale-95"
-                        >
-                            <Languages size={24} />
-                            {language === 'en' ? 'اردو' : 'English'}
-                        </button>
-                        {authUser && (
-                            <div className="flex flex-col gap-3 w-full">
-                                <Link
-                                    href="/seller"
-                                    className="flex items-center justify-center gap-2 w-full bg-primary text-white py-5 rounded-3xl font-bold text-lg shadow-xl shadow-primary/30 transition-all active:scale-95"
-                                    onClick={() => setMenuOpen(false)}
-                                >
-                                    {t('post_ad_free')}
-                                </Link>
-                                <Link
-                                    href="/admin/dashboard"
-                                    className="flex items-center justify-center gap-2 w-full bg-secondary text-white py-5 rounded-3xl font-bold text-lg shadow-xl shadow-secondary/30 transition-all active:scale-95 border-2 border-primary/20"
-                                    onClick={() => setMenuOpen(false)}
-                                >
-                                    <ShieldCheck size={24} /> Admin Panel
-                                </Link>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        </nav>
+        </>
     );
 }

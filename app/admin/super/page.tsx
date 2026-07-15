@@ -45,7 +45,7 @@ export default function SuperAdminPage() {
                     <div className={`p-6 flex items-center ${sidebarExpanded ? 'justify-between' : 'justify-center'} border-b border-white/5`}>
                         <div className={`flex items-center gap-4 group cursor-pointer ${sidebarExpanded ? '' : 'justify-center'}`}>
                             <div className="relative shrink-0">
-                                <div className="absolute -inset-1 bg-gradient-to-r from-primary to-orange-600 rounded-full blur opacity-75 group-hover:opacity-100 transition duration-500"></div>
+                                <div className="absolute -inset-1 bg-gradient-to-r from-primary to-blue-400 rounded-full blur opacity-75 group-hover:opacity-100 transition duration-500"></div>
                                 <div className="w-10 h-10 lg:w-12 lg:h-12 bg-[#0a0f1c] rounded-full relative flex items-center justify-center font-black text-sm lg:text-lg border-2 border-white/10 shadow-inner overflow-hidden">
                                     <span className="bg-gradient-to-br from-white to-gray-400 bg-clip-text text-transparent">SA</span>
                                     <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-0"></div>
@@ -210,7 +210,7 @@ export default function SuperAdminPage() {
 function NavItem({ label, icon: Icon, active = false, badge, badgeColor, expanded = true }: any) {
     const badgeColors: any = {
         emerald: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/20',
-        red: 'bg-red-500/20 text-red-400 border-red-500/20',
+        red: 'bg-amber-500/20 text-amber-400 border-amber-500/20',
         primary: 'bg-primary/20 text-primary border-primary/20',
     };
 
@@ -231,7 +231,7 @@ function NavItem({ label, icon: Icon, active = false, badge, badgeColor, expande
                 </span>
             )}
             {active && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-primary to-orange-500 rounded-r-full shadow-[0_0_10px_rgba(239,68,68,0.5)]"></div>
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-primary to-blue-400 rounded-r-full shadow-[0_0_10px_rgba(37,99,235,0.5)]"></div>
             )}
         </button>
     );
@@ -276,7 +276,7 @@ function EventItem({ title, desc, time, type, isLast }: any) {
     const config: any = {
         user: { icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20' },
         system: { icon: Server, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
-        alert: { icon: ShieldAlert, color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/20' }
+        alert: { icon: ShieldAlert, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20' }
     };
 
     const { icon: Icon, color, bg } = config[type] || config.system;

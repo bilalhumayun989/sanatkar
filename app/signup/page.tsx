@@ -57,11 +57,8 @@ export default function SignupPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#0a0f1c] flex items-center justify-center px-4 relative overflow-hidden pt-20">
+        <div className="min-h-screen bg-[#000000] flex items-center justify-center px-4 relative overflow-hidden pt-20">
             {/* Ambient Background Effects */}
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-[120px] pointer-events-none opacity-60"></div>
-            <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-secondary/30 rounded-full blur-[150px] pointer-events-none opacity-40"></div>
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-center opacity-[0.02] pointer-events-none"></div>
 
             <div className="w-full max-w-md relative z-10 fade-in-up">
                 {/* Header */}
@@ -95,7 +92,7 @@ export default function SignupPage() {
                             <p className="text-gray-400 mb-8">{message}</p>
                             <Link 
                                 href="/login"
-                                className="w-full bg-primary text-white py-4 px-8 rounded-xl font-bold text-sm tracking-wide hover:bg-primary-dark transition-all duration-300 shadow-[0_0_20px_rgba(239,68,68,0.3)] block"
+                                className="w-full bg-primary text-white py-4 rounded-xl font-bold text-sm tracking-wide hover:bg-primary-dark transition-all duration-300 shadow-[0_0_20px_rgba(37,99,235,0.3)] block"
                             >
                                 Go to Login
                             </Link>
@@ -221,7 +218,7 @@ export default function SignupPage() {
                             )}
 
                             {error && (
-                                <div className="animate-in slide-in-from-top-2 bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium rounded-xl px-4 py-3 flex items-center gap-3">
+                                <div className="animate-in slide-in-from-top-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-medium rounded-xl px-4 py-3 flex items-center gap-3">
                                     {error}
                                 </div>
                             )}
@@ -229,7 +226,7 @@ export default function SignupPage() {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full bg-primary text-white py-4 rounded-xl font-bold text-sm tracking-wide hover:bg-primary-dark transition-all duration-300 shadow-[0_0_20px_rgba(239,68,68,0.3)] hover:shadow-[0_0_30px_rgba(239,68,68,0.5)] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:shadow-none flex items-center justify-center gap-2 group mt-6"
+                                className="w-full bg-primary text-white py-4 rounded-xl font-bold text-sm tracking-wide hover:bg-primary-dark transition-all duration-300 shadow-[0_0_20px_rgba(37,99,235,0.3)] hover:shadow-[0_0_30px_rgba(37,99,235,0.5)] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:shadow-none flex items-center justify-center gap-2 group mt-6"
                             >
                                 {loading ? (
                                     <>

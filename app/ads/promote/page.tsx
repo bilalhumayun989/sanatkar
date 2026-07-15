@@ -30,7 +30,7 @@ export default function PromotePage() {
 
     return (
         <div className="min-h-screen bg-[#fafafa] flex flex-col">
-            <Navbar forceSolid={true} />
+            <Navbar />
 
             <main className="flex-grow pt-32 pb-20">
                 <div className="container-wide max-w-5xl">

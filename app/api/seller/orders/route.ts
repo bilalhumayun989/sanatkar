@@ -12,8 +12,8 @@ export async function GET(request: NextRequest) {
         }
 
         const payload = await verifyToken(token);
-        if (!payload || (payload.role !== 'seller' && payload.role !== 'admin')) {
-            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
+        if (!payload) {
+            return NextResponse.json({ success: false, message: 'Invalid token' }, { status: 403 });
         }
 
         const orders = await prisma.order.findMany({

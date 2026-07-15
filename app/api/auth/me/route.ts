@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
             user: {
                 id: payload.id,
                 email: payload.email,
-                role: payload.role
+                role: payload.role,
+                name: payload.name || payload.email
             }
         });
     } catch (error: any) {

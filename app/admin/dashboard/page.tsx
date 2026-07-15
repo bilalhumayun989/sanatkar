@@ -38,8 +38,8 @@ function StatusBadge({ status }: { status: string }) {
     const config: Record<string, { bg: string, text: string, icon: any }> = {
         pending: { bg: 'bg-amber-500/10', text: 'text-amber-500', icon: Clock },
         active: { bg: 'bg-emerald-500/10', text: 'text-emerald-500', icon: CheckCircle2 },
-        rejected: { bg: 'bg-red-500/10', text: 'text-red-500', icon: XCircle },
-        suspended: { bg: 'bg-red-500/10', text: 'text-red-500', icon: XCircle },
+        rejected: { bg: 'bg-amber-500/10', text: 'text-amber-500', icon: XCircle },
+        suspended: { bg: 'bg-amber-500/10', text: 'text-amber-500', icon: XCircle },
     };
     const { bg, text, icon: Icon } = config[status] || config.pending;
 
@@ -177,7 +177,7 @@ function AdminDashboardContent() {
                     <h1 className="text-6xl font-black text-gray-900 mb-6 tracking-tighter">404</h1>
                     <h2 className="text-2xl font-bold text-gray-800 mb-4">Page Not Found</h2>
                     <p className="text-gray-500 mb-8 font-medium">The page you are looking for doesn't exist or has been removed.</p>
-                    <Link href="/" className="inline-flex items-center justify-center w-full bg-primary text-white py-4 rounded-xl font-bold hover:bg-primary-dark transition-all duration-300 shadow-[0_4px_14px_0_rgba(239,68,68,0.39)] hover:shadow-[0_6px_20px_rgba(239,68,68,0.23)] active:scale-[0.98]">
+                    <Link href="/" className="inline-flex items-center justify-center w-full bg-primary text-white py-4 rounded-xl font-bold hover:bg-primary-dark transition-all duration-300 shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] active:scale-[0.98]">
                         Return to Home
                     </Link>
                 </div>
@@ -213,13 +213,13 @@ function AdminDashboardContent() {
                 {/* Logo Area */}
                 <div className={`px-4 py-8 flex items-center ${sidebarExpanded ? 'justify-between' : 'justify-center'}`}>
                     <Link href="/" className={`inline-flex items-center gap-2 group ${sidebarExpanded ? '' : 'justify-center'}`}>
-                        <div className="w-10 h-10 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:scale-105 transition-all shadow-[0_0_15px_rgba(239,68,68,0.1)]">
+                        <div className="w-10 h-10 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-primary group-hover:scale-105 transition-all shadow-[0_0_15px_rgba(37,99,235,0.1)]">
                             <Shield className="w-5 h-5 text-primary group-hover:text-white transition-colors" />
                         </div>
                         {sidebarExpanded && (
                             <div className="overflow-hidden whitespace-nowrap">
                                 <div className="flex font-black tracking-tighter text-xl">
-                                    <span className="text-primary drop-shadow-[0_0_8px_rgba(239,68,68,0.3)]">SANAT</span>
+                                    <span className="text-primary drop-shadow-[0_0_8px_rgba(37,99,235,0.3)]">SANAT</span>
                                     <span className="text-white">KAR</span>
                                 </div>
                                 <span className="text-[10px] uppercase tracking-widest text-emerald-400 font-bold block -mt-1">Command Center</span>
@@ -245,7 +245,7 @@ function AdminDashboardContent() {
                                     }`}
                                 title={!sidebarExpanded ? item.label : undefined}
                             >
-                                {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-full shadow-[0_0_10px_rgba(239,68,68,0.5)]"></div>}
+                                {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r-full shadow-[0_0_10px_rgba(37,99,235,0.5)]"></div>}
 
                                 <Icon className={`w-5 h-5 shrink-0 transition-colors ${isActive ? 'text-primary' : 'text-gray-500 group-hover:text-gray-300'}`} />
 
@@ -283,7 +283,7 @@ function AdminDashboardContent() {
                             </div>
                             <button
                                 onClick={handleLogout}
-                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-gray-300 text-xs font-bold transition-all border border-transparent hover:border-red-500/30 shrink-0 relative z-10"
+                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 hover:bg-amber-500/20 hover:text-amber-400 text-gray-300 text-xs font-bold transition-all border border-transparent hover:border-amber-500/30 shrink-0 relative z-10"
                             >
                                 Secure Logout
                             </button>
@@ -298,7 +298,7 @@ function AdminDashboardContent() {
                             <button
                                 onClick={handleLogout}
                                 title="Secure Logout"
-                                className="w-10 h-10 flex shrink-0 items-center justify-center rounded-xl bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-gray-300 transition-all border border-transparent hover:border-red-500/30"
+                                className="w-10 h-10 flex shrink-0 items-center justify-center rounded-xl bg-white/5 hover:bg-amber-500/20 hover:text-amber-400 text-gray-300 transition-all border border-transparent hover:border-amber-500/30"
                             >
                                 <LogOut className="w-4 h-4" />
                             </button>
@@ -502,7 +502,7 @@ function AdminDashboardContent() {
                                                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                             <button
                                                                 onClick={() => handleDeleteCar(l._id)}
-                                                                className="text-xs font-bold bg-red-50 text-red-600 px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-500 hover:text-white transition-colors"
+                                                                className="text-xs font-bold bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg border border-amber-200 hover:bg-amber-500 hover:text-white transition-colors"
                                                             >
                                                                 Delete
                                                             </button>
@@ -575,7 +575,7 @@ function AdminDashboardContent() {
                                                             {u.role !== 'admin' && (
                                                                 <button
                                                                     onClick={() => handleDeleteUser(u._id)}
-                                                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold bg-red-50 text-red-500 px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-500 hover:text-white"
+                                                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold bg-amber-50 text-amber-500 px-3 py-1.5 rounded-lg border border-amber-200 hover:bg-amber-500 hover:text-white"
                                                                 >
                                                                     Delete
                                                                 </button>
