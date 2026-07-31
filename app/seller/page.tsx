@@ -83,6 +83,7 @@ function SellerPageContent() {
 
     const urlCategory = searchParams.get('category') as Category | null;
     const urlCondition = searchParams.get('condition') as Condition | null;
+    const editListingId = searchParams.get('edit');
 
     const [form, setForm] = useState<FormState>({
         city: '',
@@ -109,6 +110,7 @@ function SellerPageContent() {
     const [uploading, setUploading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
+    const [editingListing, setEditingListing] = useState(false);
     const [categoryOptions] = useState(CATEGORY_OPTIONS);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -119,6 +121,51 @@ function SellerPageContent() {
             condition: (urlCondition && CONDITIONS.includes(urlCondition as Condition)) ? urlCondition as Condition : prev.condition,
         }));
     }, [urlCategory, urlCondition]);
+
+    useEffect(() => {
+        const loadListingForEdit = async () => {
+            if (!editListingId || !authUser) return;
+
+            try {
+                const supabase = createClient();
+                const { data, error } = await supabase
+                    .from('listings')
+                    .select('*')
+                    .eq('id', editListingId)
+                    .eq('seller_id', authUser.id)
+                    .maybeSingle();
+
+                if (error || !data) {
+                    setError('Unable to load the selected listing.');
+                    return;
+                }
+
+                setEditingListing(true);
+                setForm((prev) => ({
+                    ...prev,
+                    city: data.location || prev.city,
+                    make: data.brand || data.make || prev.make,
+                    model: data.model || prev.model,
+                    year: String(data.year || prev.year),
+                    condition: (CONDITIONS.includes(data.condition as Condition) ? data.condition : prev.condition) as Condition,
+                    category: normalizeCategoryValue(data.category),
+                    mileage: String(data.hours || data.mileage || prev.mileage),
+                    price: String(data.price || prev.price),
+                    description: data.description || prev.description,
+                    fuelType: data.fuelType || prev.fuelType,
+                    transmission: data.transmission || prev.transmission,
+                    phone: data.phone || prev.phone,
+                    secondaryPhone: data.secondary_phone || data.secondaryPhone || prev.secondaryPhone,
+                    allowWhatsapp: data.allow_whatsapp ?? prev.allowWhatsapp,
+                }));
+            } catch (err) {
+                console.error('Failed to load listing for edit', err);
+                setError('Unable to load the selected listing.');
+            }
+        };
+
+        loadListingForEdit();
+    }, [editListingId, authUser]);
 
     if (!authLoading && authUser === null) {
         return (
@@ -183,7 +230,6 @@ function SellerPageContent() {
             const basePayload: Record<string, unknown> = {
                 title: `${form.make} ${form.model}`.trim(),
                 brand: form.make,
-                // Always send text slug (satisfies any NOT NULL constraint on legacy column)
                 category: normalizeCategoryValue(form.category),
                 price: Number(form.price),
                 year: Number(form.year) || new Date().getFullYear(),
@@ -193,54 +239,72 @@ function SellerPageContent() {
                 image_urls: [],
                 seller_id: user.id,
                 condition: form.condition,
+                status: 'active',
+                phone: form.phone,
+                secondary_phone: form.secondaryPhone,
+                allow_whatsapp: form.allowWhatsapp,
             };
-
-            const payloadCandidates = [
-                basePayload,
-            ];
 
             let listing: { id: string } | null = null;
             let insertError: { message?: string } | null = null;
 
-            for (const payload of payloadCandidates) {
+            if (editListingId) {
                 const result = await supabase
                     .from('listings')
-                    .insert(payload)
+                    .update(basePayload)
+                    .eq('id', editListingId)
+                    .eq('seller_id', user.id)
                     .select('id')
                     .single();
 
                 listing = result.data as { id: string } | null;
                 insertError = result.error;
+            } else {
+                const result = await supabase
+                    .from('listings')
+                    .insert(basePayload)
+                    .select('id')
+                    .single();
 
-                if (!insertError) break;
-
-                const message = insertError.message || '';
-                if (!message.includes('column') && !message.includes('schema cache')) {
-                    break;
-                }
+                listing = result.data as { id: string } | null;
+                insertError = result.error;
             }
 
             if (insertError) {
                 if (insertError.message?.includes('AD_LIMIT_REACHED')) {
                     setError('You have reached the 3-ad limit. Upgrade to a Seller account to post more ads.');
                 } else {
-                    setError(insertError.message || 'Failed to post listing.');
+                    setError(insertError.message || (editListingId ? 'Failed to update listing.' : 'Failed to post listing.'));
                 }
                 return;
             }
 
             if (!listing?.id) {
-                setError('Failed to create listing.');
+                setError(editListingId ? 'Failed to update listing.' : 'Failed to create listing.');
                 return;
             }
 
             let uploadedUrls: string[] = [];
             if (images.length > 0) {
                 setUploading(true);
-                const bucketCandidates = ['listing-images', 'listings', 'images'];
 
                 uploadedUrls = await Promise.all(images.map(async (image) => {
-                    const fileName = image.name;
+                    const preferredBuckets = ['listing-images', 'listings', 'images', 'public', 'uploads'];
+                    let availableBuckets: string[] = [];
+
+                    try {
+                        const { data, error } = await supabase.storage.listBuckets();
+                        if (!error) {
+                            availableBuckets = (data || [])
+                                .map((bucket: { name?: string }) => bucket.name)
+                                .filter(Boolean) as string[];
+                        }
+                    } catch {
+                        // Ignore and use the preferred names.
+                    }
+
+                    const bucketCandidates = Array.from(new Set([...preferredBuckets, ...availableBuckets]));
+                    const fileName = `${Date.now()}-${image.name.replace(/\s+/g, '-').slice(0, 80)}`;
                     const path = `${user.id}/${listing.id}-${fileName}`;
                     let lastError: Error | null = null;
 
@@ -250,6 +314,12 @@ function SellerPageContent() {
                             const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(path);
                             return publicUrlData.publicUrl;
                         }
+
+                        const message = uploadError.message?.toLowerCase() || '';
+                        if (!message.includes('bucket') && !message.includes('not found')) {
+                            break;
+                        }
+
                         lastError = new Error(uploadError.message);
                     }
 
@@ -260,7 +330,8 @@ function SellerPageContent() {
             const { error: updateError } = await supabase
                 .from('listings')
                 .update({ image_urls: uploadedUrls })
-                .eq('id', listing.id);
+                .eq('id', listing.id)
+                .eq('seller_id', user.id);
 
             if (updateError) throw updateError;
 

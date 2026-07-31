@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Phone, Package, User, LogOut, Languages, ShieldCheck, ChevronDown, Factory, Sparkles, Wrench } from 'lucide-react';
+import { Menu, X, Phone, Package, User, LogOut, Languages, ShieldCheck, ChevronDown, Factory, Sparkles, Wrench, Heart } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -15,6 +15,7 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
     const { language, toggleLanguage, t } = useLanguage();
     const { user: authUser, isAdmin, loading: authLoading } = useAuth();
     const [menuOpen, setMenuOpen] = useState(false);
+    const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
     const [postAdOpen, setPostAdOpen] = useState(false);
     const [hoveredItem, setHoveredItem] = useState<'machines' | 'parts' | null>(null);
@@ -24,13 +25,14 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
     const isSolid = forceSolid || isScrolled || pathname !== '/';
 
     const handleLogout = async () => {
+        setUserMenuOpen(false);
         await fetch('/api/auth/logout', { method: 'POST' });
         try {
             const { createClient } = await import('@/lib/supabase/client');
             const client = createClient();
             await client.auth.signOut();
         } catch (e) {}
-        window.location.reload();
+        window.location.href = '/';
     };
 
     // Lock body scroll when drawer is open
@@ -128,14 +130,53 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                     {/* Desktop actions */}
                     <div className="hidden md:flex items-center gap-6">
                         {authUser ? (
-                            <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2">
+                            <div className="relative">
+                                <button
+                                    type="button"
+                                    onClick={() => setUserMenuOpen((prev) => !prev)}
+                                    className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-sm font-bold backdrop-blur-md transition-all hover:bg-white/20"
+                                >
                                     <User size={18} />
-                                    <span className="text-sm font-bold max-w-[120px] truncate">{authUser.name}</span>
-                                </div>
-                                <button onClick={handleLogout} className="hover:text-gray-300 transition-colors">
-                                    <LogOut size={18} />
+                                    <span className="max-w-[120px] truncate">{authUser.name || authUser.email?.split('@')[0]}</span>
+                                    <ChevronDown size={16} className={`transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
                                 </button>
+
+                                {userMenuOpen && (
+                                    <div className="absolute right-0 mt-3 w-56 rounded-2xl border border-white/10 bg-[#050505]/95 p-2 shadow-2xl backdrop-blur-xl">
+                                        <Link
+                                            href="/profile"
+                                            onClick={() => setUserMenuOpen(false)}
+                                            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                                        >
+                                            <User size={16} className="text-primary" />
+                                            Profile
+                                        </Link>
+                                        <Link
+                                            href="/my-ads"
+                                            onClick={() => setUserMenuOpen(false)}
+                                            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                                        >
+                                            <Package size={16} className="text-primary" />
+                                            My Ads
+                                        </Link>
+                                        <Link
+                                            href="/saved"
+                                            onClick={() => setUserMenuOpen(false)}
+                                            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                                        >
+                                            <Heart size={16} className="text-primary" />
+                                            My Saved Ads
+                                        </Link>
+                                        <button
+                                            type="button"
+                                            onClick={handleLogout}
+                                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-amber-400 transition-colors hover:bg-white/10"
+                                        >
+                                            <LogOut size={16} />
+                                            Sign Out
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <Link href="/login" className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-bold backdrop-blur-md transition-all hover:bg-white/20">
@@ -187,6 +228,11 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                         className="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-white font-semibold text-sm hover:bg-white/10 transition-colors">
                         <Package size={18} className="text-primary" />
                         {t('buy_parts')}
+                    </Link>
+                    <Link href="/saved" onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-white font-semibold text-sm hover:bg-white/10 transition-colors">
+                        <Heart size={18} className="text-primary" />
+                        My Saved Ads
                     </Link>
 
                     {/* Mobile Post an Ad Dropdown */}

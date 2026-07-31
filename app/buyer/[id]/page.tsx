@@ -5,15 +5,65 @@ import prisma from '@/lib/dbConn';
 import Link from 'next/link';
 import { ArrowLeft, MapPin, ShieldCheck, Settings, Package, BadgeCheck, ExternalLink, ShoppingCart, Clock, Truck, Phone } from 'lucide-react';
 import type { Metadata } from 'next';
+import { createAdminClient, createServerSupabaseClient } from '@/lib/supabase/server';
+
+async function loadListingOrCar(id: string) {
+    try {
+        const supabase = await createServerSupabaseClient();
+        const { data: listing, error: listingError } = await supabase
+            .from('listings')
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+
+        if (listing) {
+            let sellerProfile: any = null;
+            if (listing.seller_id) {
+                const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('id, username, phone, additional_phone, role')
+                    .eq('id', listing.seller_id)
+                    .maybeSingle();
+
+                if (!profileError && profile) {
+                    sellerProfile = profile;
+                }
+            }
+
+            return {
+                ...listing,
+                seller: sellerProfile,
+                isSupabaseListing: true,
+            };
+        }
+
+        if (listingError) {
+            console.warn('Supabase listing lookup failed:', listingError.message || listingError);
+        }
+    } catch (err) {
+        console.warn('Supabase listing fetch failed:', err);
+    }
+
+    try {
+        return await prisma.car.findUnique({
+            where: { id },
+            include: { seller: { select: { id: true, name: true, role: true } } },
+        });
+    } catch (err) {
+        console.error('Prisma car fetch failed:', err);
+        return null;
+    }
+}
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
     const { id } = await params;
-    const partDoc = await prisma.car.findUnique({ where: { id } });
+    const partDoc = await loadListingOrCar(id);
 
     if (!partDoc) return { title: 'Part Not Found | SanatKaar' };
 
-    const title = `${partDoc.model || 'Machine Part'} - ${partDoc.make || 'Industrial'} | SanatKaar`;
-    const description = partDoc.description?.substring(0, 160) || `High-quality industrial ${partDoc.model} machine part. Verified and available for immediate dispatch in Pakistan.`;
+    const doc: any = partDoc;
+    const title = `${doc.model || doc.title || 'Machine Part'} - ${doc.make || doc.brand || 'Industrial'} | SanatKaar`;
+    const description = doc.description?.substring(0, 160) || `High-quality industrial ${doc.model || doc.title} part. Verified and available for immediate dispatch in Pakistan.`;
 
     return {
         title,
@@ -21,7 +71,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
         openGraph: {
             title,
             description,
-            images: partDoc.images?.[0] ? [{ url: partDoc.images[0] }] : [],
+            images: doc.image_urls?.[0] ? [{ url: doc.image_urls[0] }] : doc.images?.[0] ? [{ url: doc.images[0] }] : [],
         }
     };
 }
@@ -32,10 +82,7 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
 
     let partDoc: any = null;
     try {
-        partDoc = await prisma.car.findUnique({
-            where: { id },
-            include: { seller: { select: { id: true, name: true, role: true } } },
-        });
+        partDoc = await loadListingOrCar(id);
     } catch (err) {
         console.error('Fetch error:', err);
     }
@@ -58,21 +105,35 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
     }
 
     // Map DB fields to UI fields
-    const sellerPhoneMatch = (partDoc.model || '').match(/Phone:\s*([^|/]+?)(?:\s*\/|\s*$)/i);
-    const sellerPhone = sellerPhoneMatch?.[1]?.trim() || '';
+    const sellerPhone = partDoc.phone || partDoc.seller?.phone || partDoc.seller?.additional_phone || '';
+    const sellerName = partDoc.seller?.role === 'admin'
+        ? 'SanatKaar'
+        : partDoc.seller?.username || partDoc.seller?.name || 'Sajid Industrial Solutions';
+    const sellerRoleDescription = partDoc.seller?.role === 'admin'
+        ? 'Verified Platform Partner'
+        : partDoc.seller?.role === 'seller'
+            ? 'Trusted Seller'
+            : 'Marketplace Seller';
+
+    const images = Array.isArray(partDoc.image_urls)
+        ? partDoc.image_urls.filter(Boolean)
+        : Array.isArray(partDoc.images)
+            ? partDoc.images.filter(Boolean)
+            : [];
 
     const part = {
         id: partDoc.id,
-        brand: partDoc.make || 'General',
-        partName: partDoc.model || 'Machine Part',
-        price: partDoc.price || 0,
-        location: partDoc.location || 'Unknown',
-        image: partDoc.images?.[0] || 'https://www.har-tech.com/wp-content/uploads/2024/02/usinage-pieces-mecaniques.jpg',
-        compatibility: partDoc.mileage || 'Universal Compatibility',
-        condition: partDoc.fuelType || 'New',
-        stockStatus: partDoc.transmission || 'In Stock',
+        brand: partDoc.brand || partDoc.make || 'General',
+        partName: partDoc.title || partDoc.model || 'Machine Part',
+        price: Number(partDoc.price) || 0,
+        location: partDoc.location || partDoc.city || 'Unknown',
+        images,
+        image: images[0] || 'https://www.har-tech.com/wp-content/uploads/2024/02/usinage-pieces-mecaniques.jpg',
+        compatibility: partDoc.mileage || partDoc.hours || 'Universal Compatibility',
+        condition: partDoc.condition || partDoc.fuelType || 'New',
+        stockStatus: partDoc.status === 'active' ? 'In Stock' : partDoc.transmission || 'Unavailable',
         category: partDoc.category || 'Mechanical',
-        description: partDoc.description || `High-performance industrial part designed for professional use. This component ensures high precision and longevity even under heavy workload.`
+        description: partDoc.description || `High-performance industrial part designed for professional use. This component ensures high precision and longevity even under heavy workload.`,
     };
 
     return (
@@ -110,6 +171,15 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
                                         </span>
                                     </div>
                                 </div>
+                                {part.images.length > 1 && (
+                                    <div className="grid grid-cols-3 gap-2 p-4 bg-slate-50">
+                                        {part.images.slice(0, 3).map((src: string, index: number) => (
+                                            <div key={index} className="relative h-24 overflow-hidden rounded-2xl border border-gray-200">
+                                                <Image src={src} alt={`Gallery image ${index + 1}`} fill sizes="100vw" className="object-cover" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             <div className="bg-white rounded-[2.5rem] shadow-premium border border-gray-100 p-8 md:p-12">
@@ -205,15 +275,15 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
                                     )}
                                 </div>
 
-                                <Link href={`/seller-profile/${partDoc.seller?.id || ''}`} className="mt-10 pt-10 border-t border-gray-100 flex items-center gap-5 group/seller transition-all hover:bg-gray-50/50 p-4 rounded-3xl -mx-4 cursor-pointer">
+                                <Link href={partDoc.seller?.id ? `/seller-profile/${partDoc.seller.id}` : '/buyer'} className="mt-10 pt-10 border-t border-gray-100 flex items-center gap-5 group/seller transition-all hover:bg-gray-50/50 p-4 rounded-3xl -mx-4 cursor-pointer">
                                     <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center text-xl shadow-inner border border-gray-100 group-hover/seller:bg-white group-hover/seller:shadow-md transition-all">👤</div>
                                     <div>
                                         <p className="font-black text-secondary tracking-tight group-hover/seller:text-primary transition-colors flex items-center gap-2">
-                                            {partDoc.seller?.role === 'admin' ? 'SanatKaar' : (partDoc.seller?.name || 'Sajid Industrial Solutions')}
+                                            {sellerName}
                                             <ExternalLink size={12} className="opacity-0 group-hover/seller:opacity-100 transition-opacity" />
                                         </p>
                                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                                            {partDoc.seller?.role === 'admin' ? 'Verified Platform Partner' : ''}
+                                            {sellerRoleDescription}
                                         </p>
                                     </div>
                                 </Link>

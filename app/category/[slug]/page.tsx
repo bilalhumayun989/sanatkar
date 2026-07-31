@@ -149,7 +149,7 @@ function CategoryPageContent() {
     location: listing.location || listing.city || 'Pakistan',
     image: Array.isArray(listing.image_urls) && listing.image_urls[0]
       ? listing.image_urls[0]
-      : 'https://ae01.alicdn.com/kf/H9872be9c3c5448388915e7fb04899583E/KHS12-RYP-Tajima-Embroidery-Machine-Parts-Rotary-Hook.jpg',
+      : '/hero.jpg',
     compatibility: 'Universal',
     condition: listing.condition || 'New',
     stockStatus: 'In Stock',

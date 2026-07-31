@@ -1,21 +1,131 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState, type MouseEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import { Part } from '../data/mockData';
 import { Heart, Star, MapPin, ArrowRight } from 'lucide-react';
-import { useState } from 'react';
+import { useAuth } from '@/lib/AuthContext';
+import { createClient } from '@/lib/supabase/client';
 import { useLanguage } from '@/lib/LanguageContext';
 
 interface PartCardProps {
-    part: Part;
+    part: Part & { favoriteId?: string };
+    onUnsave?: () => void;
 }
 
-export default function PartCard({ part }: PartCardProps) {
+export default function PartCard({ part, onUnsave }: PartCardProps) {
     const { language } = useLanguage();
+    const { user, loading: authLoading } = useAuth();
+    const router = useRouter();
     const [isLiked, setIsLiked] = useState(false);
+    const [favoriteId, setFavoriteId] = useState<string | null>(part.favoriteId || null);
+    const [loadingFavorite, setLoadingFavorite] = useState(false);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        if (authLoading) return;
+        if (!user) {
+            setIsLiked(false);
+            setFavoriteId(null);
+            return;
+        }
+
+        if (favoriteId) {
+            setIsLiked(true);
+            return;
+        }
+
+        const loadFavorite = async () => {
+            try {
+                const supabase = createClient();
+                const { data, error } = await supabase
+                    .from('favorites')
+                    .select('id')
+                    .eq('user_id', user.id)
+                    .eq('listing_id', part.id)
+                    .maybeSingle();
+
+                if (!error && data?.id) {
+                    setIsLiked(true);
+                    setFavoriteId(data.id);
+                } else {
+                    setIsLiked(false);
+                }
+            } catch (err) {
+                console.error('Failed to load favorite status', err);
+            }
+        };
+
+        loadFavorite();
+    }, [authLoading, user, part.id, favoriteId]);
+
+    const showError = (message: string) => {
+        setError(message);
+        window.setTimeout(() => setError(''), 2500);
+    };
+
+    const handleFavoriteToggle = async (event: MouseEvent<HTMLButtonElement>) => {
+        event.preventDefault();
+        if (authLoading) return;
+        if (!user) {
+            router.push(`/login?next=${encodeURIComponent(`/buyer/${part.id}`)}`);
+            return;
+        }
+
+        if (loadingFavorite) return;
+        setLoadingFavorite(true);
+        const nextValue = !isLiked;
+        setIsLiked(nextValue);
+
+        try {
+            const supabase = createClient();
+
+            if (nextValue) {
+                const { data, error } = await supabase
+                    .from('favorites')
+                    .insert({ user_id: user.id, listing_id: part.id })
+                    .select('id')
+                    .single();
+
+                if (error || !data?.id) {
+                    setIsLiked(false);
+                    showError('Unable to save listing.');
+                } else {
+                    setFavoriteId(data.id);
+                }
+            } else {
+                const { error } = await supabase
+                    .from('favorites')
+                    .delete()
+                    .eq('id', favoriteId)
+                    .eq('user_id', user.id)
+                    .eq('listing_id', part.id);
+
+                if (error) {
+                    setIsLiked(true);
+                    showError('Unable to remove saved listing.');
+                } else {
+                    setFavoriteId(null);
+                    onUnsave?.();
+                }
+            }
+        } catch (err) {
+            console.error('Favorite toggle failed', err);
+            setIsLiked(!nextValue);
+            showError('Something went wrong.');
+        } finally {
+            setLoadingFavorite(false);
+        }
+    };
 
     return (
         <div className="relative h-[420px] sm:h-[460px] lg:h-[550px] w-full rounded-[24px] sm:rounded-[28px] lg:rounded-[32px] overflow-hidden group flex flex-col bg-[#15171a] border border-white/10">
+            <Link
+                href={`/buyer/${part.id}`}
+                className="absolute inset-0 z-0 rounded-[24px]"
+                aria-label={`View details for ${part.brand} ${part.partName}`}
+            />
 
             {/* ── Top half: image only ── */}
             <div className="relative h-[50%] w-full overflow-hidden shrink-0">
@@ -27,8 +137,9 @@ export default function PartCard({ part }: PartCardProps) {
 
                 {/* Heart / bookmark */}
                 <button
-                    onClick={(e) => { e.preventDefault(); setIsLiked(!isLiked); }}
-                    className="absolute top-4 right-4 sm:top-5 sm:right-5 p-2 sm:p-2.5 rounded-full bg-white/20 backdrop-blur-md text-white transition-all hover:bg-white hover:text-black z-10"
+                    type="button"
+                    onClick={handleFavoriteToggle}
+                    className={`absolute top-4 right-4 sm:top-5 sm:right-5 p-2 sm:p-2.5 rounded-full backdrop-blur-md transition-all z-10 ${isLiked ? 'bg-primary text-white hover:bg-primary-dark' : 'bg-white/20 text-white hover:bg-white'}`}
                 >
                     <Heart size={18} fill={isLiked ? 'currentColor' : 'none'} />
                 </button>
@@ -66,6 +177,12 @@ export default function PartCard({ part }: PartCardProps) {
                         {part.condition}
                     </span>
                 </div>
+
+                {error && (
+                    <div className="mb-3 rounded-2xl bg-red-500/10 border border-red-200 px-3 py-2 text-xs font-semibold text-red-700">
+                        {error}
+                    </div>
+                )}
 
                 {/* Button */}
                 <Link
