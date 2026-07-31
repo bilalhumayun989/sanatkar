@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Package, Users, LayoutDashboard, Settings, Menu, Search, Filter, Shield, Bell, CheckCircle2, Clock, XCircle, ArrowUpRight, LogOut, Loader2, Save, Megaphone } from 'lucide-react';
 import AdConfigForm from '../../components/AdConfigForm';
 import { useAuth } from '@/lib/AuthContext';
+import { fetchJson } from '@/lib/fetchJson';
 
 const stats = {
     totalParts: 1250,
@@ -108,13 +109,13 @@ function AdminDashboardContent() {
                 // Load live data from real APIs
                 setDataLoading(true);
                 Promise.all([
-                    fetch('/api/admin/users').then(r => r.json()),
-                    fetch('/api/admin/cars').then(r => r.json()),
-                    fetch('/api/ad').then(r => r.json()),
+                    fetchJson('/api/admin/users'),
+                    fetchJson('/api/admin/cars'),
+                    fetchJson('/api/ad'),
                 ]).then(([uData, cData, aData]) => {
-                    if (uData.success) setLiveUsers(uData.users);
-                    if (cData.success) setLiveCars(cData.cars);
-                    if (aData.success && aData.ad) setAdConfig(aData.ad);
+                    if (uData.data?.success) setLiveUsers((uData.data.users as Array<Record<string, unknown>>) || []);
+                    if (cData.data?.success) setLiveCars((cData.data.cars as Array<Record<string, unknown>>) || []);
+                    if (aData.data?.success && aData.data.ad) setAdConfig(aData.data.ad);
                 }).catch(console.error).finally(() => setDataLoading(false));
             }
         }
@@ -142,12 +143,11 @@ function AdminDashboardContent() {
         setAdMessage('');
         try {
             // In real app, the token should be safely handled; here we rely on the cookie sent by browser automatically
-            const res = await fetch('/api/admin/ad', {
+            const { data } = await fetchJson('/api/admin/ad', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(adConfig)
             });
-            const data = await res.json();
             if (data.success) {
                 setAdMessage('Ad configuration updated successfully!');
                 setTimeout(() => setAdMessage(''), 3000);

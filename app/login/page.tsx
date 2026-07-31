@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Package, Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
+import { fetchJson } from '@/lib/fetchJson';
+import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -13,6 +15,8 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
+    const [oauthProcessing, setOauthProcessing] = useState(false);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -20,28 +24,135 @@ export default function LoginPage() {
         setError('');
 
         try {
-            const res = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ email, password }),
+            const { response: res, data } = await fetchJson('/api/auth/login', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ email, password }),
             });
-
-            const data = await res.json();
-
             if (!res.ok) {
-                setError(data.message || 'Invalid credentials');
+                setError(data.message || 'Invalid email or password');
                 setLoading(false);
                 return;
             }
 
+            const session = (data as { session?: { access_token?: string; refresh_token?: string } } | undefined)?.session;
+            if (session?.access_token && session?.refresh_token) {
+                const supabase = createClient();
+                await supabase.auth.setSession({
+                    access_token: session.access_token,
+                    refresh_token: session.refresh_token,
+                });
+            }
+
             await refreshAuth();
-            router.push('/');
+            // honor optional `next` query param so we return users to their target
+            try {
+                const next = new URL(window.location.href).searchParams.get('next');
+                router.replace(next || '/');
+            } catch {
+                router.replace('/');
+            }
         } catch (err: any) {
             setError('Failed to connect to the server.');
             setLoading(false);
         }
     };
+
+    const handleGoogleLogin = async () => {
+        setError('');
+        setGoogleLoading(true);
+
+        try {
+            const supabase = createClient();
+            const origin = window.location.origin;
+            const next = new URL(window.location.href).searchParams.get('next');
+            const redirectTo = next ? `${origin}/auth/callback?next=${encodeURIComponent(next)}` : `${origin}/auth/callback`;
+
+            const { data, error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: { redirectTo },
+            });
+
+            if (error) throw error;
+            if (data?.url) {
+                window.location.assign(data.url);
+                return;
+            }
+
+            setError('Unable to start Google sign-in.');
+        } catch (err: any) {
+            setError(err.message || 'Unable to continue with Google.');
+        } finally {
+            setGoogleLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        if (!window.location.hash.includes('access_token') && !window.location.hash.includes('error')) return;
+        if (oauthProcessing) return;
+
+        const processOAuthHash = async () => {
+            setOauthProcessing(true);
+            setError('');
+            setLoading(true);
+
+            const supabase = createClient();
+            const hash = window.location.hash;
+            const parsed = hash ? Object.fromEntries(new URLSearchParams(hash.slice(1)).entries()) : {};
+
+            if (parsed.access_token && parsed.refresh_token) {
+                const sessionData = {
+                    access_token: parsed.access_token,
+                    refresh_token: parsed.refresh_token,
+                    expires_in: parsed.expires_in ? Number(parsed.expires_in) : undefined,
+                    token_type: parsed.token_type,
+                    provider_token: parsed.provider_token,
+                };
+
+                const { data: setData, error: sessionSetError } = await supabase.auth.setSession(sessionData as any);
+                if (sessionSetError) {
+                    setError(sessionSetError.message || 'Unable to store Google session.');
+                    setLoading(false);
+                    setOauthProcessing(false);
+                    return;
+                }
+                if (setData?.session) {
+                        try {
+                            await fetch('/api/auth/sync', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(setData.session) });
+                        } catch (e) {}
+
+                        await refreshAuth();
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        try { const next = new URL(window.location.href).searchParams.get('next'); router.replace(next || '/'); } catch { router.replace('/'); }
+                    return;
+                }
+            }
+
+            const { data, error } = await supabase.auth.getSession();
+            if (error) {
+                setError(error.message || 'Google sign-in failed.');
+                setLoading(false);
+                setOauthProcessing(false);
+                return;
+            }
+
+            if (data?.session) {
+                    try {
+                        await fetch('/api/auth/sync', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data.session) });
+                    } catch (e) {}
+
+                    await refreshAuth();
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    try { const next = new URL(window.location.href).searchParams.get('next'); router.replace(next || '/'); } catch { router.replace('/'); }
+                return;
+            }
+
+            setError('Unable to complete Google sign-in.');
+            setLoading(false);
+            setOauthProcessing(false);
+        };
+
+        processOAuthHash();
+    }, [router, refreshAuth, oauthProcessing]);
 
     return (
         <div className="min-h-screen bg-[#000] flex items-center justify-center px-4 relative overflow-hidden pt-20">
@@ -71,7 +182,7 @@ export default function LoginPage() {
                 </div>
 
                 {/* Login Card */}
-                <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] relative overflow-hidden group/card">
+                <div className="bg-white/[0.03] backdrop-blur-2xl border border-white/10 rounded-3xl p-8 mb-10  shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] relative overflow-hidden group/card">
                     {/* Inner glowing border effect */}
                     <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
 
@@ -141,6 +252,34 @@ export default function LoginPage() {
                             )}
                         </button>
                     </form>
+
+                    <div className="mt-6">
+                        <div className="relative flex items-center justify-center my-4">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-white/10" />
+                            </div>
+                            <span className="relative bg-[#060816] px-3 text-xs uppercase tracking-[0.25em] text-gray-500">Or</span>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={handleGoogleLogin}
+                            disabled={googleLoading || loading}
+                            className="w-full border border-white/10 bg-white/5 text-white py-3.5 rounded-xl font-semibold text-sm hover:bg-white/10 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {googleLoading ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Connecting...
+                                </>
+                            ) : (
+                                <>
+                                    <span className="text-base font-bold">G</span>
+                                    Continue with Google
+                                </>
+                            )}
+                        </button>
+                    </div>
 
                     <div className="mt-8 pt-6 border-t border-white/5 text-center flex flex-col gap-3">
                         <p className="text-sm text-gray-400">

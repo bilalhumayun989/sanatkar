@@ -1,10 +1,10 @@
 'use client';
 
 import Navbar from './components/Navbar';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Footer from './components/Footer';
 import PartCard from './components/PartCard';
-import { mockCars } from './data/mockData';
+import { Part as PartType } from './data/mockData';
 import {
   ArrowRight,
   Search,
@@ -27,32 +27,119 @@ import {
 import Link from 'next/link';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
+import { createClient } from '@/lib/supabase/client';
+import { FIXED_CATEGORY_OPTIONS, normalizeCategoryValue } from '@/lib/categoryConstants';
 
 const PART_IMG = 'https://www.har-tech.com/wp-content/uploads/2024/02/usinage-pieces-mecaniques.jpg';
+const FALLBACK_CATEGORY_OPTIONS = FIXED_CATEGORY_OPTIONS.map((option) => ({ id: option.value, name: option.label, slug: option.value }));
 
 export default function Home() {
   const { t } = useLanguage();
   const { isAdmin } = useAuth();
 
-  const [popularCategories, setPopularCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [featuredParts, setFeaturedParts] = useState<PartType[]>([]);
   const [brandSearch, setBrandSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
+  const productTrackRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    fetch('/api/categories')
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then(data => {
-        if (data.success) {
-          setPopularCategories(data.categories.filter((c: any) => c.isPopular).slice(0, 5));
+    const loadListings = async () => {
+      try {
+        const res = await fetch('/api/listings', { cache: 'no-store' });
+        if (!res.ok) throw new Error(`Listings API unavailable: HTTP ${res.status}`);
+
+        const payload = await res.json();
+        const list = Array.isArray(payload?.data) ? payload.data : [];
+        const mappedParts = list.slice(0, 9).map((item: any) => ({
+          id: item.id,
+          brand: item.brand || item.make || 'Unknown',
+          partName: item.title || `${item.make || ''} ${item.model || ''}`.trim() || 'Listing',
+          price: Number(item.price) || 0,
+          location: item.location || item.city || 'Pakistan',
+          image: Array.isArray(item.image_urls) && item.image_urls[0]
+            ? item.image_urls[0]
+            : 'https://ae01.alicdn.com/kf/H9872be9c3c5448388915e7fb04899583E/KHS12-RYP-Tajima-Embroidery-Machine-Parts-Rotary-Hook.jpg',
+          compatibility: item.mileage || 'Universal',
+          condition: item.condition || 'New',
+          stockStatus: 'In Stock',
+          isFeatured: item.status === 'active',
+          sellerRole: null,
+          sellerId: null,
+          sellerName: null,
+          category: item.category || 'General',
+          createdAt: item.created_at || new Date().toISOString(),
+        }));
+
+        setFeaturedParts(mappedParts);
+      } catch (err) {
+        console.error('Failed to fetch listings:', err);
+        setFeaturedParts([]);
+      }
+    };
+
+    loadListings();
+  }, []);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const supabase = createClient();
+        const { data: listingsData, error } = await supabase
+          .from('listings')
+          .select('category, image_urls, created_at, status')
+          .eq('status', 'active')
+          .order('created_at', { ascending: false });
+
+        if (!error && Array.isArray(listingsData)) {
+          const grouped = new Map<string, any>();
+          listingsData.forEach((listing: any) => {
+            const normalizedCategory = normalizeCategoryValue(listing.category);
+            if (!grouped.has(normalizedCategory)) {
+              grouped.set(normalizedCategory, {
+                id: normalizedCategory,
+                name: FALLBACK_CATEGORY_OPTIONS.find((item) => item.slug === normalizedCategory)?.name || normalizedCategory,
+                slug: normalizedCategory,
+                image_url: Array.isArray(listing.image_urls) && listing.image_urls[0] ? listing.image_urls[0] : PART_IMG,
+                listing_count: 0,
+              });
+            }
+            const current = grouped.get(normalizedCategory);
+            current.listing_count = (current.listing_count || 0) + 1;
+          });
+
+          const mapped = FALLBACK_CATEGORY_OPTIONS.map((item) => {
+            const existing = grouped.get(item.slug);
+            return existing || {
+              id: item.slug,
+              name: item.name,
+              slug: item.slug,
+              image_url: PART_IMG,
+              listing_count: 0,
+            };
+          });
+
+          setCategories(mapped);
+          return;
         }
-      })
-      .catch(err => console.error('Failed to fetch categories:', err));
+      } catch {
+        // ignore and fall back to static options
+      }
+
+      setCategories(FALLBACK_CATEGORY_OPTIONS.map((item) => ({ ...item, image_url: PART_IMG, listing_count: 0 })));
+    };
+
+    loadCategories();
   }, []);
 
   const filterTabs = ['All Collections'];
+
+  const scrollProductTrack = (direction: number) => {
+    productTrackRef.current?.scrollBy({
+      left: direction,
+      behavior: 'smooth',
+    });
+  };
 
   const browseCategories = [
     { name: 'Hooks & Rotaries', icon: <Settings size={22} />, count: '850+' },
@@ -80,7 +167,7 @@ export default function Home() {
                 <div className="absolute inset-0 z-10 bg-gradient-to-br from-black/50 via-black/10 to-black/5"></div>
 
                 <img
-                  src="https://www.har-tech.com/wp-content/uploads/2024/02/usinage-pieces-mecaniques.jpg"
+                  src="/hero.jpg"
                   alt="Industrial parts"
                   className="w-full h-full object-cover"
                 />
@@ -121,36 +208,76 @@ export default function Home() {
                       </div>
                     </div>
                   </div>
-
-                  {/* <div className="hidden lg:flex justify-center">
-                    <div className="relative w-full max-w-[430px] rounded-[32px] border border-white/20 bg-white/10 p-4 shadow-[0_20px_80px_rgba(0,0,0,0.35)] backdrop-blur-xl">
-                      <div className="absolute inset-0 rounded-[32px] bg-gradient-to-br from-white/20 via-transparent to-primary/20" />
-                      <div className="relative overflow-hidden rounded-[24px] border border-white/15">
-                        <img
-                          src="https://images.unsplash.com/photo-1621383650959-808079fc5861?q=80&w=870&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-                          alt="Premium industrial parts"
-                          className="h-[320px] w-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                        <div className="absolute bottom-4 left-4 right-4 rounded-2xl border border-white/15 bg-black/30 p-4 backdrop-blur-md">
-                          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.24em] text-white/80">
-                            <ShieldCheck size={14} /> Genuine Industrial Parts
-                          </div>
-                          <div className="mt-2 text-xl font-black text-white">Fast sourcing for modern factories</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div> */}
                 </div>
               </div>
             </section>
-
-
           </div>
+
+          {/* Categories */}
+          <section className="container-wide py-10 md:py-16">
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8">
+              <div className="max-w-3xl">
+                <span className="inline-flex items-center rounded-full border border-black/10 bg-primary px-4 py-2 text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.2em] text-white shadow-lg mb-4">
+                  Shop by Category
+                </span>
+                <h2 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight text-black leading-tight">
+                  Categories
+                </h2>
+                <p className="mt-3 md:mt-4 text-sm sm:text-base text-gray-500">
+                  Browse curated collections and discover the parts and machines that matter most to your workflow.
+                </p>
+              </div>
+
+              <Link
+                href="/buyer"
+                className="inline-flex items-center justify-center rounded-full border border-primary/20 bg-primary px-6 py-3 text-sm font-bold text-white shadow-lg transition-all duration-300 hover:scale-105"
+              >
+                View Marketplace
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
+              {categories.length > 0 ? (
+                categories.map((category) => (
+                  <Link
+                    key={category.slug}
+                    href={`/buyer?category=${encodeURIComponent(category.slug)}`}
+                    className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white transition hover:-translate-y-1"
+                  >
+                    <div className="relative h-56 overflow-hidden">
+                      <img
+                        src={category.image_url || PART_IMG}
+                        alt={category.name}
+                        className="h-full w-full object-cover transition duration-700 group-hover:scale-110"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+                    </div>
+
+                    <div className="p-5">
+                      <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-gray-400">
+                        Category
+                      </div>
+                      <h3 className="mt-2 text-xl font-black tracking-tight text-black">
+                        {category.name}
+                      </h3>
+                      <p className="mt-2 text-sm font-semibold text-gray-600">
+                        {(category.listing_count ?? 0).toLocaleString()} listings
+                      </p>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="col-span-full rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-10 text-center text-sm font-semibold text-gray-500">
+                  No categories available yet.
+                </div>
+              )}
+            </div>
+          </section>
+
 
 
           {/* Browse Categories */}
-          <section className="container-wide py-12 md:py-20">
+          {/* <section className="container-wide py-12 md:py-20">
             <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between mb-8 md:mb-10">
               <div className="max-w-2xl">
                 <span className="inline-flex items-center rounded-full border border-black/10 bg-primary text-white px-4 py-2 text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.2em] mb-4">
@@ -174,13 +301,12 @@ export default function Home() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               {[
                 "Industrial Machinery",
                 "Textile Parts",
                 "Electric Motors",
                 "Bearings",
-                "Hydraulic Parts",
               ].map((category) => (
                 <Link
                   key={category}
@@ -193,10 +319,8 @@ export default function Home() {
                     className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
                   />
 
-                  {/* Overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
 
-                  {/* Content */}
                   <div className="absolute bottom-5 left-5 right-5 z-10">
                     <span className="inline-flex rounded-full border border-white/20 bg-white/10 backdrop-blur-xl px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
                       Category
@@ -210,7 +334,7 @@ export default function Home() {
               ))}
             </div>
           </section>
-
+ */}
 
 
 
@@ -242,26 +366,10 @@ export default function Home() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
 
                 {[
-                  {
-                    label: t("listed_parts"),
-                    value: "15,000+",
-                    icon: <Package size={24} />,
-                  },
-                  {
-                    label: t("happy_clients"),
-                    value: "12K+",
-                    icon: <Heart size={24} />,
-                  },
-                  {
-                    label: t("genuine_products"),
-                    value: "100%",
-                    icon: <CheckCircle2 size={24} />,
-                  },
-                  {
-                    label: t("active_ads"),
-                    value: "2,500+",
-                    icon: <LayoutGrid size={24} />,
-                  },
+                  { label: t("listed_parts"), value: "5,000+", icon: <Package size={24} /> },
+                  { label: t("happy_clients"), value: "1,200+", icon: <Heart size={24} /> },
+                  { label: t("genuine_products"), value: "50+", icon: <CheckCircle2 size={24} /> },
+                  { label: t("active_ads"), value: "18K+", icon: <LayoutGrid size={24} /> },
                 ].map((stat, index) => (
                   <div
                     key={index}
@@ -292,93 +400,6 @@ export default function Home() {
           </section>
 
 
-
-          {/* PROMO TILES — three cards overlapping the hero rhythm, one flat wordmark panel */}
-          <section className="container-wide py-10 md:py-16">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-
-              {/* Card 1 */}
-              <div className="relative h-[380px] rounded-3xl overflow-hidden group">
-                <img
-                  src="https://plus.unsplash.com/premium_photo-1682144748274-add3d8ed04ea?q=80&w=1434&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-                  alt="Industrial Parts"
-                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition duration-700"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-
-                <div className="absolute bottom-0 left-0 p-6">
-                  <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 backdrop-blur-md px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-lg">
-                    Verified Parts
-                  </span>
-
-                  <div className="text-[#ffffff] text-3xl font-black mt-2 leading-tight">
-                    Genuine Industrial <br /> Spare Parts
-                  </div>
-
-                  <Link
-                    href="/buyer"
-                    className="inline-flex mt-5 rounded-full bg-primary text-white font-bold text-sm px-5 py-2.5 hover:bg-primary-dark transition"
-                  >
-                    Browse Parts
-                  </Link>
-                </div>
-              </div>
-
-              {/* Card 2 */}
-              <div className="relative h-[380px] rounded-3xl overflow-hidden group">
-                <img
-                  src="https://images.unsplash.com/photo-1565377167263-d29b5ac85479?q=80&w=388&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-                  alt="Suppliers"
-                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition duration-700"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-
-                <div className="absolute bottom-0 left-0 p-6">
-                  <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 backdrop-blur-md px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white shadow-lg">
-                    Trusted Sellers
-                  </span>
-
-                  <div className="text-white text-3xl font-black mt-2 leading-tight">
-                    Connect With <br /> Reliable Suppliers
-                  </div>
-
-                  <Link
-                    href="/seller"
-                    className="inline-flex mt-5 rounded-full bg-primary text-white font-bold text-sm px-5 py-2.5 hover:bg-primary-dark transition"
-                  >
-                    Sell Your Parts
-                  </Link>
-                </div>
-              </div>
-
-              {/* Card 3 */}
-              <div className="relative overflow-hidden rounded-3xl p-7 flex flex-col justify-between min-h-[380px] bg-[#000]">
-
-                <div>
-                  <span className="text-white/70 text-xs uppercase tracking-[0.2em] font-semibold">
-                    SANATHUB
-                  </span>
-
-                  <div className="text-white text-3xl font-black mt-3 leading-tight">
-                    Pakistan's Industrial Marketplace
-                  </div>
-
-                  <p className="text-white/80 mt-4 text-sm leading-7">
-                    Buy genuine machine parts, connect with verified suppliers,
-                    and grow your industrial business through one trusted platform.
-                  </p>
-                </div>
-
-                <Link
-                  href="/buyer"
-                  className="inline-flex self-start rounded-full bg-primary text-white font-bold text-sm px-5 py-2.5 hover:bg-primary-dark transition"
-                >
-                  Explore Marketplace
-                </Link>
-              </div>
-
-            </div>
-          </section>
 
 
 
@@ -411,9 +432,15 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {mockCars.slice(0, 6).map((part) => (
-                <PartCard key={part.id} part={part} />
-              ))}
+              {featuredParts.length > 0 ? (
+                featuredParts.map((part) => (
+                  <PartCard key={part.id} part={part as any} />
+                ))
+              ) : (
+                <div className="col-span-full rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-10 text-center text-sm font-semibold text-gray-500">
+                  No featured parts available yet.
+                </div>
+              )}
             </div>
 
           </section>
@@ -472,9 +499,9 @@ export default function Home() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
               {[
-                { title: t('feat_1_title'), desc: t('feat_1_desc'), icon: <ShieldCheck size={24} /> },
-                { title: t('feat_2_title'), desc: t('feat_2_desc'), icon: <Zap size={24} /> },
-                { title: t('feat_3_title'), desc: t('feat_3_desc'), icon: <Settings size={24} /> },
+                { title: t('feat_1_title'), desc: t('feat_1_desc'), icon: <Zap size={24} /> },
+                { title: t('feat_2_title'), desc: t('feat_2_desc'), icon: <Package size={24} /> },
+                { title: t('feat_3_title'), desc: t('feat_3_desc'), icon: <ShieldCheck size={24} /> },
               ].map((feat, i) => (
                 <div key={i} className="bg-white border border-gray-200 rounded-2xl p-7">
                   <div className="w-12 h-12 bg-primary text-white rounded-xl flex items-center justify-center mb-6">
@@ -486,7 +513,6 @@ export default function Home() {
               ))}
             </div>
           </section>
-
 
         </main>
 

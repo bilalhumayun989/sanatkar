@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Mail, Loader2, ArrowRight, ArrowLeft, Send } from 'lucide-react';
+import { fetchJson } from '@/lib/fetchJson';
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
@@ -15,17 +16,15 @@ export default function ForgotPasswordPage() {
         setMessage('');
 
         try {
-            const res = await fetch('/api/auth/forgot-password', {
+            const { response: res, data } = await fetchJson('/api/auth/forgot-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email }),
             });
 
-            const data = await res.json();
-
             if (res.ok) {
                 setStatus('success');
-                setMessage(data.message);
+                setMessage(data.message ?? 'Email sent successfully');
             } else {
                 setStatus('error');
                 setMessage(data.message || 'Something went wrong');

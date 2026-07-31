@@ -16,7 +16,7 @@ export const translations = {
         tagline: 'Industrial Boutique',
         
         // Footer
-        footer_desc: "Pakistan's most trusted embroidery machine parts portal. We provide a premium marketplace for buying, selling and maintaining your industrial machinery with complete peace of mind.",
+        footer_desc: "Pakistan's trusted industrial marketplace for buying and selling machine parts, spare parts, and equipment. We connect buyers with verified sellers — not a seller ourselves.",
         explore: 'Explore',
         get_in_touch: 'Get In Touch',
         newsletter: 'Newsletter',
@@ -31,7 +31,7 @@ export const translations = {
         verified_industrial_parts: 'Verified Industrial Parts',
         hero_title_1: 'Stitch The',
         hero_title_2: 'Future',
-        hero_desc: "Pakistan's most exclusive marketplace for premium embroidery machine parts. Buy, sell, and discover industrial excellence.",
+        hero_desc: "Pakistan's industrial marketplace for buying and selling machine parts, spare parts, and equipment. Connect with verified sellers across the country.",
         browse_parts: 'Browse Parts',
         list_your_parts: 'List Your Parts',
         genuine_parts: 'Genuine Parts',
@@ -46,17 +46,17 @@ export const translations = {
         parts: 'Parts',
         explore_all_parts: 'Explore All Parts',
         why_buy_with_sanatkar: 'Why Buy With SANATKAR?',
-        why_buy_desc: 'Discover why thousands of manufacturing units choose us daily for their embroidery needs.',
+        why_buy_desc: 'Sanatkar is a marketplace — not a seller. We connect buyers with verified suppliers across Pakistan so you get the best deals with zero hassle.',
         want_to_sell_parts: 'Want to Sell Your Spare Parts?',
         get_best_quotes: 'Get Best Quotes Today.',
         cta_desc: 'List your components for free and get access to over 50,000 potential buyers nationwide.',
         or_call_support: 'Or Call SANATKAR Support',
         
         // Stats
-        listed_parts: 'Listed Parts',
-        happy_clients: 'Happy Clients',
-        genuine_products: 'Genuine Products',
-        active_ads: 'Active Ads',
+        listed_parts: 'Active Listings',
+        happy_clients: 'Registered Sellers',
+        genuine_products: 'Cities Covered',
+        active_ads: 'Buyers Connected',
 
         // Contact Page
         contact_title: 'Contact Us',
@@ -125,12 +125,12 @@ export const translations = {
         part_price: 'Part Price',
 
         // Features
-        feat_1_title: 'Verified Quality',
-        feat_1_desc: 'Every part listing is checked by our technical team for authenticity and specification.',
-        feat_2_title: 'Fast Deployment',
-        feat_2_desc: 'Minimize downtime with quick connections to the best suppliers in the market.',
-        feat_3_title: 'Technical Support',
-        feat_3_desc: 'Expert guidance on part compatibility and installation for all major brands.',
+        feat_1_title: 'Hassle Free',
+        feat_1_desc: 'Browse hundreds of verified listings and connect directly with sellers — no middlemen, no complications. Just simple, smooth buying.',
+        feat_2_title: 'One Stop Shop',
+        feat_2_desc: 'From industrial machinery to spare parts and equipment — find everything your factory needs in one trusted marketplace.',
+        feat_3_title: 'Verified Sellers',
+        feat_3_desc: 'Every seller on SANATKAR is reviewed and verified. Buy with confidence knowing you are dealing with genuine suppliers.',
 
         // Mobile Menu
         post_ad_free: 'Post an Ad Free',
@@ -201,25 +201,25 @@ export const translations = {
         parts: 'پرزہ جات',
         explore_all_parts: 'تمام پرزے دریافت کریں',
         why_buy_with_sanatkar: 'صنعت کار سے کیوں خریدیں؟',
-        why_buy_desc: 'دریافت کریں کہ ہزاروں مینوفیکچرنگ یونٹ اپنی کڑھائی کی ضروریات کے لیے ہمیں روزانہ کیوں منتخب کرتے ہیں۔',
+        why_buy_desc: 'صنعت کار ایک مارکیٹ پلیس ہے — بیچنے والا نہیں۔ ہم خریداروں کو پاکستان بھر میں تصدیق شدہ فروخت کنندگان سے جوڑتے ہیں تاکہ آپ کو بہترین سودے بغیر کسی پریشانی کے ملیں۔',
         want_to_sell_parts: 'اپنے فالتو پرزے بیچنا چاہتے ہیں؟',
         get_best_quotes: 'آج ہی بہترین قیمتیں حاصل کریں۔',
         cta_desc: 'اپنے پرزہ جات کی مفت فہرست بنائیں اور ملک بھر میں 50,000 سے زائد ممکنہ خریداروں تک رسائی حاصل کریں۔',
         or_call_support: 'یا صنعت کار سپورٹ کو کال کریں',
 
         // Stats
-        listed_parts: 'فہرست شدہ پرزے',
-        happy_clients: 'خوش گاہک',
-        genuine_products: 'اصلی مصنوعات',
-        active_ads: 'فعال اشتہارات',
+        listed_parts: 'فعال اشتہارات',
+        happy_clients: 'رجسٹرڈ فروخت کنندگان',
+        genuine_products: 'شہر',
+        active_ads: 'خریداروں سے رابطہ',
 
         // Features
-        feat_1_title: 'تصدیق شدہ معیار',
-        feat_1_desc: 'پرزوں کی ہر فہرست کو ہماری تکنیکی ٹیم اصلیت اور تفصیلات کے لیے چیک کرتی ہے۔',
-        feat_2_title: 'تیز ترسیل',
-        feat_2_desc: 'مارکیٹ کے بہترین سپلائرز کے ساتھ فوری رابطوں کے ساتھ وقت کی بچت کریں۔',
-        feat_3_title: 'تکنیکی مدد',
-        feat_3_desc: 'تمام بڑے برانڈز کے پرزوں کی مطابقت اور انسٹالیشن پر ماہرانہ رہنمائی۔',
+        feat_1_title: 'بالکل آسان',
+        feat_1_desc: 'سینکڑوں تصدیق شدہ اشتہارات دیکھیں اور براہ راست فروخت کنندگان سے رابطہ کریں — کوئی بچولیا نہیں، کوئی پیچیدگی نہیں۔ بس سادہ اور آسان خریداری۔',
+        feat_2_title: 'ہر چیز ایک جگہ',
+        feat_2_desc: 'صنعتی مشینری سے لے کر پرزہ جات اور آلات تک — اپنی فیکٹری کی تمام ضروریات ایک قابل اعتماد مارکیٹ پلیس پر پوری کریں۔',
+        feat_3_title: 'تصدیق شدہ فروخت کنندگان',
+        feat_3_desc: 'صنعت کار پر ہر فروخت کنندہ کا جائزہ لیا جاتا ہے اور اسے تصدیق کی جاتی ہے۔ یقین کے ساتھ خریدیں کیونکہ آپ اصلی سپلائرز سے معاملہ کر رہے ہیں۔',
     
         // Contact Page
         contact_title: 'ہم سے رابطہ کریں',

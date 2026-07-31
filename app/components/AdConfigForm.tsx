@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Loader2, Megaphone, Save, CheckCircle2 } from 'lucide-react';
+import { fetchJson } from '@/lib/fetchJson';
 
 interface AdConfig {
     title: string;
@@ -29,11 +30,10 @@ export default function AdConfigForm() {
 
     useEffect(() => {
         setLoading(true);
-        fetch('/api/ad')
-            .then(r => r.json())
-            .then(data => {
+        fetchJson('/api/ad')
+            .then(({ data }) => {
                 if (data.success && data.ad) {
-                    setAdConfig(data.ad);
+                    setAdConfig(data.ad as unknown as AdConfig);
                 }
             })
             .catch(console.error)
@@ -45,12 +45,11 @@ export default function AdConfigForm() {
         setSaving(true);
         setMessage('');
         try {
-            const res = await fetch('/api/admin/ad', {
+            const { data } = await fetchJson('/api/admin/ad', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(adConfig)
             });
-            const data = await res.json();
             if (data.success) {
                 setMessage('Configuration updated successfully!');
                 setTimeout(() => setMessage(''), 3000);

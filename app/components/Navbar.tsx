@@ -3,22 +3,33 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Phone, Package, User, LogOut, Languages, ShieldCheck } from 'lucide-react';
+import { Menu, X, Phone, Package, User, LogOut, Languages, ShieldCheck, ChevronDown, Factory, Sparkles, Wrench } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 
-export default function Navbar() {
+interface NavbarProps {
+    forceSolid?: boolean;
+}
+
+export default function Navbar({ forceSolid = false }: NavbarProps) {
     const { language, toggleLanguage, t } = useLanguage();
-    const { user: authUser, isAdmin } = useAuth();
+    const { user: authUser, isAdmin, loading: authLoading } = useAuth();
     const [menuOpen, setMenuOpen] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
+    const [postAdOpen, setPostAdOpen] = useState(false);
+    const [hoveredItem, setHoveredItem] = useState<'machines' | 'parts' | null>(null);
     const pathname = usePathname();
 
     // Only home page has a dark hero — navbar starts transparent there
-    const isSolid = isScrolled || pathname !== '/';
+    const isSolid = forceSolid || isScrolled || pathname !== '/';
 
     const handleLogout = async () => {
         await fetch('/api/auth/logout', { method: 'POST' });
+        try {
+            const { createClient } = await import('@/lib/supabase/client');
+            const client = createClient();
+            await client.auth.signOut();
+        } catch (e) {}
         window.location.reload();
     };
 
@@ -38,11 +49,10 @@ export default function Navbar() {
     return (
         <>
             {/* ── Navbar bar ── */}
-            <nav className={`fixed top-0 left-0 right-0 z-[100] py-4 text-white transition-all duration-500 ${
-                isSolid
-                    ? 'bg-[#0a0f1c]/95 backdrop-blur-2xl border-b border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.25)]'
-                    : 'bg-transparent'
-            }`}>
+            <nav className={`fixed top-0 left-0 right-0 z-[100] py-4 text-white transition-all duration-500 ${isSolid
+                ? 'bg-[#050505]/80 backdrop-blur-2xl border-b border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.25)]'
+                : 'bg-transparent'
+                }`}>
                 <div className="container mx-auto px-6 md:px-8 flex justify-between items-center">
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-2 group transition-transform active:scale-95">
@@ -50,11 +60,63 @@ export default function Navbar() {
                     </Link>
 
                     {/* Desktop links */}
-                    <div className="hidden md:flex items-center gap-8 text-sm font-bold">
+                    <div className="hidden md:flex items-center gap-8 text-sm font-bold relative">
                         <Link href="/buyer" className="hover:text-gray-300 transition-colors">{t('buy_parts')}</Link>
-                        {authUser && (
-                            <Link href="/seller" className="hover:text-gray-300 transition-colors">{t('post_ad')}</Link>
-                        )}
+
+                        {/* Post an Ad with Dropdown */}
+                        <div
+                            className="relative"
+                            onMouseEnter={() => setPostAdOpen(true)}
+                            onMouseLeave={() => { setPostAdOpen(false); setHoveredItem(null); }}
+                        >
+                            <div className="flex items-center gap-1">
+                                <Link
+                                    href={authLoading ? '#' : (authUser ? "/seller" : `/login?next=${encodeURIComponent('/seller')}`)}
+                                    onClick={(e) => { if (authLoading) e.preventDefault(); }}
+                                    className="hover:text-gray-300 transition-colors"
+                                >
+                                    {t('post_ad')}
+                                </Link>
+
+                                <button
+                                    type="button"
+                                    onClick={() => setPostAdOpen(!postAdOpen)}
+                                    className="hover:text-gray-300 transition-colors"
+                                >
+                                    <ChevronDown
+                                        size={16}
+                                        className={`transition-transform duration-300 ${postAdOpen ? 'rotate-180' : ''
+                                            }`}
+                                    />
+                                </button>
+                            </div>
+
+                            {/* First level dropdown — pt-2 creates invisible bridge so mouse doesn't leave parent */}
+                            {postAdOpen && (
+                                <div className="absolute top-full left-0 pt-2 w-48 z-50">
+                                    <div className="bg-[#000] rounded-2xl border border-white/10 shadow-2xl">
+
+                                        <Link
+                                            href={authLoading ? '#' : (authUser ? "/seller?tab=post&category=machines" : `/login?next=${encodeURIComponent('/seller?tab=post&category=machines')}`)}
+                                            onClick={(e) => { if (authLoading) e.preventDefault(); }}
+                                            className="flex items-center justify-between px-4 py-3.5 text-white hover:bg-white/10 transition-colors rounded-t-2xl border-b border-white/5"
+                                        >
+                                            <span>Machines</span>
+                                        </Link>
+
+                                        <Link
+                                            href={authLoading ? '#' : (authUser ? "/seller?tab=post&category=parts" : `/login?next=${encodeURIComponent('/seller?tab=post&category=parts')}`)}
+                                            onClick={(e) => { if (authLoading) e.preventDefault(); }}
+                                            className="flex items-center justify-between px-4 py-3.5 text-white hover:bg-white/10 transition-colors rounded-b-2xl"
+                                        >
+                                            <span>Parts</span>
+                                        </Link>
+
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
                         {isAdmin && (
                             <Link href="/admin/dashboard" className="hover:text-gray-300 transition-colors flex items-center gap-2">
                                 <ShieldCheck size={16} /> Admin
@@ -100,16 +162,14 @@ export default function Navbar() {
 
             {/* ── Backdrop (outside nav, body-level z-index) ── */}
             <div
-                className={`fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm md:hidden transition-opacity duration-300 ${
-                    menuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-                }`}
+                className={`fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm md:hidden transition-opacity duration-300 ${menuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                    }`}
                 onClick={() => setMenuOpen(false)}
             />
 
             {/* ── Slide drawer (outside nav) ── */}
-            <div className={`fixed top-0 right-0 h-full w-[78%] max-w-[320px] z-[210] bg-[#0a0f1c] border-l border-white/10 shadow-2xl flex flex-col md:hidden transition-transform duration-300 ease-out ${
-                menuOpen ? 'translate-x-0' : 'translate-x-full'
-            }`}>
+            <div className={`fixed top-0 right-0 h-full w-[78%] max-w-[320px] z-[210] bg-[#0a0f1c] border-l border-white/10 shadow-2xl flex flex-col md:hidden transition-transform duration-300 ease-out ${menuOpen ? 'translate-x-0' : 'translate-x-full'
+                }`}>
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
                     <img src="/logo.png" alt="SanatKar" className="h-8 w-auto" />
@@ -128,13 +188,35 @@ export default function Navbar() {
                         <Package size={18} className="text-primary" />
                         {t('buy_parts')}
                     </Link>
-                    {authUser && (
-                        <Link href="/seller" onClick={() => setMenuOpen(false)}
-                            className="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-white font-semibold text-sm hover:bg-white/10 transition-colors">
-                            <Package size={18} className="text-primary" />
+
+                    {/* Mobile Post an Ad Dropdown */}
+                    <div className="space-y-1">
+                        <Link
+                            href={authLoading ? '#' : (authUser ? "/seller?tab=post" : `/login?next=${encodeURIComponent('/seller?tab=post')}`)}
+                            onClick={(e) => { setMenuOpen(false); if (authLoading) e.preventDefault(); }}
+                            className="block text-xs font-bold text-gray-400 px-4 py-2 uppercase tracking-widest hover:text-white transition-colors"
+                        >
                             {t('post_ad')}
                         </Link>
-                    )}
+                        <Link
+                            href={authLoading ? '#' : (authUser ? "/seller?tab=post&category=machines" : `/login?next=${encodeURIComponent('/seller?tab=post&category=machines')}`)}
+                            onClick={(e) => { setMenuOpen(false); if (authLoading) e.preventDefault(); }}
+                            className="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-white font-semibold text-sm hover:bg-white/10 transition-colors"
+                        >
+                            <Package size={18} className="text-primary" />
+                            Machines
+                        </Link>
+
+                        <Link
+                            href={authLoading ? '#' : (authUser ? "/seller?tab=post&category=parts" : `/login?next=${encodeURIComponent('/seller?tab=post&category=parts')}`)}
+                            onClick={(e) => { setMenuOpen(false); if (authLoading) e.preventDefault(); }}
+                            className="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-white font-semibold text-sm hover:bg-white/10 transition-colors"
+                        >
+                            <Package size={18} className="text-primary" />
+                            Parts
+                        </Link>
+                    </div>
+
                     {isAdmin && (
                         <Link href="/admin/dashboard" onClick={() => setMenuOpen(false)}
                             className="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-white font-semibold text-sm hover:bg-white/10 transition-colors">

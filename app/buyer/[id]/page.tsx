@@ -3,7 +3,7 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import prisma from '@/lib/dbConn';
 import Link from 'next/link';
-import { ArrowLeft, MapPin, ShieldCheck, Settings, Package, BadgeCheck, ExternalLink, ShoppingCart, Clock, Truck, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, MapPin, ShieldCheck, Settings, Package, BadgeCheck, ExternalLink, ShoppingCart, Clock, Truck, Phone } from 'lucide-react';
 import type { Metadata } from 'next';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -58,6 +58,9 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
     }
 
     // Map DB fields to UI fields
+    const sellerPhoneMatch = (partDoc.model || '').match(/Phone:\s*([^|/]+?)(?:\s*\/|\s*$)/i);
+    const sellerPhone = sellerPhoneMatch?.[1]?.trim() || '';
+
     const part = {
         id: partDoc.id,
         brand: partDoc.make || 'General',
@@ -189,9 +192,17 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
                                             <ShoppingCart size={20} /> BUY NOW
                                         </button>
                                     </Link>
-                                    <button className="w-full group/report border-2 border-dashed border-gray-100 text-gray-400 py-5 rounded-[1.5rem] font-black text-sm tracking-widest hover:border-red-100 hover:text-red-500 hover:bg-red-50/50 transition-all flex items-center justify-center gap-3 uppercase">
-                                        <ShieldAlert size={20} className="group-hover/report:scale-110 transition-transform" /> REPORT PRODUCT
-                                    </button>
+                                    {sellerPhone ? (
+                                        <a href={`tel:${sellerPhone}`} className="block">
+                                            <button className="w-full border-2 border-primary/20 bg-primary/5 text-primary py-5 rounded-[1.5rem] font-black text-sm tracking-widest hover:bg-primary/10 transition-all flex items-center justify-center gap-3 uppercase">
+                                                <Phone size={20} /> {sellerPhone}
+                                            </button>
+                                        </a>
+                                    ) : (
+                                        <div className="w-full border-2 border-dashed border-gray-100 text-gray-400 py-5 rounded-[1.5rem] font-black text-sm tracking-widest flex items-center justify-center gap-3 uppercase">
+                                            <Phone size={20} /> Contact Unavailable
+                                        </div>
+                                    )}
                                 </div>
 
                                 <Link href={`/seller-profile/${partDoc.seller?.id || ''}`} className="mt-10 pt-10 border-t border-gray-100 flex items-center gap-5 group/seller transition-all hover:bg-gray-50/50 p-4 rounded-3xl -mx-4 cursor-pointer">
@@ -202,34 +213,12 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
                                             <ExternalLink size={12} className="opacity-0 group-hover/seller:opacity-100 transition-opacity" />
                                         </p>
                                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                                            {partDoc.seller?.role === 'admin' ? 'Verified Platform Partner' : 'Verified Seller • 12 years'}
+                                            {partDoc.seller?.role === 'admin' ? 'Verified Platform Partner' : ''}
                                         </p>
                                     </div>
                                 </Link>
                             </div>
-
-
-                            {/* Sidebar Info */}
-                            <div className="bg-secondary text-white p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-[60px] -mr-16 -mt-16"></div>
-                                <div className="relative z-10">
-                                    <h3 className="!text-white text-2xl mb-4 tracking-tight">Safe <span className="text-primary italic">Transactions</span></h3>
-                                    <ul className="space-y-4">
-                                        <li className="flex items-start gap-3 text-sm text-gray-400 font-medium">
-                                            <div className="w-5 h-5 bg-primary/20 rounded-full flex-shrink-0 flex items-center justify-center text-primary text-[10px]">✓</div>
-                                            Verified machine components only
-                                        </li>
-                                        <li className="flex items-start gap-3 text-sm text-gray-400 font-medium">
-                                            <div className="w-5 h-5 bg-primary/20 rounded-full flex-shrink-0 flex items-center justify-center text-primary text-[10px]">✓</div>
-                                            Secure SanatKaar payment protection
-                                        </li>
-                                        <li className="flex items-start gap-3 text-sm text-gray-400 font-medium">
-                                            <div className="w-5 h-5 bg-primary/20 rounded-full flex-shrink-0 flex items-center justify-center text-primary text-[10px]">✓</div>
-                                            24/7 technical support available
-                                        </li>
-                                    </ul>
-                                </div>
-                            </div>
+                    
                         </aside>
                     </div>
                 </div>
@@ -237,7 +226,7 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
                 {/* Mobile Sticky Buy Bar */}
                 <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-gray-100 p-4 z-[90] flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-500">
                     <div>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Price</p>
+                        <p className="text-[10px] text-gray-4   00 font-bold uppercase tracking-wider">Total Price</p>
                         <p className="text-secondary font-black text-xl tracking-tight">PKR {part.price.toLocaleString()}</p>
                     </div>
                     <Link href={`/checkout/${id}`} className="flex-1">

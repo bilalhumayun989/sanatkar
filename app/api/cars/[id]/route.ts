@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/dbConn';
-import { verifyToken } from '@/lib/auth';
+import { getCurrentProfile } from '@/lib/supabase/server';
 
 export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
     try {
@@ -17,12 +17,8 @@ export async function GET(req: NextRequest, props: { params: Promise<{ id: strin
 
 export async function PUT(req: NextRequest, props: { params: Promise<{ id: string }> }) {
     try {
-        const token = req.cookies.get('auth_token')?.value;
-        if (!token) {
-            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-        }
-        const decoded: any = await verifyToken(token);
-        if (!decoded || !decoded.id) {
+        const { user, profile } = await getCurrentProfile(req);
+        if (!user || !profile) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
@@ -33,6 +29,9 @@ export async function PUT(req: NextRequest, props: { params: Promise<{ id: strin
         const existingCar = await prisma.car.findUnique({ where: { id: params.id } });
         if (!existingCar) {
             return NextResponse.json({ message: 'Car not found' }, { status: 404 });
+        }
+        if (existingCar.sellerId !== user.id && profile.role !== 'admin') {
+            return NextResponse.json({ message: 'You do not own this listing.' }, { status: 403 });
         }
 
         // Only allow updating relevant fields

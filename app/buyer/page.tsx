@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { Suspense, useEffect, useState, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -9,10 +10,22 @@ import { Part as PartType } from '../data/mockData';
 import { Search, SlidersHorizontal, Check, Loader2, X, Package } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
+import { FIXED_CATEGORY_OPTIONS, normalizeCategoryValue } from '@/lib/categoryConstants';
 
 export default function BuyerPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-white" />}> 
+            <BuyerPageContent />
+        </Suspense>
+    );
+}
+
+function BuyerPageContent() {
     const { t, language } = useLanguage();
     const { isAdmin } = useAuth();
+    const searchParams = useSearchParams();
+    const urlCategory = searchParams.get('category');
+    const urlSearch = searchParams.get('search');
     const [parts, setParts] = useState<PartType[]>([]);
     const [adConfig, setAdConfig] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -22,7 +35,7 @@ export default function BuyerPage() {
     const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
     const [sortBy, setSortBy] = useState('most_recent');
     const [showMobileFilters, setShowMobileFilters] = useState(false);
-    const [popularCategories, setPopularCategories] = useState<any[]>([]);
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(urlCategory || null);
 
     const priceRanges = [
         { id: 'under_5k', label: 'Under 5,000', min: 0, max: 5000 },
@@ -35,26 +48,28 @@ export default function BuyerPage() {
     useEffect(() => {
         const fetchParts = async () => {
             try {
-                const res = await fetch('/api/cars');
+                const res = await fetch('/api/listings');
                 if (!res.ok) throw new Error('Failed to fetch parts');
-                const data = await res.json();
-                const list = Array.isArray(data) ? data : (data.data ?? []);
+                const payload = await res.json();
+                const list = Array.isArray(payload?.data) ? payload.data : [];
                 setParts(list.map((item: any) => ({
                     id: item.id,
-                    brand: item.make,
-                    partName: item.model,
-                    price: item.price,
-                    location: item.location,
-                    image: item.images?.[0] || 'https://ae01.alicdn.com/kf/H9872be9c3c5448388915e7fb04899583E/KHS12-RYP-Tajima-Embroidery-Machine-Parts-Rotary-Hook.jpg',
+                    brand: item.brand || item.make || 'Unknown',
+                    partName: item.title || `${item.make || ''} ${item.model || ''}`.trim() || 'Listing',
+                    price: Number(item.price) || 0,
+                    location: item.location || item.city || 'Pakistan',
+                    image: Array.isArray(item.image_urls) && item.image_urls[0]
+                        ? item.image_urls[0]
+                        : 'https://ae01.alicdn.com/kf/H9872be9c3c5448388915e7fb04899583E/KHS12-RYP-Tajima-Embroidery-Machine-Parts-Rotary-Hook.jpg',
                     compatibility: item.mileage || 'Universal',
-                    condition: item.fuelType || 'New',
-                    stockStatus: item.transmission || 'In Stock',
-                    isFeatured: item.isFeatured,
-                    sellerRole: item.seller?.role,
-                    sellerId: item.seller?.id,
-                    sellerName: item.seller?.name,
+                    condition: item.condition || 'New',
+                    stockStatus: 'In Stock',
+                    isFeatured: item.status === 'active',
+                    sellerRole: null,
+                    sellerId: null,
+                    sellerName: null,
                     category: item.category || 'General',
-                    createdAt: item.createdAt || new Date().toISOString()
+                    createdAt: item.created_at || new Date().toISOString()
                 })));
             } catch (err: any) {
                 setError(err.message);
@@ -71,16 +86,13 @@ export default function BuyerPage() {
                 }
             } catch (e) { console.error('ad fetch error', e); }
         };
-        const fetchCategories = async () => {
-            try {
-                const res = await fetch('/api/categories');
-                if (!res.ok) return;
-                const data = await res.json();
-                if (data.success) setPopularCategories(data.categories.filter((c: any) => c.isPopular).slice(0, 5));
-            } catch (e) { console.error('categories fetch error', e); }
-        };
-        fetchParts(); fetchAd(); fetchCategories();
+        fetchParts(); fetchAd();
     }, []);
+
+    useEffect(() => {
+        if (urlSearch) setSearchQuery(urlSearch);
+        if (urlCategory) setSelectedCategory(urlCategory);
+    }, [urlSearch, urlCategory]);
 
     useEffect(() => {
         document.body.style.overflow = showMobileFilters ? 'hidden' : '';
@@ -91,7 +103,12 @@ export default function BuyerPage() {
         let result = [...parts];
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
-            result = result.filter(p => p.partName.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q));
+            result = result.filter(p => p.partName.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q));
+        }
+        const activeCategory = selectedCategory || urlCategory;
+        if (activeCategory) {
+            const categoryFilter = normalizeCategoryValue(activeCategory);
+            result = result.filter(p => normalizeCategoryValue(p.category).toLowerCase() === categoryFilter);
         }
         if (selectedBrands.length > 0) result = result.filter(p => selectedBrands.includes(p.brand));
         if (selectedPriceRanges.length > 0) {
@@ -106,14 +123,14 @@ export default function BuyerPage() {
             default: result.sort((a, b) => new Date(b.createdAt as string).getTime() - new Date(a.createdAt as string).getTime());
         }
         return result;
-    }, [parts, searchQuery, selectedBrands, selectedPriceRanges, sortBy]);
+    }, [parts, searchQuery, selectedBrands, selectedPriceRanges, sortBy, selectedCategory, urlCategory]);
 
     const handleBrandToggle = (brand: string) =>
         setSelectedBrands(prev => prev.includes(brand) ? prev.filter(b => b !== brand) : [...prev, brand]);
     const handlePriceToggle = (id: string) =>
         setSelectedPriceRanges(prev => prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id]);
-    const resetFilters = () => { setSearchQuery(''); setSelectedBrands([]); setSelectedPriceRanges([]); setSortBy('most_recent'); };
-    const activeFilterCount = selectedBrands.length + selectedPriceRanges.length;
+    const resetFilters = () => { setSearchQuery(''); setSelectedBrands([]); setSelectedPriceRanges([]); setSortBy('most_recent'); setSelectedCategory(null); };
+    const activeFilterCount = selectedBrands.length + selectedPriceRanges.length + ((selectedCategory || urlCategory) ? 1 : 0);
 
     const FilterSection = () => (
         <div className="space-y-10">
@@ -202,16 +219,12 @@ export default function BuyerPage() {
                         </button>
                         <div className="mt-5 flex flex-wrap gap-3 items-center">
                             <span className="text-xs font-black text-gray-400 uppercase tracking-widest mt-1 mr-2">{t('popular')}:</span>
-                            {popularCategories.length > 0 ? (
-                                popularCategories.map((c) => (
-                                    <button key={c._id} onClick={() => setSearchQuery(c.name)}
-                                        className="text-xs font-bold text-white/60 hover:text-white bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10 transition-all">
-                                        {c.name}
-                                    </button>
-                                ))
-                            ) : (
-                                <span className="text-[10px] text-gray-500 font-bold italic tracking-wide">No popular categories available</span>
-                            )}
+                            {FIXED_CATEGORY_OPTIONS.map((category) => (
+                                <button key={category.value} onClick={() => setSelectedCategory(category.value)}
+                                    className="text-xs font-bold text-white/60 hover:text-white bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10 transition-all">
+                                    {category.label}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -245,6 +258,17 @@ export default function BuyerPage() {
 
                     {/* Parts Grid */}
                     <div className="flex-1">
+                        <div className="flex flex-wrap gap-2 mb-6">
+                            <button onClick={() => setSelectedCategory(null)} className={`rounded-full border px-4 py-2 text-sm font-semibold ${!selectedCategory ? 'bg-primary text-white border-primary' : 'border-gray-200 text-gray-600'}`}>
+                                All categories
+                            </button>
+                            {FIXED_CATEGORY_OPTIONS.map((category) => (
+                                <button key={category.value} onClick={() => setSelectedCategory(category.value)} className={`rounded-full border px-4 py-2 text-sm font-semibold ${selectedCategory === category.value ? 'bg-primary text-white border-primary' : 'border-gray-200 text-gray-600'}`}>
+                                    {category.label}
+                                </button>
+                            ))}
+                        </div>
+
                         {/* Toolbar */}
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
                             <div className="flex items-center justify-between w-full sm:w-auto gap-4">
@@ -297,6 +321,11 @@ export default function BuyerPage() {
                                         </button>
                                     ) : null;
                                 })}
+                                {selectedCategory && (
+                                    <button onClick={() => setSelectedCategory(null)} className="flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-full text-xs font-bold hover:bg-primary/20 transition-colors">
+                                        {FIXED_CATEGORY_OPTIONS.find((option) => option.value === selectedCategory)?.label || selectedCategory} <X size={11} />
+                                    </button>
+                                )}
                                 <button onClick={resetFilters} className="text-xs font-bold text-gray-400 hover:text-gray-600 px-2 py-1">Clear all</button>
                             </div>
                         )}

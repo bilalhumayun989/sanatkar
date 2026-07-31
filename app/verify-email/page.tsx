@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle2, XCircle, Loader2, ArrowLeft } from 'lucide-react';
+import { fetchJson } from '@/lib/fetchJson';
 
 function VerifyEmailContent() {
     const router = useRouter();
@@ -22,8 +23,7 @@ function VerifyEmailContent() {
 
         const verifyEmail = async () => {
             try {
-                const res = await fetch(`/api/auth/verify-email?token=${token}`);
-                const data = await res.json();
+                const { response: res, data } = await fetchJson(`/api/auth/verify-email?token=${token}`);
 
                 if (res.ok) {
                     setStatus('success');

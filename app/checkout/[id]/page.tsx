@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { useAuth } from '@/lib/AuthContext';
+import { fetchJson } from '@/lib/fetchJson';
 import { 
     ShieldCheck, 
     Lock, 
@@ -46,9 +47,8 @@ export default function CheckoutPage() {
     useEffect(() => {
         const fetchProduct = async () => {
             try {
-                const res = await fetch(`/api/cars/${productId}`);
+                const { response: res, data } = await fetchJson(`/api/cars/${productId}`);
                 if (!res.ok) throw new Error('Failed to fetch product');
-                const data = await res.json();
                 setProduct(data);
             } catch (err) {
                 console.error(err);
@@ -77,7 +77,7 @@ export default function CheckoutPage() {
 
         setSubmitting(true);
         try {
-            const res = await fetch('/api/orders', {
+            const { response: res, data } = await fetchJson('/api/orders', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -89,11 +89,9 @@ export default function CheckoutPage() {
                     shippingAddress: formData
                 })
             });
-
-            const data = await res.json();
             if (data.success) {
                 setOrderSuccess(true);
-                setOrderId(data.orderId);
+                setOrderId(data.orderId ?? '');
             } else {
                 alert(data.message || 'Failed to place order');
             }

@@ -1,60 +1,17 @@
-import { NextResponse } from 'next/server';
-import prisma from '@/lib/dbConn';
-import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
-import { sendVerificationEmail } from '@/lib/mail';
+import { createServerClient } from '@/lib/supabase/ssr';
+import { createAdminClient } from '@/lib/supabase/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST(request: Request) {
-    try {
-        // await dbConnect();
-        const { name, email, password, role, pakwheelsUrl, darazUrl } = await request.json();
-
-        if (!name || !email || !password) {
-            return NextResponse.json({ success: false, message: 'Please provide name, email and password' }, { status: 400 });
-        }
-
-        const userExists = await prisma.user.findUnique({ where: { email } });
-        if (userExists) {
-            return NextResponse.json({ success: false, message: 'User already exists' }, { status: 400 });
-        }
-
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-
-        // Generate verification token
-        const verifyToken = crypto.randomBytes(32).toString('hex');
-        const verifyTokenExpire = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-        const user = await prisma.user.create({
-            data: {
-                name,
-                email,
-                password: hashedPassword,
-                role: role || 'user',
-                pakwheelsUrl: role === 'seller' ? pakwheelsUrl : undefined,
-                darazUrl: role === 'seller' ? darazUrl : undefined,
-                isVerified: false,
-                verifyToken,
-                verifyTokenExpire,
-            }
-        });
-
-        // Send verification email
-        try {
-            await sendVerificationEmail(email, verifyToken);
-        } catch (emailError: any) {
-            console.error('Email error:', emailError);
-            // We still created the user, they might need to request a resend later
-            // For now, we'll return success but note that email might have failed in logs
-        }
-
-        return NextResponse.json({
-            success: true,
-            message: 'Registration successful! Please check your email to verify your account.',
-            user: { id: user.id, name: user.name, email: user.email, role: user.role }
-        }, { status: 201 });
-
-    } catch (error: any) {
-        return NextResponse.json({ success: false, message: error.message || 'Server error' }, { status: 500 });
-    }
+export async function POST(request: NextRequest) {
+  const { email, password, username, phone, additionalPhone, accountType } = await request.json();
+  if (!email || !password || !username || !phone) return NextResponse.json({ success: false, message: 'Username, email, password, and phone number are required.' }, { status: 400 });
+  if (accountType === 'seller' && !additionalPhone) return NextResponse.json({ success: false, message: 'Seller accounts require an additional phone number.' }, { status: 400 });
+  const response = NextResponse.json({ success: true, message: 'Check your email to confirm your account.' }, { status: 201 });
+  const client = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    cookies: { getAll: () => request.cookies.getAll(), setAll: (items) => items.forEach(({ name, value, options }) => response.cookies.set(name, value, options)) },
+  });
+  const { data, error } = await client.auth.signUp({ email, password, options: { data: { username }, emailRedirectTo: `${new URL(request.url).origin}/login` } });
+  if (error) return NextResponse.json({ success: false, message: error.message }, { status: 400 });
+  if (data.user) await createAdminClient().from('profiles').update({ phone, additional_phone: accountType === 'seller' ? additionalPhone : null, role: accountType === 'seller' ? 'seller' : 'user' }).eq('id', data.user.id);
+  return response;
 }

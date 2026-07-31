@@ -1,31 +1,10 @@
-import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentProfile } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
-    try {
-        const token = request.cookies.get('auth_token')?.value;
-
-        if (!token) {
-            return NextResponse.json({ success: false, user: null }, { status: 401 });
-        }
-
-        const payload = await verifyToken(token);
-
-        if (!payload) {
-            return NextResponse.json({ success: false, user: null }, { status: 401 });
-        }
-
-        return NextResponse.json({
-            success: true,
-            user: {
-                id: payload.id,
-                email: payload.email,
-                role: payload.role,
-                name: payload.name || payload.email
-            }
-        });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, message: 'Server error', user: null }, { status: 500 });
-    }
+  const { user, profile } = await getCurrentProfile(request);
+  // This endpoint is also called on public pages to hydrate the navbar. An
+  // anonymous visitor is an expected state, not an API failure.
+  if (!user || !profile) return NextResponse.json({ success: true, user: null });
+  return NextResponse.json({ success: true, user: { id: user.id, email: user.email, name: profile.username, role: profile.role } });
 }
