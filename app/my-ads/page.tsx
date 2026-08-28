@@ -8,7 +8,7 @@ import Footer from '@/app/components/Footer';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/AuthContext';
 import { FIXED_CATEGORY_OPTIONS, normalizeCategoryValue } from '@/lib/categoryConstants';
-import { Pencil, Trash2, Loader2, X, ImagePlus, Plus, CheckCircle2, Send, MapPin, Phone as PhoneIcon, MessageCircle, Tag, Camera, Sparkles, Wrench, RotateCcw } from 'lucide-react';
+import { Pencil, Trash2, Loader2, X, ImagePlus, Plus, CheckCircle2, Send, MapPin, Phone as PhoneIcon, MessageCircle, Tag, Camera, Sparkles, Wrench, RotateCcw, ShoppingBag } from 'lucide-react';
 
 const CONDITIONS = ['new', 'used', 'refurbished'] as const;
 type Condition = (typeof CONDITIONS)[number];
@@ -172,6 +172,7 @@ export default function MyAdsPage() {
   const [listings, setListings] = useState<ListingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [markingSoldId, setMarkingSoldId] = useState<string | null>(null);
   const [editingListing, setEditingListing] = useState<ListingItem | null>(null);
   const [form, setForm] = useState<ListingFormState>(createEmptyForm());
   const [existingImages, setExistingImages] = useState<string[]>([]);
@@ -259,7 +260,7 @@ export default function MyAdsPage() {
         condition: (CONDITIONS.includes(data.condition as Condition) ? data.condition : 'new') as Condition,
         fuelType: data.fuel_type || 'N/A',
         transmission: data.transmission || 'N/A',
-        phone: data.phone || '',
+        phone: data.phone_number || '',
         secondaryPhone: data.secondary_phone || '',
         allowWhatsapp: data.allow_whatsapp ?? true,
       };
@@ -289,6 +290,33 @@ export default function MyAdsPage() {
       console.error('Failed to delete listing', err);
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleMarkAsSold = async (id: string, currentStatus: string) => {
+    if (!user) return;
+    const newStatus = currentStatus === 'sold' ? 'active' : 'sold';
+    setMarkingSoldId(id);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from('listings')
+        .update({ status: newStatus })
+        .eq('id', id)
+        .eq('seller_id', user.id);
+      if (!error) {
+        setListings((prev) =>
+          prev.map((listing) =>
+            listing.id === id ? { ...listing, status: newStatus } : listing
+          )
+        );
+        setSuccessMessage(newStatus === 'sold' ? 'Listing marked as sold!' : 'Listing reactivated!');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
+    } catch (err) {
+      console.error('Failed to update listing status', err);
+    } finally {
+      setMarkingSoldId(null);
     }
   };
 
@@ -579,29 +607,60 @@ export default function MyAdsPage() {
           </div>
         ) : (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {listings.map((listing) => (
-              <div key={listing.id} className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
-                <img src={Array.isArray(listing.image_urls) && listing.image_urls[0] ? listing.image_urls[0] : '/hero.jpg'} alt={listing.title} className="h-48 w-full object-cover" />
-                <div className="p-5">
-                  <div className="mb-3 flex items-start justify-between gap-3">
-                    <div>
-                      <h2 className="text-lg font-black text-gray-900">{listing.title}</h2>
-                      <p className="mt-1 text-sm text-gray-500">{listing.category || 'Uncategorized'}</p>
-                    </div>
-                    <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-gray-600">{listing.status}</span>
+            {listings.map((listing) => {
+              const isSold = listing.status === 'sold';
+              return (
+                <div key={listing.id} className={`overflow-hidden rounded-3xl border bg-white shadow-sm transition-all ${isSold ? 'border-gray-100 opacity-80' : 'border-gray-200'}`}>
+                  <div className="relative">
+                    <img src={Array.isArray(listing.image_urls) && listing.image_urls[0] ? listing.image_urls[0] : '/hero.jpg'} alt={listing.title} className={`h-48 w-full object-cover ${isSold ? 'grayscale' : ''}`} />
+                    {isSold && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                        <span className="rounded-full bg-gray-900 px-4 py-1.5 text-xs font-black uppercase tracking-widest text-white shadow-lg">SOLD</span>
+                      </div>
+                    )}
                   </div>
-                  <p className="mb-4 text-base font-bold text-primary">PKR {Number(listing.price || 0).toLocaleString()}</p>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => startEdit(listing)} className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-gray-300 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:border-primary hover:text-primary">
-                      <Pencil size={16} /> Edit
-                    </button>
-                    <button onClick={() => handleDelete(listing.id)} disabled={deletingId === listing.id} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-red-500 px-3 py-2.5 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60">
-                      <Trash2 size={16} /> {deletingId === listing.id ? 'Deleting…' : 'Delete'}
-                    </button>
+                  <div className="p-5">
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div>
+                        <h2 className="text-lg font-black text-gray-900">{listing.title}</h2>
+                        <p className="mt-1 text-sm text-gray-500">{listing.category || 'Uncategorized'}</p>
+                      </div>
+                      <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${
+                        isSold ? 'bg-gray-800 text-white' : 'bg-green-100 text-green-700'
+                      }`}>{listing.status}</span>
+                    </div>
+                    <p className="mb-4 text-base font-bold text-primary">PKR {Number(listing.price || 0).toLocaleString()}</p>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <button type="button" onClick={() => startEdit(listing)} className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-gray-300 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:border-primary hover:text-primary">
+                          <Pencil size={16} /> Edit
+                        </button>
+                        <button onClick={() => handleDelete(listing.id)} disabled={deletingId === listing.id} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-red-500 px-3 py-2.5 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60">
+                          <Trash2 size={16} /> {deletingId === listing.id ? 'Deleting…' : 'Delete'}
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => handleMarkAsSold(listing.id, listing.status)}
+                        disabled={markingSoldId === listing.id}
+                        className={`flex w-full items-center justify-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold transition-all disabled:opacity-60 ${
+                          isSold
+                            ? 'border border-primary bg-primary/5 text-primary hover:bg-primary/10'
+                            : 'bg-gray-900 text-white hover:bg-gray-700'
+                        }`}
+                      >
+                        {markingSoldId === listing.id ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : isSold ? (
+                          <><RotateCcw size={16} /> Relist (Mark Active)</>  
+                        ) : (
+                          <><ShoppingBag size={16} /> Mark as Sold</>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>

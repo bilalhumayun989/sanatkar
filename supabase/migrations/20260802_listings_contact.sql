@@ -4,7 +4,7 @@
 -- =========================================================
 
 alter table public.listings
-  add column if not exists phone text;
+  add column if not exists phone_number text;
 
 alter table public.listings
   add column if not exists secondary_phone text;

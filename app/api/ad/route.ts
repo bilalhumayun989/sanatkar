@@ -3,8 +3,23 @@ import prisma from '@/lib/dbConn';
 
 export async function GET() {
     try {
-        // await dbConnect();
-        
+        // Check if prisma is properly configured
+        if (!process.env.DATABASE_URL) {
+            console.warn('DATABASE_URL not configured, returning empty ad config');
+            return NextResponse.json({ 
+                success: true, 
+                ad: {
+                    isActive: false,
+                    title: '',
+                    description: '',
+                    buttonText: '',
+                    buttonLink: '',
+                    imageUrl: '',
+                    badgeText: ''
+                }
+            });
+        }
+
         // We only maintain one primary Ad configuration in the database for now
         let adContent = await prisma.ad.findFirst();
 
@@ -15,6 +30,19 @@ export async function GET() {
 
         return NextResponse.json({ success: true, ad: adContent });
     } catch (error: any) {
-        return NextResponse.json({ success: false, message: error.message || 'Server error' }, { status: 500 });
+        console.warn('Ad API error:', error.message);
+        // Return safe fallback instead of failing
+        return NextResponse.json({ 
+            success: true, 
+            ad: {
+                isActive: false,
+                title: '',
+                description: '',
+                buttonText: '',
+                buttonLink: '',
+                imageUrl: '',
+                badgeText: ''
+            }
+        });
     }
 }

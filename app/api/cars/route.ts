@@ -14,9 +14,9 @@ export async function POST(request: NextRequest) {
     if (profile.role === 'user' && await prisma.car.count({ where: { sellerId: user.id } }) >= 3) {
       return NextResponse.json({ code: 'AD_LIMIT_REACHED', message: 'You have reached the 3-ad limit. Upgrade to a seller account to post more ads.' }, { status: 403 });
     }
-    const { make, model, year, price, description, condition, mileage, location, images, fuelType, transmission, category } = await request.json();
+    const { make, model, year, price, description, condition, mileage, location, images, fuelType, transmission, category, allowWhatsapp } = await request.json();
     if (!make || !model || !year || !price || !description || !condition || !location) return NextResponse.json({ message: 'Missing required listing fields.' }, { status: 400 });
-    const car = await prisma.car.create({ data: { make, model, year: Number(year), price: Number(price), description, condition, mileage: Number(mileage) || 0, location, images: images || [], fuelType: fuelType || '', transmission: transmission || '', category: category || '', sellerId: user.id, isFeatured: profile.role === 'admin' } });
+    const car = await prisma.car.create({ data: { make, model, year: Number(year), price: Number(price), description, condition, mileage: Number(mileage) || 0, location, images: images || [], fuelType: fuelType || '', transmission: transmission || '', category: category || '', allowWhatsapp: allowWhatsapp ?? true, sellerId: user.id, isFeatured: profile.role === 'admin' } });
     return NextResponse.json(car, { status: 201 });
   } catch (error) {
     console.error('Create listing error:', error);

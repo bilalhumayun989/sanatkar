@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/dbConn';
-import { createAdminClient } from '@/lib/supabase/server';
+import { createAdminClient, getCurrentUser } from '@/lib/supabase/server';
 
 function mapListingItem(item: any) {
   const imageUrls = Array.isArray(item.image_urls)
@@ -30,14 +30,40 @@ function mapListingItem(item: any) {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    let currentUserId: string | null = null;
+    
+    // Try to get current user, but don't fail if auth doesn't work
+    try {
+      const { user } = await getCurrentUser(request);
+      currentUserId = user?.id || null;
+    } catch (authError) {
+      console.warn('Auth error in listings API:', authError);
+      // Continue without user ID - will show all listings
+    }
+
+    // Check if this is a request to include own listings (for my-ads page)
+    const url = new URL(request.url);
+    const includeOwnListings = url.searchParams.get('includeOwn') === 'true';
+
     const supabase = createAdminClient();
-    const { data, error } = await supabase
+    
+    // Build query
+    let query = supabase
       .from('listings')
       .select('*')
+      .eq('status', 'active')  // Only show active listings
       .order('created_at', { ascending: false })
       .limit(12);
+
+    // If user is logged in and we shouldn't include their listings, exclude them
+    // For now, allow users to see their own listings in the "Just Dropped" collections
+    // if (currentUserId && !includeOwnListings) {
+    //   query = query.neq('seller_id', currentUserId);
+    // }
+
+    const { data, error } = await query;
 
     if (!error && Array.isArray(data) && data.length > 0) {
       return NextResponse.json({ success: true, data: data.map(mapListingItem) });

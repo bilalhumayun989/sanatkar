@@ -4,6 +4,7 @@ import Footer from '../../components/Footer';
 import prisma from '@/lib/dbConn';
 import Link from 'next/link';
 import { ArrowLeft, MapPin, ShieldCheck, Settings, Package, BadgeCheck, ExternalLink, ShoppingCart, Clock, Truck, Phone } from 'lucide-react';
+import MakeOfferButton from '../../components/MakeOfferButton';
 import type { Metadata } from 'next';
 import { createAdminClient, createServerSupabaseClient } from '@/lib/supabase/server';
 
@@ -105,7 +106,7 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
     }
 
     // Map DB fields to UI fields
-    const sellerPhone = partDoc.phone || partDoc.seller?.phone || partDoc.seller?.additional_phone || '';
+    const sellerPhone = partDoc.phone_number || partDoc.seller?.phone || partDoc.seller?.additional_phone || '';
     const sellerName = partDoc.seller?.role === 'admin'
         ? 'SanatKaar'
         : partDoc.seller?.username || partDoc.seller?.name || 'Sajid Industrial Solutions';
@@ -257,11 +258,11 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
                                 </div>
 
                                 <div className="space-y-4">
-                                    <Link href={`/checkout/${id}`} className="block">
-                                        <button className="w-full bg-primary text-white py-5 rounded-[1.5rem] font-black text-sm tracking-widest hover:bg-primary-dark transition-all active:scale-[0.98] shadow-xl shadow-primary/20 flex items-center justify-center gap-3 uppercase">
-                                            <ShoppingCart size={20} /> BUY NOW
-                                        </button>
-                                    </Link>
+                                    <MakeOfferButton
+                                        listingId={id}
+                                        sellerId={partDoc.seller?.id || partDoc.sellerId || partDoc.seller_id || ''}
+                                        currentPrice={part.price}
+                                    />
                                     {sellerPhone ? (
                                         <a href={`tel:${sellerPhone}`} className="block">
                                             <button className="w-full border-2 border-primary/20 bg-primary/5 text-primary py-5 rounded-[1.5rem] font-black text-sm tracking-widest hover:bg-primary/10 transition-all flex items-center justify-center gap-3 uppercase">
@@ -293,18 +294,7 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
                     </div>
                 </div>
 
-                {/* Mobile Sticky Buy Bar */}
-                <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-gray-100 p-4 z-[90] flex items-center justify-between gap-4 animate-in slide-in-from-bottom duration-500">
-                    <div>
-                        <p className="text-[10px] text-gray-4   00 font-bold uppercase tracking-wider">Total Price</p>
-                        <p className="text-secondary font-black text-xl tracking-tight">PKR {part.price.toLocaleString()}</p>
-                    </div>
-                    <Link href={`/checkout/${id}`} className="flex-1">
-                        <button className="w-full bg-primary text-white py-4 rounded-2xl font-black text-sm tracking-widest hover:bg-primary-dark transition-all active:scale-[0.95] shadow-lg shadow-primary/20 flex items-center justify-center gap-2">
-                            <ShoppingCart size={18} /> BUY NOW
-                        </button>
-                    </Link>
-                </div>
+            
             </main>
 
             <Footer />

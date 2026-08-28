@@ -1,0 +1,346 @@
+'use client';
+
+import { useEffect, useState, useRef } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
+import { use as reactUse } from 'react';
+import { ArrowLeft, Send, Loader2, Info, User } from 'lucide-react';
+import Link from 'next/link';
+import Image from 'next/image';
+
+interface Message {
+    id: string;
+    sender_id: string;
+    content: string;
+    type: string;
+    offer_amount: number | null;
+    created_at: string;
+}
+
+export default function ChatPage({ params }: { params: Promise<{ chatId: string }> }) {
+    const { chatId } = reactUse(params);
+    const router = useRouter();
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [newMessage, setNewMessage] = useState('');
+    const [loading, setLoading] = useState(true);
+    const [sending, setSending] = useState(false);
+    const [currentUser, setCurrentUser] = useState<any>(null);
+    const [chatDetails, setChatDetails] = useState<any>(null);
+    const [otherUserProfile, setOtherUserProfile] = useState<any>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    // Keep supabase client stable across renders
+    const supabaseRef = useRef(createClient());
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    useEffect(() => {
+        const supabase = createClient();
+        supabaseRef.current = supabase;
+
+        // ─── STEP 1: Set up the realtime channel SYNCHRONOUSLY ───────────────
+        // The .on() call MUST happen before .subscribe() is called.
+        // If channel setup is done inside an async function (after awaits),
+        // Supabase may have already subscribed and will throw the "after subscribe()" error.
+        const channelName = `chat-room-${chatId}-${Date.now()}`;
+        let userIdForRealtime: string | null = null;
+
+        const channel = supabase
+            .channel(channelName)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'messages',
+                    filter: `chat_id=eq.${chatId}`
+                },
+                (payload) => {
+                    const newMsg = payload.new as Message;
+                    setMessages(prev => {
+                        if (prev.find(m => m.id === newMsg.id)) return prev;
+                        return [...prev, newMsg];
+                    });
+                    // Mark as read if not ours
+                    if (userIdForRealtime && newMsg.sender_id !== userIdForRealtime) {
+                        supabase
+                            .from('messages')
+                            .update({ is_read: true })
+                            .eq('id', newMsg.id)
+                            .then();
+                    }
+                }
+            )
+            .subscribe();
+
+        // ─── STEP 2: Load data asynchronously ────────────────────────────────
+        const loadChat = async () => {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    router.push('/login?next=/messages');
+                    return;
+                }
+                // Store userId for the realtime callback above
+                userIdForRealtime = user.id;
+                setCurrentUser(user);
+
+                // Load chat details
+                const { data: chatData, error: chatError } = await supabase
+                    .from('chats')
+                    .select('*, listings:listing_id (id, title, brand, price, image_urls)')
+                    .eq('id', chatId)
+                    .single();
+
+                if (chatError || !chatData) {
+                    router.push('/messages');
+                    return;
+                }
+
+                // Ensure user is part of chat
+                if (chatData.buyer_id !== user.id && chatData.seller_id !== user.id) {
+                    router.push('/messages');
+                    return;
+                }
+
+                setChatDetails(chatData);
+
+                // Load other user's profile
+                const otherUserId = chatData.buyer_id === user.id ? chatData.seller_id : chatData.buyer_id;
+                if (otherUserId) {
+                    const { data: profile } = await supabase
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', otherUserId)
+                        .maybeSingle();
+                    setOtherUserProfile(profile);
+                }
+
+                // Load initial messages
+                const { data: msgData, error: msgError } = await supabase
+                    .from('messages')
+                    .select('*')
+                    .eq('chat_id', chatId)
+                    .order('created_at', { ascending: true });
+
+                if (!msgError && msgData) {
+                    setMessages(msgData);
+
+                    // Mark incoming messages as read
+                    const unreadIds = msgData
+                        .filter(m => m.sender_id !== user.id && !m.is_read)
+                        .map(m => m.id);
+
+                    if (unreadIds.length > 0) {
+                        await supabase
+                            .from('messages')
+                            .update({ is_read: true })
+                            .in('id', unreadIds);
+                    }
+                }
+
+            } catch (error) {
+                console.error('Chat load error:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadChat();
+
+        return () => {
+            if (channel) {
+                supabase.removeChannel(channel);
+            }
+        };
+    }, [chatId]);
+
+    const handleSendMessage = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newMessage.trim() || sending) return;
+
+        setSending(true);
+        const content = newMessage.trim();
+        setNewMessage('');
+
+        try {
+            const supabase = supabaseRef.current;
+            const { data, error } = await supabase
+                .from('messages')
+                .insert({
+                    chat_id: chatId,
+                    sender_id: currentUser.id,
+                    content: content,
+                    type: 'text'
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+            // Add optimistically (realtime also fires, dedup handles it)
+            setMessages(prev => prev.find(m => m.id === data.id) ? prev : [...prev, data]);
+        } catch (err) {
+            console.error('Send error', err);
+            setNewMessage(content);
+        } finally {
+            setSending(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center h-[60vh]">
+                <Loader2 size={32} className="animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (!chatDetails) return null;
+
+    const listing = chatDetails.listings;
+    const isSeller = currentUser?.id === chatDetails.seller_id;
+    const otherUserName = otherUserProfile?.username || otherUserProfile?.full_name || (isSeller ? 'Buyer' : 'Seller');
+    const otherUserAvatar = otherUserProfile?.avatar_url;
+
+    return (
+        <div className="max-w-4xl mx-auto bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden flex flex-col h-[75vh]">
+            {/* Header */}
+            <div className="p-4 border-b border-gray-100 flex items-center gap-4 bg-gray-50/50">
+                <Link href="/messages" className="p-2 hover:bg-white rounded-full transition-colors text-gray-500">
+                    <ArrowLeft size={20} />
+                </Link>
+                <div className="flex-1 flex items-center justify-between gap-3">
+                    {/* Other user info */}
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center shrink-0">
+                            {otherUserAvatar ? (
+                                <img src={otherUserAvatar} alt={otherUserName} className="w-full h-full object-cover" />
+                            ) : (
+                                <User size={20} className="text-gray-400" />
+                            )}
+                        </div>
+                        <div>
+                            <h2 className="font-black text-secondary text-base leading-tight">{otherUserName}</h2>
+                            <p className="text-xs font-bold text-gray-400">
+                                {listing?.title || listing?.brand || 'Listing'}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Listing snippet */}
+                    {listing && (
+                        <Link
+                            href={`/buyer/${listing.id}`}
+                            className="flex items-center gap-3 bg-white p-2 rounded-xl shadow-sm border border-gray-100 hover:border-primary transition-colors shrink-0"
+                        >
+                            <div className="w-10 h-10 relative rounded-lg overflow-hidden bg-gray-100">
+                                {listing.image_urls?.[0] && (
+                                    <Image src={listing.image_urls[0]} alt="Part" fill className="object-cover" />
+                                )}
+                            </div>
+                            <div className="hidden sm:block text-right pr-2">
+                                <p className="text-[10px] uppercase font-bold text-gray-400">Listed Price</p>
+                                <p className="text-sm font-black text-primary">PKR {Number(listing.price).toLocaleString()}</p>
+                            </div>
+                        </Link>
+                    )}
+                </div>
+            </div>
+
+            {/* Chat Area */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/30">
+                <div className="text-center text-xs font-bold text-gray-400 uppercase tracking-widest my-4">
+                    Conversation Started
+                </div>
+
+                {messages.map((msg) => {
+                    const isMine = msg.sender_id === currentUser?.id;
+                    const isOffer = msg.type === 'offer';
+
+                    return (
+                        <div key={msg.id} className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                            {/* Show avatar only for received messages */}
+                            {!isMine && (
+                                <div className="flex items-center gap-2 mb-1">
+                                    <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
+                                        {otherUserAvatar ? (
+                                            <img src={otherUserAvatar} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <User size={12} className="text-gray-400" />
+                                        )}
+                                    </div>
+                                    <span className="text-xs font-bold text-gray-500">{otherUserName}</span>
+                                </div>
+                            )}
+
+                            {isOffer ? (
+                                <div className={`max-w-[85%] sm:max-w-[70%] rounded-2xl p-5 shadow-sm border ${
+                                    isMine
+                                        ? 'bg-primary/5 border-primary/20 text-right'
+                                        : 'bg-white border-gray-200 text-left'
+                                }`}>
+                                    <div className={`flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider mb-2 ${isMine ? 'justify-end' : 'justify-start'}`}>
+                                        <Info size={14} />
+                                        {isMine ? 'You made an offer' : 'Received an offer'}
+                                    </div>
+                                    <p className="text-3xl font-black text-secondary mb-3">
+                                        PKR {Number(msg.offer_amount).toLocaleString()}
+                                    </p>
+                                    <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap">
+                                        "{msg.content}"
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-5 py-3 shadow-sm ${
+                                    isMine
+                                        ? 'bg-primary text-white rounded-br-sm'
+                                        : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm'
+                                }`}>
+                                    <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                                </div>
+                            )}
+
+                            <span className="text-[10px] text-gray-400 font-bold mt-1 px-1">
+                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                        </div>
+                    );
+                })}
+                <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input Area */}
+            <div className="p-4 bg-white border-t border-gray-100">
+                <form onSubmit={handleSendMessage} className="flex items-end gap-3">
+                    <div className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl p-2 transition-colors focus-within:border-primary/50 focus-within:bg-white focus-within:shadow-sm">
+                        <textarea
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    handleSendMessage(e);
+                                }
+                            }}
+                            placeholder="Type your message..."
+                            className="w-full max-h-32 bg-transparent border-none focus:ring-0 resize-none px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 font-medium"
+                            rows={1}
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={!newMessage.trim() || sending}
+                        className="bg-primary text-white p-4 rounded-2xl shrink-0 hover:bg-primary-dark transition-all disabled:opacity-50 disabled:hover:bg-primary"
+                    >
+                        {sending ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+}

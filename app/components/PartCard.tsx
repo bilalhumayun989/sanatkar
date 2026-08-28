@@ -14,6 +14,25 @@ interface PartCardProps {
     onUnsave?: () => void;
 }
 
+// Key used in localStorage to remember that the favorites table is missing
+const FAVORITES_DISABLED_KEY = 'sanatkar_favorites_disabled';
+
+function isFavoritesDisabled(): boolean {
+    try {
+        return localStorage.getItem(FAVORITES_DISABLED_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+function disableFavorites(): void {
+    try {
+        localStorage.setItem(FAVORITES_DISABLED_KEY, '1');
+    } catch {
+        // ignore
+    }
+}
+
 export default function PartCard({ part, onUnsave }: PartCardProps) {
     const { language } = useLanguage();
     const { user, loading: authLoading } = useAuth();
@@ -36,6 +55,12 @@ export default function PartCard({ part, onUnsave }: PartCardProps) {
             return;
         }
 
+        // Skip if we already know the table is missing
+        if (isFavoritesDisabled()) {
+            setIsLiked(false);
+            return;
+        }
+
         const loadFavorite = async () => {
             try {
                 const supabase = createClient();
@@ -46,14 +71,34 @@ export default function PartCard({ part, onUnsave }: PartCardProps) {
                     .eq('listing_id', part.id)
                     .maybeSingle();
 
-                if (!error && data?.id) {
+                // Any error (404, 42P01, PGRST106, etc.) means table is likely missing
+                if (error) {
+                    // Only disable if it looks like a table/schema issue
+                    const msg = (error.message || '').toLowerCase();
+                    const code = error.code || '';
+                    if (
+                        code === 'PGRST106' ||
+                        code === '42P01' ||
+                        msg.includes('does not exist') ||
+                        msg.includes('not found') ||
+                        msg.includes('relation')
+                    ) {
+                        console.warn('Favorites table not available. Feature disabled.');
+                        disableFavorites();
+                    }
+                    setIsLiked(false);
+                    return;
+                }
+
+                if (data?.id) {
                     setIsLiked(true);
                     setFavoriteId(data.id);
                 } else {
                     setIsLiked(false);
                 }
             } catch (err) {
-                console.error('Failed to load favorite status', err);
+                // Silently ignore — don't spam console
+                setIsLiked(false);
             }
         };
 
@@ -88,11 +133,18 @@ export default function PartCard({ part, onUnsave }: PartCardProps) {
                     .select('id')
                     .single();
 
-                if (error || !data?.id) {
+                if (error) {
+                    if (error.code === 'PGRST106') {
+                        showError('Favorites feature not available. Please contact support.');
+                    } else {
+                        showError('Unable to save listing.');
+                    }
+                    setIsLiked(false);
+                } else if (data?.id) {
+                    setFavoriteId(data.id);
+                } else {
                     setIsLiked(false);
                     showError('Unable to save listing.');
-                } else {
-                    setFavoriteId(data.id);
                 }
             } else {
                 const { error } = await supabase
@@ -103,8 +155,12 @@ export default function PartCard({ part, onUnsave }: PartCardProps) {
                     .eq('listing_id', part.id);
 
                 if (error) {
+                    if (error.code === 'PGRST106') {
+                        showError('Favorites feature not available.');
+                    } else {
+                        showError('Unable to remove saved listing.');
+                    }
                     setIsLiked(true);
-                    showError('Unable to remove saved listing.');
                 } else {
                     setFavoriteId(null);
                     onUnsave?.();

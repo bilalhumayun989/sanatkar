@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Phone, Package, User, LogOut, Languages, ShieldCheck, ChevronDown, Factory, Sparkles, Wrench, Heart } from 'lucide-react';
+import { Menu, X, Phone, Package, User, LogOut, Languages, ShieldCheck, ChevronDown, Heart, MessageSquare } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -137,7 +137,7 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                                     className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-2 text-sm font-bold backdrop-blur-md transition-all hover:bg-white/20"
                                 >
                                     <User size={18} />
-                                    <span className="max-w-[120px] truncate">{authUser.name || authUser.email?.split('@')[0]}</span>
+                                    <span className="max-w-[120px] truncate">{authUser.username || authUser.name || authUser.email?.split('@')[0]}</span>
                                     <ChevronDown size={16} className={`transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
                                 </button>
 
@@ -166,6 +166,14 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                                         >
                                             <Heart size={16} className="text-primary" />
                                             My Saved Ads
+                                        </Link>
+                                        <Link
+                                            href="/messages"
+                                            onClick={() => setUserMenuOpen(false)}
+                                            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+                                        >
+                                            <MessageSquare size={16} className="text-primary" />
+                                            Messages
                                         </Link>
                                         <button
                                             type="button"
@@ -234,6 +242,11 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                         <Heart size={18} className="text-primary" />
                         My Saved Ads
                     </Link>
+                    <Link href="/messages" onClick={() => setMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3.5 rounded-2xl text-white font-semibold text-sm hover:bg-white/10 transition-colors">
+                        <MessageSquare size={18} className="text-primary" />
+                        Messages
+                    </Link>
 
                     {/* Mobile Post an Ad Dropdown */}
                     <div className="space-y-1">
@@ -290,7 +303,7 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                         <>
                             <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/5 border border-white/10">
                                 <User size={18} className="text-primary shrink-0" />
-                                <span className="text-sm font-bold text-white truncate">{authUser.name}</span>
+                                <span className="text-sm font-bold text-white truncate">{authUser.username || authUser.name || authUser.email?.split('@')[0]}</span>
                             </div>
                             <button onClick={handleLogout}
                                 className="flex items-center gap-3 px-4 py-3 rounded-2xl text-amber-400 font-semibold text-sm hover:bg-amber-500/10 transition-colors w-full">

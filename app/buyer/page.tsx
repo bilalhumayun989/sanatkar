@@ -26,12 +26,15 @@ function BuyerPageContent() {
     const searchParams = useSearchParams();
     const urlCategory = searchParams.get('category');
     const urlSearch = searchParams.get('search');
+    const urlBrand = searchParams.get('brand');
     const [parts, setParts] = useState<PartType[]>([]);
+    const [brands, setBrands] = useState<any[]>([]);
     const [adConfig, setAdConfig] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+    const [selectedBrandFilter, setSelectedBrandFilter] = useState<string>('');
     const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
     const [sortBy, setSortBy] = useState('most_recent');
     const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -43,12 +46,21 @@ function BuyerPageContent() {
         { id: '15k_50k', label: '15,000 - 50,000', min: 15000, max: 50000 },
         { id: '50k_plus', label: '50,000+', min: 50000, max: Infinity },
     ];
-    const brands = ['Tajima', 'Barudan', 'Janome', 'Groz-Beckert', 'Brother'];
 
     useEffect(() => {
         const fetchParts = async () => {
             try {
-                const res = await fetch('/api/listings');
+                // Get supabase session to send auth headers
+                const { createClient } = await import('@/lib/supabase/client');
+                const supabase = createClient();
+                const { data: { session } } = await supabase.auth.getSession();
+                
+                const headers: HeadersInit = {};
+                if (session?.access_token) {
+                    headers['Authorization'] = `Bearer ${session.access_token}`;
+                }
+
+                const res = await fetch('/api/listings', { headers });
                 if (!res.ok) throw new Error('Failed to fetch parts');
                 const payload = await res.json();
                 const list = Array.isArray(payload?.data) ? payload.data : [];
@@ -77,6 +89,42 @@ function BuyerPageContent() {
                 setLoading(false);
             }
         };
+        
+        const fetchBrands = async () => {
+            try {
+                const { createClient } = await import('@/lib/supabase/client');
+                const supabase = createClient();
+                const { data: brandsData, error } = await supabase
+                    .from('brands')
+                    .select('id, name')
+                    .eq('is_active', true)
+                    .order('name');
+
+                if (!error && Array.isArray(brandsData)) {
+                    setBrands(brandsData);
+                } else {
+                    // Fallback to static brands if table doesn't exist or is empty
+                    setBrands([
+                        { id: '1', name: 'Tajima' },
+                        { id: '2', name: 'Barudan' },
+                        { id: '3', name: 'Janome' },
+                        { id: '4', name: 'Groz-Beckert' },
+                        { id: '5', name: 'Brother' }
+                    ]);
+                }
+            } catch (err) {
+                console.error('Failed to fetch brands:', err);
+                // Fallback to static brands
+                setBrands([
+                    { id: '1', name: 'Tajima' },
+                    { id: '2', name: 'Barudan' },
+                    { id: '3', name: 'Janome' },
+                    { id: '4', name: 'Groz-Beckert' },
+                    { id: '5', name: 'Brother' }
+                ]);
+            }
+        };
+        
         const fetchAd = async () => {
             try {
                 const res = await fetch('/api/ad');
@@ -86,13 +134,17 @@ function BuyerPageContent() {
                 }
             } catch (e) { console.error('ad fetch error', e); }
         };
-        fetchParts(); fetchAd();
+        
+        fetchParts(); 
+        fetchBrands();
+        fetchAd();
     }, []);
 
     useEffect(() => {
         if (urlSearch) setSearchQuery(urlSearch);
         if (urlCategory) setSelectedCategory(urlCategory);
-    }, [urlSearch, urlCategory]);
+        if (urlBrand) setSelectedBrandFilter(urlBrand);
+    }, [urlSearch, urlCategory, urlBrand]);
 
     useEffect(() => {
         document.body.style.overflow = showMobileFilters ? 'hidden' : '';
@@ -110,7 +162,15 @@ function BuyerPageContent() {
             const categoryFilter = normalizeCategoryValue(activeCategory);
             result = result.filter(p => normalizeCategoryValue(p.category).toLowerCase() === categoryFilter);
         }
-        if (selectedBrands.length > 0) result = result.filter(p => selectedBrands.includes(p.brand));
+        // Brand filtering from URL or dropdown
+        const activeBrand = selectedBrandFilter || urlBrand;
+        if (activeBrand) {
+            result = result.filter(p => p.brand.toLowerCase() === activeBrand.toLowerCase());
+        }
+        // Checkbox brand filtering (from sidebar)
+        if (selectedBrands.length > 0) {
+            result = result.filter(p => selectedBrands.includes(p.brand));
+        }
         if (selectedPriceRanges.length > 0) {
             result = result.filter(p => selectedPriceRanges.some(id => {
                 const r = priceRanges.find(r => r.id === id);
@@ -123,14 +183,21 @@ function BuyerPageContent() {
             default: result.sort((a, b) => new Date(b.createdAt as string).getTime() - new Date(a.createdAt as string).getTime());
         }
         return result;
-    }, [parts, searchQuery, selectedBrands, selectedPriceRanges, sortBy, selectedCategory, urlCategory]);
+    }, [parts, searchQuery, selectedBrands, selectedPriceRanges, sortBy, selectedCategory, urlCategory, selectedBrandFilter, urlBrand]);
 
     const handleBrandToggle = (brand: string) =>
         setSelectedBrands(prev => prev.includes(brand) ? prev.filter(b => b !== brand) : [...prev, brand]);
     const handlePriceToggle = (id: string) =>
         setSelectedPriceRanges(prev => prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id]);
-    const resetFilters = () => { setSearchQuery(''); setSelectedBrands([]); setSelectedPriceRanges([]); setSortBy('most_recent'); setSelectedCategory(null); };
-    const activeFilterCount = selectedBrands.length + selectedPriceRanges.length + ((selectedCategory || urlCategory) ? 1 : 0);
+    const resetFilters = () => { 
+        setSearchQuery(''); 
+        setSelectedBrands([]); 
+        setSelectedPriceRanges([]); 
+        setSortBy('most_recent'); 
+        setSelectedCategory(null); 
+        setSelectedBrandFilter('');
+    };
+    const activeFilterCount = selectedBrands.length + selectedPriceRanges.length + ((selectedCategory || urlCategory) ? 1 : 0) + ((selectedBrandFilter || urlBrand) ? 1 : 0);
 
     const FilterSection = () => (
         <div className="space-y-10">
@@ -153,13 +220,13 @@ function BuyerPageContent() {
                 <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">{t('brand')}</h4>
                 <div className="space-y-3">
                     {brands.map((brand) => (
-                        <label key={brand} className="flex items-center group cursor-pointer">
+                        <label key={brand.id} className="flex items-center group cursor-pointer">
                             <div className="relative flex items-center justify-center">
-                                <input type="checkbox" checked={selectedBrands.includes(brand)} onChange={() => handleBrandToggle(brand)}
+                                <input type="checkbox" checked={selectedBrands.includes(brand.name)} onChange={() => handleBrandToggle(brand.name)}
                                     className="peer appearance-none w-5 h-5 border-2 border-gray-200 rounded-lg checked:bg-primary checked:border-primary transition-all cursor-pointer" />
                                 <div className="absolute text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none"><Check size={14} strokeWidth={4} /></div>
                             </div>
-                            <span className="ml-3 text-sm font-bold text-black/70 group-hover:text-black transition-colors">{brand}</span>
+                            <span className="ml-3 text-sm font-bold text-black/70 group-hover:text-black transition-colors">{brand.name}</span>
                         </label>
                     ))}
                 </div>
@@ -288,6 +355,22 @@ function BuyerPageContent() {
                                 </button>
                             </div>
                             <div className="flex items-center gap-3 self-end sm:self-auto">
+                                {/* Brand filter dropdown */}
+                                <div className="relative">
+                                    <select 
+                                        value={selectedBrandFilter || urlBrand || ''} 
+                                        onChange={(e) => setSelectedBrandFilter(e.target.value)}
+                                        className="bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold text-black focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer pr-9 min-w-[120px]"
+                                    >
+                                        <option value="">All Brands</option>
+                                        {brands.map((brand) => (
+                                            <option key={brand.id} value={brand.name}>{brand.name}</option>
+                                        ))}
+                                    </select>
+                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
+                                    </div>
+                                </div>
                                 <span className="text-xs font-black text-gray-400 uppercase tracking-wider whitespace-nowrap hidden sm:block">{t('sort_by')}</span>
                                 <div className="relative">
                                     <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
@@ -312,6 +395,11 @@ function BuyerPageContent() {
                                         {b} <X size={11} />
                                     </button>
                                 ))}
+                                {(selectedBrandFilter || urlBrand) && (
+                                    <button onClick={() => setSelectedBrandFilter('')} className="flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-full text-xs font-bold hover:bg-primary/20 transition-colors">
+                                        Brand: {selectedBrandFilter || urlBrand} <X size={11} />
+                                    </button>
+                                )}
                                 {selectedPriceRanges.map(id => {
                                     const r = priceRanges.find(r => r.id === id);
                                     return r ? (

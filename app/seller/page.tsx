@@ -195,6 +195,26 @@ function SellerPageContent() {
 
     const resetDesc = () => { setForm(prev => ({ ...prev, description: '' })); setDescChars(995); };
 
+    const formatSupabaseError = (error: unknown) => {
+        if (!error) return 'Unknown error';
+        if (error instanceof Error) return error.message;
+
+        if (typeof error === 'object') {
+            const payload: Record<string, unknown> = {};
+            const keys = Array.from(new Set([...Object.keys(error), ...Object.getOwnPropertyNames(error)]));
+            keys.forEach((key) => {
+                try {
+                    payload[key] = (error as any)[key];
+                } catch {
+                    payload[key] = undefined;
+                }
+            });
+            return JSON.stringify(payload);
+        }
+
+        return String(error);
+    };
+
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
         if (images.length + files.length > 6) { setError('Maximum 6 images allowed'); return; }
@@ -230,6 +250,7 @@ function SellerPageContent() {
             const basePayload: Record<string, unknown> = {
                 title: `${form.make} ${form.model}`.trim(),
                 brand: form.make,
+                model: form.model,
                 category: normalizeCategoryValue(form.category),
                 price: Number(form.price),
                 year: Number(form.year) || new Date().getFullYear(),
@@ -240,9 +261,8 @@ function SellerPageContent() {
                 seller_id: user.id,
                 condition: form.condition,
                 status: 'active',
-                phone: form.phone,
-                secondary_phone: form.secondaryPhone,
-                allow_whatsapp: form.allowWhatsapp,
+                phone_number: form.phone,
+                contact_option: form.allowWhatsapp ? 'whatsapp' : 'phone',
             };
 
             let listing: { id: string } | null = null;
@@ -271,10 +291,14 @@ function SellerPageContent() {
             }
 
             if (insertError) {
+                console.error('Supabase insert error:', insertError);
                 if (insertError.message?.includes('AD_LIMIT_REACHED')) {
                     setError('You have reached the 3-ad limit. Upgrade to a Seller account to post more ads.');
                 } else {
-                    setError(insertError.message || (editListingId ? 'Failed to update listing.' : 'Failed to post listing.'));
+                    const details = [insertError.message, (insertError as { details?: string }).details, (insertError as { hint?: string }).hint]
+                        .filter(Boolean)
+                        .join(' ');
+                    setError(details || (editListingId ? 'Failed to update listing.' : 'Failed to post listing.'));
                 }
                 return;
             }

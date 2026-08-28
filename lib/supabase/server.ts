@@ -75,7 +75,7 @@ export async function getCurrentProfile(request: NextRequest) {
   const username = user.email ? user.email.split('@')[0] : 'user';
   const { data: newProfile } = await admin
     .from('profiles')
-    .insert({ id: user.id, username, role: 'user' })
+    .insert({ id: user.id, username, email: user.email ?? 'unknown@example.com', role: 'user' })
     .select('id, username, role')
     .single();
 
