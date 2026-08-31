@@ -29,6 +29,7 @@
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 5rem;
+  overflow-x: hidden;
 }
 
 body {
@@ -38,17 +39,9 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.6;
+  overflow-x: hidden;
 }
 
-/* Typography polish */
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  @apply font-bold tracking-tight text-secondary;
-}
 
 /* Container */
 .container-wide {
@@ -171,3 +164,24 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;             /* Chrome, Safari */
 }
+
+/* Auto-sliding animation from right to left */
+@keyframes slide-rtl {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-slide-rtl {
+  animation: slide-rtl linear infinite;
+}
+
+/* Pause animation on hover */
+.animate-slide-rtl:hover {
+  animation-play-state: paused;
+}
+
+

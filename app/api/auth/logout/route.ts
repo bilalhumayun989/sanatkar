@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase/ssr';
+import { createServerClient } from '@/lib/auth/supabase/ssr';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {

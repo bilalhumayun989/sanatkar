@@ -1,13 +1,14 @@
 'use client';
 
 import { createContext, useCallback, useContext, useState, useEffect } from 'react';
-import { fetchJson } from '@/lib/fetchJson';
-import { createClient } from '@/lib/supabase/client';
+import { fetchJson } from '@/lib/utils/fetchJson';
+import { createClient } from '@/lib/auth/supabase/client';
 
 interface User {
     id: string;
     email: string;
-    name?: string;
+    name?: string;  // This contains username from profile.username
+    username?: string; // Add explicit username field
     role: string;
 }
 

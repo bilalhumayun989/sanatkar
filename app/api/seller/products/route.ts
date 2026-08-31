@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import prisma from '@/lib/dbConn';
-import { getCurrentUser } from '@/lib/supabase/server';
+import { getCurrentUser } from '@/lib/auth/supabase/server';
 export async function GET(request: NextRequest) {
   const { user } = await getCurrentUser(request);
   if (!user) return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });

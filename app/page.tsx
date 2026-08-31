@@ -1,10 +1,10 @@
 'use client';
 
-import Navbar from './components/Navbar';
+import Navbar from './components/layout/Navbar';
 import { useState, useEffect } from 'react';
-import Footer from './components/Footer';
-import PartCard from './components/PartCard';
-import { Part as PartType } from './data/mockData';
+import Footer from './components/layout/Footer';
+import PartCard from './components/features/PartCard';
+import { Part as PartType } from '../lib/database/mockData';
 import {
   ArrowRight,
   Search,
@@ -17,11 +17,17 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/LanguageContext';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/auth/supabase/client';
 import { FIXED_CATEGORY_OPTIONS, normalizeCategoryValue } from '@/lib/categoryConstants';
+import CategoriesSection from './api/categories/Category';
+import FeaturedListing from './components/Feature-listing/FeaturedListing';
+import TopBrandsMobile from './components/mobile/TopBrandsMobile';
+import FeaturedListingsMobile from './components/mobile/FeaturedListingMobile';
+import RecentListingsMobile from './components/mobile/RecentListingMobile';
+import ShopsSection from './components/mobile/ShopsSection';
 
 const PART_IMG = 'https://www.har-tech.com/wp-content/uploads/2024/02/usinage-pieces-mecaniques.jpg';
-const FALLBACK_CATEGORY_OPTIONS = FIXED_CATEGORY_OPTIONS.map((option) => ({ id: option.value, name: option.label, slug: option.value }));
+const FALLBACK_CATEGORY_OPTIONS = FIXED_CATEGORY_OPTIONS;
 
 export default function Home() {
   const { t } = useLanguage();
@@ -30,28 +36,29 @@ export default function Home() {
   const [brands, setBrands] = useState<any[]>([]);
   const [featuredParts, setFeaturedParts] = useState<PartType[]>([]);
   const [brandSearch, setBrandSearch] = useState('');
+  const [shops, setShops] = useState<any[]>([]);
 
   useEffect(() => {
     const loadListings = async () => {
       try {
-        // Get supabase session to send auth headers
+        // Call Supabase directly instead of going through internal API to avoid deadlock
         const supabase = createClient();
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        const headers: HeadersInit = {};
-        if (session?.access_token) {
-          headers['Authorization'] = `Bearer ${session.access_token}`;
+
+        const { data, error } = await supabase
+          .from('listings')
+          .select('*')
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(9);
+
+        if (error) {
+          console.error('Failed to fetch listings:', error);
+          setFeaturedParts([]);
+          return;
         }
 
-        const res = await fetch('/api/listings', { 
-          cache: 'no-store',
-          headers
-        });
-        if (!res.ok) throw new Error(`Listings API unavailable: HTTP ${res.status}`);
-
-        const payload = await res.json();
-        const list = Array.isArray(payload?.data) ? payload.data : [];
-        const mappedParts = list.slice(0, 9).map((item: any) => ({
+        const list = Array.isArray(data) ? data : [];
+        const mappedParts = list.map((item: any) => ({
           id: item.id,
           brand: item.brand || item.make || 'Unknown',
           partName: item.title || `${item.make || ''} ${item.model || ''}`.trim() || 'Listing',
@@ -61,12 +68,13 @@ export default function Home() {
             ? item.image_urls[0]
             : '/hero.jpg',
           compatibility: item.mileage || 'Universal',
+          description: item.description || null,
           condition: item.condition || 'New',
           stockStatus: 'In Stock',
           isFeatured: item.status === 'active',
-          sellerRole: null,
-          sellerId: null,
-          sellerName: null,
+          sellerRole: undefined,
+          sellerId: undefined,
+          sellerName: undefined,
           category: item.category || 'General',
           createdAt: item.created_at || new Date().toISOString(),
         }));
@@ -96,6 +104,19 @@ export default function Home() {
         console.error('Failed to fetch brands:', err);
         setBrands([]);
       }
+
+      // Fetch shops for homepage section
+      try {
+        const supabase2 = createClient();
+        const { data: shopsData } = await supabase2
+          .from('shops')
+          .select('id, seller_id, title, image_urls, verification_status')
+          .order('created_at', { ascending: false })
+          .limit(8);
+        setShops(Array.isArray(shopsData) ? shopsData : []);
+      } catch {
+        setShops([]);
+      }
     };
 
     loadListings();
@@ -104,50 +125,32 @@ export default function Home() {
 
   useEffect(() => {
     const loadCategories = async () => {
+      // Fetch categories from database via API
       try {
-        const supabase = createClient();
-        const { data: listingsData, error } = await supabase
-          .from('listings')
-          .select('category, image_urls, created_at, status')
-          .eq('status', 'active')
-          .order('created_at', { ascending: false });
+        const response = await fetch('/api/categories');
+        const result = await response.json();
 
-        if (!error && Array.isArray(listingsData)) {
-          const grouped = new Map<string, any>();
-          listingsData.forEach((listing: any) => {
-            const normalizedCategory = normalizeCategoryValue(listing.category);
-            if (!grouped.has(normalizedCategory)) {
-              grouped.set(normalizedCategory, {
-                id: normalizedCategory,
-                name: FALLBACK_CATEGORY_OPTIONS.find((item) => item.slug === normalizedCategory)?.name || normalizedCategory,
-                slug: normalizedCategory,
-                image_url: Array.isArray(listing.image_urls) && listing.image_urls[0] ? listing.image_urls[0] : PART_IMG,
-                listing_count: 0,
-              });
-            }
-            const current = grouped.get(normalizedCategory);
-            current.listing_count = (current.listing_count || 0) + 1;
-          });
-
-          const mapped = FALLBACK_CATEGORY_OPTIONS.map((item) => {
-            const existing = grouped.get(item.slug);
-            return existing || {
-              id: item.slug,
-              name: item.name,
-              slug: item.slug,
-              image_url: PART_IMG,
-              listing_count: 0,
-            };
-          });
-
-          setCategories(mapped);
+        if (result.success && Array.isArray(result.categories) && result.categories.length > 0) {
+          console.log('Successfully fetched categories from database:', result.categories);
+          setCategories(result.categories);
           return;
+        } else {
+          console.log('No categories found in database or API error:', result);
         }
-      } catch {
-        // ignore and fall back to static options
+      } catch (error) {
+        console.error('Failed to fetch categories from API:', error);
       }
 
-      setCategories(FALLBACK_CATEGORY_OPTIONS.map((item) => ({ ...item, image_url: PART_IMG, listing_count: 0 })));
+      // Fallback to static options if database is empty
+      console.log('Using fallback categories');
+      setCategories(FALLBACK_CATEGORY_OPTIONS.map((item) => ({
+        id: item.value,
+        name: item.label,
+        slug: item.value,
+        image_url: PART_IMG,
+        listing_count: 0,
+        is_active: true
+      })));
     };
 
     loadCategories();
@@ -156,207 +159,318 @@ export default function Home() {
   return (
 
     <>
-      <div className="min-h-screen flex flex-col bg-[#F3F4F6] p-0">
+      {/* Mobile UI - Only visible on mobile/tablet */}
+      <div className="lg:hidden bg-[#F6FBFC] min-h-auto">
+        <TopBrandsMobile />
+      </div>
+       <div className="lg:hidden bg-[#F6FBFC] min-h-auto">
+        <FeaturedListingsMobile />
+      </div>
+       <div className="lg:hidden bg-[#F6FBFC] min-h-auto">
+        <ShopsSection shops={shops} />
+      </div>
+
+       <div className="lg:hidden bg-[#F6FBFC] min-h-auto">
+        <RecentListingsMobile />
+      </div>
+
+      {/* Desktop UI - Only visible on desktop */}
+      <div className="hidden lg:block min-h-screen flex flex-col bg-[#F3F4F6] p-0">
         <main className="flex-grow">
-          <div className="relative w-full h-[100vh] min-h-[600px] rounded-[0px] overflow-hidden">
+          <div className="relative w-full min-h-[100dvh] overflow-x-hidden bg-[#D1D9E6] flex flex-col justify-between">
             <Navbar />
 
             {/* HERO SECTION */}
-            <section className="relative w-full h-full flex items-end ">
-              <div className="absolute inset-0 z-0">
-                {/* Gradient Overlay */}
-                <div className="absolute inset-0 z-10 bg-gradient-to-br from-black/50 via-black/10 to-black/5"></div>
+            <section className="relative w-full flex-1 flex items-center justify-start py-12 sm:py-16 lg:py-20 xl:py-20">
 
+              {/* Background Image Container */}
+              <div className="absolute inset-0 z-0">
                 <img
-                  src="/hero.jpg"
+                  src="hero3.jfif"
                   alt="Industrial parts"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover object-center lg:object-right"
                 />
+
+                <div className="absolute inset-0 z-10 bg-gradient-to-t from-slate-950 via-slate-950/20 to-slate-900/40 lg:bg-gradient-to-r lg:from-slate-950/30 lg:via-slate-950/40 lg:to-transparent" />
               </div>
 
-              <div className="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-20">
-                <div className="grid items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-                  <div className="max-w-2xl text-left">
-                    <span className="inline-flex items-center rounded-full border border-white/15 bg-gradient-to-r from-white/15 to-white/5 backdrop-blur-xl px-4 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-[0.25em] mb-5 sm:mb-6 text-white shadow-[0_8px_32px_rgba(255,255,255,0.08)]">
+              {/* Main Content Box - Fixed Width & Perfect Left Alignment */}
+              <div className="relative z-20 w-full max-w-[1920px] mx-auto px-6 sm:px-10 lg:px-6 xl:px-12 2xl:px-28">
+                <div className="w-full max-w-xl sm:max-w-2xl lg:max-w-2xl xl:max-w-3xl text-left">
+
+                  {/* Badge */}
+                  <div className="inline-block mb-4 sm:mb-6">
+                    <span className="inline-flex items-center rounded-full border border-white/40 bg-white/30 backdrop-blur-md px-3 py-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-[0.25em] text-white shadow-sm">
                       {t('verified_industrial_parts')}
                     </span>
-                    <div className="text-5xl sm:text-6xl md:text-7xl lg:text-[84px] font-black text-white leading-[0.95] tracking-[-0.03em] mb-6 sm:mb-8">
-                      {t('hero_title_1')} <br className="hidden md:block" /> {t('hero_title_2')}
-                    </div>
-                    <p className="text-white/90 text-sm sm:text-base md:text-lg mb-8 sm:mb-10 leading-relaxed max-w-xl font-medium">
-                      {t('hero_desc')}
-                    </p>
+                  </div>
 
-                    <div className="w-full max-w-3xl rounded-[28px] border border-white/15 bg-white/10 backdrop-blur-2xl p-3 sm:p-4 shadow-[0_20px_70px_rgba(0,0,0,0.3)]">
-                      <div className="flex flex-col lg:flex-row gap-3">
-                        <div className="flex-1 relative">
-                          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/70" />
-                          <input
-                            type="text"
-                            value={brandSearch}
-                            onChange={(e) => setBrandSearch(e.target.value)}
-                            placeholder="Search part name or category"
-                            className="w-full rounded-2xl border border-white/15 bg-black/20 pl-12 pr-4 py-3.5 text-sm font-semibold text-white placeholder:text-white/60 outline-none transition focus:border-white/50 focus:bg-black/30"
-                          />
-                        </div>
-                        <Link
-                          href={brandSearch ? `/buyer?search=${encodeURIComponent(brandSearch)}` : '/buyer'}
-                          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3.5 text-sm font-bold text-white transition hover:bg-primary-dark"
-                        >
-                          <span>{t('show_parts')}</span>
-                          <ArrowRight size={16} />
-                        </Link>
+                  {/* Heading */}
+                  <div className="text-4xl sm:text-6xl md:text-7xl lg:text-[72px] xl:text-[80px] font-black text-white leading-[1.02] tracking-tight mb-5 sm:mb-6 drop-shadow-md">
+                    {t('hero_title_1')} <br className="hidden sm:block" /> {t('hero_title_2')}
+                  </div>
+
+                  {/* Subtitle */}
+                  <p className="text-white/95 text-sm sm:text-base lg:text-lg xl:text-xl mb-8 sm:mb-10 leading-relaxed font-medium drop-shadow-sm max-w-xl">
+                    {t('hero_desc')}
+                  </p>
+
+                  {/* Search Bar Container */}
+                  <div className="w-full max-w-xl sm:max-w-2xl rounded-2xl sm:rounded-3xl border border-white/50 bg-white/20 backdrop-blur-xl p-2.5 sm:p-3 shadow-lg">
+                    <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
+                      <div className="flex-1 relative">
+                        <Search
+                          size={18}
+                          className="absolute left-4 top-1/2 -translate-y-1/2 text-white"
+                        />
+                        <input
+                          type="text"
+                          value={brandSearch}
+                          onChange={(e) => setBrandSearch(e.target.value)}
+                          placeholder="Search part name or category"
+                          className="w-full rounded-xl sm:rounded-2xl border border-white/40 bg-white/10 pl-11 pr-4 py-3 text-xs sm:text-sm font-medium text-white placeholder:text-white/80 outline-none transition focus:bg-white/20 focus:border-white"
+                        />
                       </div>
+
+                      <Link
+                        href={
+                          brandSearch
+                            ? `/buyer?search=${encodeURIComponent(brandSearch)}`
+                            : '/buyer'
+                        }
+                        className="inline-flex items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-[#13BDC4] px-6 py-3 text-xs sm:text-sm font-bold text-white transition-all hover:bg-[#0fa6ac] active:scale-[0.98] shadow-md whitespace-nowrap"
+                      >
+                        <span>{t('show_parts')}</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </Link>
                     </div>
                   </div>
+
                 </div>
               </div>
             </section>
           </div>
 
-          {/* Categories */}
+
+          <CategoriesSection categories={categories} />
+
+
+        {brands.length > 0 && (
           <section className="container-wide py-10 md:py-16">
-            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-8 gap-4">
               <div className="max-w-3xl">
                 <span className="inline-flex items-center rounded-full border border-black/10 bg-primary px-4 py-2 text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.2em] text-white shadow-lg mb-4">
-                  Shop by Category
+                  Shop by Brand
                 </span>
                 <h2 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight text-black leading-tight">
-                  Categories
+                  Top Brands
                 </h2>
                 <p className="mt-3 md:mt-4 text-sm sm:text-base text-gray-500">
-                  Browse curated collections and discover the parts and machines that matter most to your workflow.
+                  Discover quality parts from industry-leading manufacturers and trusted suppliers.
                 </p>
               </div>
 
-              <Link
-                href="/buyer"
-                className="inline-flex items-center justify-center rounded-full border border-primary/20 bg-primary px-6 py-3 text-sm font-bold text-white shadow-lg transition-all duration-300 hover:scale-105"
-              >
-                View Marketplace
-              </Link>
+           
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5">
-              {categories.length > 0 ? (
-                categories.map((category) => (
-                  <Link
-                    key={category.slug}
-                    href={`/buyer?category=${encodeURIComponent(category.slug)}`}
-                    className="group relative overflow-hidden rounded-3xl border border-gray-200 bg-white transition hover:-translate-y-1"
-                  >
-                    <div className="relative h-56 overflow-hidden">
-                      <img
-                        src={category.image_url || PART_IMG}
-                        alt={category.name}
-                        className="h-full w-full object-cover transition duration-700 group-hover:scale-110"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
-                    </div>
+            {/* Conditional: Grid for ≤8 brands, Slider for >8 brands */}
+            {brands.length <= 8 ? (
+              // Grid Layout for 8 or fewer brands
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-6 items-center">
+                {brands.map((brand) => {
+                  const initials = brand.name
+                    .split(' ')
+                    .map((word: string) => word.charAt(0))
+                    .join('')
+                    .substring(0, 2)
+                    .toUpperCase();
 
-                    <div className="p-5">
-                      <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-gray-400">
-                        Category
+                  return (
+                    <Link
+                      key={brand.id}
+                      href={`/buyer?brand=${encodeURIComponent(brand.name)}`}
+                      className="group flex flex-col items-center justify-center p-4 h-24 bg-white rounded-xl border border-gray-200 transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
+                    >
+                      {brand.logo_url ? (
+                        <img
+                          src={brand.logo_url}
+                          alt={brand.name}
+                          className="max-h-12 w-auto object-contain grayscale hover:grayscale-0 transition-all duration-300 group-hover:scale-105"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const fallback = target.nextElementSibling as HTMLElement;
+                            if (fallback) fallback.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+
+                      <div
+                        className={`text-xs font-bold tracking-wider uppercase text-slate-700 ${
+                          brand.logo_url ? 'hidden' : 'flex'
+                        }`}
+                        style={{ display: brand.logo_url ? 'none' : 'flex' }}
+                      >
+                        {brand.name || initials}
                       </div>
-                      <h3 className="mt-2 text-xl font-black tracking-tight text-black">
-                        {category.name}
-                      </h3>
-                      <p className="mt-2 text-sm font-semibold text-gray-600">
-                        {(category.listing_count ?? 0).toLocaleString()} listings
-                      </p>
-                    </div>
-                  </Link>
-                ))
-              ) : (
-                <div className="col-span-full rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-10 text-center text-sm font-semibold text-gray-500">
-                  No categories available yet.
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* Shop by Brand */}
-          {brands.length > 0 && (
-            <section className="container-wide py-10 md:py-16">
-              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8">
-                <div className="max-w-3xl">
-                  <span className="inline-flex items-center rounded-full border border-black/10 bg-primary px-4 py-2 text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.2em] text-white shadow-lg mb-4">
-                    Shop by Brand
-                  </span>
-                  <h2 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight text-black leading-tight">
-                    Trusted Brands
-                  </h2>
-                  <p className="mt-3 md:mt-4 text-sm sm:text-base text-gray-500">
-                    Discover quality parts from industry-leading manufacturers and trusted suppliers.
-                  </p>
-                </div>
+                    </Link>
+                  );
+                })}
               </div>
-
-              <div className="overflow-x-auto">
-                <div className="flex gap-4 pb-4" style={{ minWidth: 'fit-content' }}>
-                  {brands.map((brand) => {
-                    // Generate fallback initials and color
+            ) : (
+              // Horizontal Auto-Sliding Carousel for 9+ brands
+              <div className="relative overflow-hidden">
+                <div 
+                  className="flex gap-6 animate-slide-rtl"
+                  style={{
+                    width: `${brands.length * 144}px`, // 144px = w-32 (128px) + gap (16px)
+                    animation: `slide-rtl ${brands.length * 3}s linear infinite`
+                  }}
+                >
+                  {/* Double the brands for seamless loop */}
+                  {[...brands, ...brands].map((brand, index) => {
                     const initials = brand.name
                       .split(' ')
                       .map((word: string) => word.charAt(0))
                       .join('')
                       .substring(0, 2)
                       .toUpperCase();
-                    
-                    const colors = [
-                      'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-red-500', 
-                      'bg-yellow-500', 'bg-pink-500', 'bg-indigo-500', 'bg-orange-500'
-                    ];
-                    const colorIndex = brand.name.charCodeAt(0) % colors.length;
-                    const fallbackColor = colors[colorIndex];
 
                     return (
                       <Link
-                        key={brand.id}
+                        key={`${brand.id}-${index}`}
                         href={`/buyer?brand=${encodeURIComponent(brand.name)}`}
-                        className="group flex-shrink-0 w-32 sm:w-36"
+                        className="group flex flex-col items-center justify-center p-0 w-34 h-30 rounded-xl border border-[#0092B8] shrink-0"
                       >
-                        <div className="bg-white rounded-2xl border border-gray-200 p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-                          <div className="aspect-square mb-3 flex items-center justify-center rounded-xl overflow-hidden bg-gray-50">
-                            {brand.logo_url ? (
-                              <img
-                                src={brand.logo_url}
-                                alt={brand.name}
-                                className="w-full h-full object-contain"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.style.display = 'none';
-                                  const fallback = target.nextElementSibling as HTMLElement;
-                                  if (fallback) fallback.style.display = 'flex';
-                                }}
-                              />
-                            ) : null}
-                            <div 
-                              className={`w-full h-full ${fallbackColor} text-white font-bold text-lg flex items-center justify-center ${brand.logo_url ? 'hidden' : 'flex'}`}
-                              style={{ display: brand.logo_url ? 'none' : 'flex' }}
-                            >
-                              {initials}
-                            </div>
-                          </div>
-                          <h3 className="text-sm font-bold text-black text-center group-hover:text-primary transition-colors">
-                            {brand.name}
-                          </h3>
+                        {brand.logo_url ? (
+                          <img
+                            src={brand.logo_url}
+                            alt={brand.name}
+                            className="max-h-12 w-auto object-contain grayscale hover:grayscale-0 transition-all "
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const fallback = target.nextElementSibling as HTMLElement;
+                              if (fallback) fallback.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+
+                        <div
+                          className={`text-xs font-bold tracking-wider uppercase text-slate-700 text-center ${
+                            brand.logo_url ? 'hidden' : 'flex'
+                          }`}
+                          style={{ display: brand.logo_url ? 'none' : 'flex' }}
+                        >
+                          {brand.name || initials}
                         </div>
                       </Link>
                     );
                   })}
                 </div>
               </div>
-            </section>
-          )}
-
-
-
-       
+            )}
+          </section>
+        )}
 
 
 
 
+
+          <FeaturedListing />
+
+          {/* Shop by Brand */}
+        {/* Shop by Brand - Full Blue Section */}
+
+
+
+
+
+          {/* SHOPS SECTION */}
+        {/* Trusted Seller Shops */}
+{/* {shops.length > 0 && (
+  <section className="container-wide py-12 md:py-16 bg-slate-50/50">
+    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-8">
+      <div>
+        <span className="inline-flex items-center gap-1.5 rounded-md bg-[#0092b8]/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[#0092b8]">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#13bdc4] animate-pulse" />
+          Verified Stores
+        </span>
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 tracking-tight mt-2">
+          Trusted Seller Shops
+        </h2>
+        <p className="text-sm text-slate-600 max-w-lg mt-1">
+          Explore storefronts from verified industrial equipment and machinery suppliers.
+        </p>
+      </div>
+
+      <Link
+        href="/shops"
+        className="self-start md:self-auto text-xs font-bold text-[#0092b8] hover:text-[#13bdc4] transition-colors flex items-center gap-1 group"
+      >
+        Explore All Stores
+        <span className="transition-transform group-hover:translate-x-1">→</span>
+      </Link>
+    </div> */}
+
+    {/* Scrollable Horizontal Layout */}
+    {/* <div
+      style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      className="overflow-x-auto py-2 -my-2 [&::-webkit-scrollbar]:hidden"
+    >
+      <div className="flex gap-5 pb-3" style={{ minWidth: 'fit-content' }}>
+        {shops.map((shop) => (
+          <Link
+            key={shop.id}
+            href={`/shop/${shop.seller_id}`}
+            className="group relative w-64 sm:w-72 flex-shrink-0 bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-sm hover:shadow-xl hover:border-[#13bdc4]/40 transition-all duration-300 hover:-translate-y-1"
+          > */}
+            {/* Banner/Cover Image */}
+            {/* <div className="relative h-28 w-full bg-gradient-to-r from-slate-800 to-slate-900 overflow-hidden">
+              {shop.image_urls?.[0] ? (
+                <img
+                  src={shop.image_urls[0]}
+                  alt={shop.title}
+                  className="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-500"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0092b8] to-slate-900 text-white/20 font-black text-4xl select-none">
+                  STORE
+                </div>
+              )} */}
+
+              {/* Status Badge */}
+              {/* {shop.verification_status === 'verified' && (
+                <span className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-full bg-emerald-500/90 backdrop-blur-md px-2.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                  <svg className="w-3 h-3 fill-current" viewBox="0 0 20 20">
+                    <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" />
+                  </svg>
+                  Verified
+                </span>
+              )}
+            </div> */}
+
+            {/* Shop Details */}
+            {/* <div className="p-4 pt-3 relative">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-bold text-slate-900 text-base truncate group-hover:text-[#0092b8] transition-colors">
+                  {shop.title}
+                </h3>
+              </div>
+
+              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span className="font-medium text-slate-600">Visit Storefront</span>
+                <span className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-[#13bdc4] group-hover:text-white transition-colors">
+                  →
+                </span>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  </section>
+)} */}
 
           {/* Stats strip */}
           <section className="relative overflow-hidden py-12 md:py-20">
@@ -468,7 +582,7 @@ export default function Home() {
 
 
 
-         
+
           {/* Why choose us — flat feature cards */}
           <section className="container-wide py-16 md:py-20">
             <div className="max-w-xl mb-12 space-y-3">
@@ -495,7 +609,9 @@ export default function Home() {
         </main>
 
       </div>
-      <Footer />
+      <div className="hidden lg:block">
+        <Footer />
+      </div>
 
     </>
   );

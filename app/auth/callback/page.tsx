@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/auth/supabase/client';
 import { useAuth } from '@/lib/AuthContext';
 
 export default function AuthCallbackPage() {
@@ -32,6 +32,27 @@ export default function AuthCallbackPage() {
         }
 
         if (data.session) {
+          // Check if this is email verification
+          const urlParams = new URL(window.location.href);
+          const isSignup = urlParams.searchParams.get('type') === 'signup';
+          
+          if (isSignup) {
+            // Update email_verified status in profile
+            try {
+              await fetch('/api/auth/sync', { 
+                method: 'POST', 
+                credentials: 'include', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ 
+                  ...data.session,
+                  emailVerified: true 
+                }) 
+              });
+            } catch (e) {
+              // Non-fatal — continue to hydrate client
+            }
+          }
+
           // Persist session to server cookie so server-side routes detect it.
           try {
             await fetch('/api/auth/sync', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data.session) });

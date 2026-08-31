@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentProfile } from '@/lib/supabase/server';
+import { getCurrentProfile } from '@/lib/auth/supabase/server';
+
 
 export async function GET(request: NextRequest) {
   const { user, profile } = await getCurrentProfile(request);

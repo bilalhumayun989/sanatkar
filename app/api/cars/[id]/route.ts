@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/dbConn';
-import { getCurrentProfile } from '@/lib/supabase/server';
+import { getCurrentProfile } from '@/lib/auth/supabase/server';
 
 export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
     try {

@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import prisma from '@/lib/dbConn';
-import { createAdminClient, getCurrentUser } from '@/lib/supabase/server';
+import { createAdminClient, getCurrentUser } from '@/lib/auth/supabase/server';
 
 function mapListingItem(item: any) {
   const imageUrls = Array.isArray(item.image_urls)
@@ -30,7 +30,7 @@ function mapListingItem(item: any) {
   };
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     let currentUserId: string | null = null;
     

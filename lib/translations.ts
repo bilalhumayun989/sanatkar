@@ -126,9 +126,9 @@ export const translations = {
 
         // Features
         feat_1_title: 'Hassle Free',
-        feat_1_desc: 'Browse hundreds of verified listings and connect directly with sellers — no middlemen, no complications. Just simple, smooth buying.',
+        feat_1_desc: 'Browse hundreds of verified listings and connect directly with sellers no middlemen, no complications. Just simple, smooth buying.',
         feat_2_title: 'One Stop Shop',
-        feat_2_desc: 'From industrial machinery to spare parts and equipment — find everything your factory needs in one trusted marketplace.',
+        feat_2_desc: 'From industrial machinery to spare parts and equipment find everything your factory needs in one trusted marketplace.',
         feat_3_title: 'Verified Sellers',
         feat_3_desc: 'Every seller on SANATKAR is reviewed and verified. Buy with confidence knowing you are dealing with genuine suppliers.',
 
