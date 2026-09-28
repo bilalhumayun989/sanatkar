@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  user
+  admin
+  seller
+}
+
+enum Condition {
+  new
+  used
+  refurbished
+}
+
+enum CarStatus {
+  available
+  sold
+}
+
+enum OrderStatus {
+  pending
+  confirmed
+  shipped
+  delivered
+  cancelled
+}
+
+model User {
+  id                  String    @id @default(cuid())
+  name                String
+  email               String    @unique
+  password            String
+  role                Role      @default(user)
+  isVerified          Boolean   @default(false)
+  verifyToken         String?
+  verifyTokenExpire   DateTime?
+  resetPasswordToken  String?
+  resetPasswordExpire DateTime?
+  pakwheelsUrl        String?
+  darazUrl            String?
+  createdAt           DateTime  @default(now())
+
+  cars           Car[]   @relation("SellerCars")
+  ordersAsBuyer  Order[] @relation("BuyerOrders")
+  ordersAsSeller Order[] @relation("SellerOrders")
+}
+
+model Car {
+  id           String    @id @default(cuid())
+  make         String
+  model        String
+  year         Int
+  price        Float
+  description  String
+  images       String[]
+  sellerId     String
+  seller       User      @relation("SellerCars", fields: [sellerId], references: [id])
+  condition    Condition
+  fuelType     String    @default("")
+  transmission String    @default("")
+  category     String    @default("")
+  mileage      Int       @default(0)
+  location     String
+  status       CarStatus @default(available)
+  isFeatured   Boolean   @default(false)
+  allowWhatsapp Boolean  @default(true)
+  createdAt    DateTime  @default(now())
+
+  orders Order[] @relation("CarOrders")
+}
+
+model Order {
+  id               String      @id @default(cuid())
+  buyerId          String
+  buyer            User        @relation("BuyerOrders", fields: [buyerId], references: [id])
+  sellerId         String
+  seller           User        @relation("SellerOrders", fields: [sellerId], references: [id])
+  productId        String
+  product          Car         @relation("CarOrders", fields: [productId], references: [id])
+  quantity         Int         @default(1)
+  totalPrice       Float
+  status           OrderStatus @default(pending)
+  
+  shippingFullName String
+  shippingPhone    String
+  shippingAddress  String
+  shippingCity     String
+
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+}
+
+model Ad {
+  id          String   @id @default(cuid())
+  title       String   @default("Want to Sell Your Car Fast & Extra Easy?")
+  description String   @default("List your vehicle today and get it seen by millions of potential buyers across Pakistan.")
+  buttonText  String   @default("Post an Ad for Free")
+  buttonLink  String   @default("/seller")
+  imageUrl    String   @default("https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&q=80")
+  badgeText   String   @default("PROMOTED")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isPopular Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
