@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ChevronLeft, Bell } from 'lucide-react';
+import { Bell, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/AuthContext';
 import { createClient } from '@/lib/auth/supabase/client';
@@ -20,13 +20,23 @@ interface OfferItem {
   };
 }
 
+interface ChatNotification {
+  chatId: string;
+  senderName: string;
+  listingTitle: string;
+  content: string;
+  createdAt: string;
+  unreadCount: number;
+}
+
 export default function NotificationsPage() {
   const { user } = useAuth();
   const [offers, setOffers] = useState<OfferItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [chatNotifications, setChatNotifications] = useState<ChatNotification[]>([]);
 
   useEffect(() => {
-    async function fetchOffers() {
+    async function fetchNotifications() {
       if (!user) {
         setLoading(false);
         return;
@@ -65,10 +75,46 @@ export default function NotificationsPage() {
         console.error('Failed to mark offers as viewed:', markViewedError);
       }
 
+      const { data: chats } = await supabase
+        .from('chats')
+        .select('id, buyer_id, seller_id, listings:listing_id (title)')
+        .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`);
+
+      const unreadChats = await Promise.all((chats || []).map(async (chat: any) => {
+        const { data: latest } = await supabase
+          .from('messages')
+          .select('content, created_at, sender_id')
+          .eq('chat_id', chat.id)
+          .neq('sender_id', user.id)
+          .eq('is_read', false)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (!latest) return null;
+
+        const { count } = await supabase
+          .from('messages')
+          .select('id', { count: 'exact', head: true })
+          .eq('chat_id', chat.id)
+          .neq('sender_id', user.id)
+          .eq('is_read', false);
+        const otherUserId = chat.buyer_id === user.id ? chat.seller_id : chat.buyer_id;
+        const { data: profile } = await supabase.from('profiles').select('full_name, username').eq('id', otherUserId).maybeSingle();
+        const listing = Array.isArray(chat.listings) ? chat.listings[0] : chat.listings;
+        return {
+          chatId: chat.id,
+          senderName: profile?.full_name || profile?.username || 'New message',
+          listingTitle: listing?.title || 'Conversation',
+          content: latest.content || 'Sent a message',
+          createdAt: latest.created_at,
+          unreadCount: count || 0,
+        } as ChatNotification;
+      }));
+      setChatNotifications(unreadChats.filter(Boolean) as ChatNotification[]);
       setLoading(false);
     }
 
-    fetchOffers();
+    fetchNotifications();
   }, [user]);
 
   const getStatusBadgeClass = (status: string) => {
@@ -105,13 +151,24 @@ export default function NotificationsPage() {
             <div className="w-16 h-16 bg-cyan-50 rounded-full flex items-center justify-center mb-4">
               <Bell className="w-8 h-8 text-[#13BDC4]/60" />
             </div>
-            <p className="text-slate-600 text-base font-semibold">No offers received yet.</p>
+            <p className="text-slate-600 text-base font-semibold">No new notifications.</p>
             <p className="text-slate-400 text-xs mt-1">
-              When buyers send offers on your ads, they will appear here.
+              New messages and offers will appear here.
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3">
+            {chatNotifications.map((notification) => (
+              <Link key={notification.chatId} href={`/messages?chat=${encodeURIComponent(notification.chatId)}`} className="group rounded-xl border border-rose-100 bg-white p-4 shadow-sm transition hover:border-rose-300 hover:shadow-md">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-500"><MessageSquare size={18} /></div>
+                    <div className="min-w-0"><span className="text-[10px] font-black uppercase tracking-wider text-rose-500">New chat message</span><h3 className="mt-1 truncate text-sm font-bold text-slate-800">{notification.senderName}</h3><p className="truncate text-xs text-slate-500">{notification.content}</p><p className="mt-1 text-[11px] font-semibold text-slate-400">{notification.listingTitle} · {new Date(notification.createdAt).toLocaleString()}</p></div>
+                  </div>
+                  <span className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-rose-500 px-2 text-[10px] font-black text-white">{notification.unreadCount}</span>
+                </div>
+              </Link>
+            ))}
             {offers.map((offer) => (
               <div
                 key={offer.id}

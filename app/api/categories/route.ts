@@ -8,7 +8,7 @@ export async function GET() {
         // Fetch categories from database
         const { data: categories, error } = await supabase
             .from('categories')
-            .select('id, name, icon_code, image_url, description, is_active')
+            .select('*')
             .eq('is_active', true)
             .order('name', { ascending: true });
 
@@ -26,6 +26,7 @@ export async function GET() {
             image_url: category.image_url,
             description: category.description,
             is_active: category.is_active,
+            is_popular: category.is_popular === true,
         }));
 
         return NextResponse.json({ 

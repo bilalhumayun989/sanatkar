@@ -1,8 +1,8 @@
 export const translations = {
     en: {
         // ── Navbar ──────────────────────────────────────────────────────────
-        buy_parts: 'Buy Parts',
-        post_ad: 'Post an Ad',
+        buy_parts: 'Products',
+        post_ad: 'List Your Item',
         sell_parts: 'Sell Your Parts',
         classified_free: 'Classified Ad (Free)',
         promote_brand: 'Promote Brand',
@@ -14,10 +14,10 @@ export const translations = {
         brand_name_1: 'SANAT',
         brand_name_2: 'KAR',
         tagline: 'Industrial Boutique',
-        shop_directory: 'Shop Directory',
+        shop_directory: 'Shops',
         my_shop: 'My Shop',
-        my_ads: 'My Ads',
-        saved_ads: 'Saved Ads',
+        my_ads: 'My Listings',
+        saved_ads: 'Saved Listings',
         admin_panel: 'Admin Panel',
         admin: 'Admin',
         machines: 'Machines',
@@ -172,7 +172,7 @@ export const translations = {
         trusted_desc: 'Thousands of buyers and sellers trust SANATKAR to find genuine industrial machinery and spare parts across Pakistan.',
 
         // ── Seller / Post Ad Page ─────────────────────────────────────────────
-        post_your_ad: 'Post Your Ad',
+        post_your_ad: 'List Your Item',
         edit_your_ad: 'Edit Your Ad',
         all_fields_mandatory: 'All fields marked with * are mandatory',
         listing_information: 'Listing Information',
@@ -566,7 +566,7 @@ export const translations = {
 
     ur: {
         // ── Navbar ──────────────────────────────────────────────────────────
-        buy_parts: 'پرزہ جات خریدیں',
+        buy_parts: 'مصنوعات',
         post_ad: 'اشتہار لگائیں',
         sell_parts: 'اپنے پرزہ جات بیچیں',
         classified_free: 'کلاسیفائیڈ اشتہار (مفت)',
@@ -579,7 +579,7 @@ export const translations = {
         brand_name_1: 'صنعت',
         brand_name_2: 'کار',
         tagline: 'صنعتی بوٹیک',
-        shop_directory: 'شاپ ڈائریکٹری',
+        shop_directory: 'دکانیں',
         my_shop: 'میری دکان',
         my_ads: 'میرے اشتہارات',
         saved_ads: 'محفوظ شدہ اشتہارات',

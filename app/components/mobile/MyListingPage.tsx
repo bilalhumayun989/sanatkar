@@ -275,7 +275,7 @@ export default function MyListingsPage() {
         >
           <ArrowLeft className="w-5 h-5 text-white" />
         </button>
-        <h1 className="text-base font-bold tracking-wide">My Ads</h1>
+        <h1 className="text-base font-bold tracking-wide">My Listings</h1>
         <div className="w-5" />
       </div>
 

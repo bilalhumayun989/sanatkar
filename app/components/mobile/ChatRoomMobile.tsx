@@ -101,6 +101,12 @@ export default function ChatRoomMobile({ chatId }: ChatRoomProps) {
 
       if (msgData) {
         setMessages(msgData);
+        const unreadIds = msgData
+          .filter((message: Message) => message.sender_id !== user.id && !message.is_read)
+          .map((message: Message) => message.id);
+        if (unreadIds.length > 0) {
+          await supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
+        }
       }
 
       setLoading(false);
@@ -120,7 +126,11 @@ export default function ChatRoomMobile({ chatId }: ChatRoomProps) {
           filter: `chat_id=eq.${chatId}`,
         },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new as Message]);
+          const newMessage = payload.new as Message;
+          setMessages((prev) => prev.some(message => message.id === newMessage.id) ? prev : [...prev, newMessage]);
+          if (newMessage.sender_id !== currentUserId) {
+            void supabase.from('messages').update({ is_read: true }).eq('id', newMessage.id);
+          }
         }
       )
       .subscribe();
@@ -226,19 +236,28 @@ export default function ChatRoomMobile({ chatId }: ChatRoomProps) {
         ) : (
           messages.map((msg) => {
             const isMe = msg.sender_id === currentUserId;
+            const isOffer = msg.type === 'offer';
             return (
               <div
                 key={msg.id}
                 className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
               >
                 <div
-                  className={`max-w-[75%] px-4 py-2.5 text-xs shadow-xs ${
-                    isMe
+                    className={`max-w-[75%] px-4 py-2.5 text-xs shadow-xs ${
+                    isOffer
+                      ? 'border border-[#13BDC4]/30 bg-[#13BDC4]/10 text-slate-800'
+                      : isMe
                       ? 'bg-[#13BDC4] text-white rounded-2xl rounded-br-sm'
                       : 'bg-white text-slate-800 border border-slate-100 rounded-2xl rounded-bl-sm'
                   }`}
                 >
-                  <p className="font-medium leading-relaxed">{msg.content}</p>
+                  {isOffer ? (
+                    <>
+                      <p className="text-[10px] font-black uppercase tracking-wider text-[#078da5]">{isMe ? 'You made an offer' : 'Received an offer'}</p>
+                      <p className="mt-1 text-xl font-black text-slate-900">PKR {Number(msg.offer_amount || 0).toLocaleString()}</p>
+                      {msg.content && <p className="mt-1 font-medium leading-relaxed text-slate-600">{msg.content}</p>}
+                    </>
+                  ) : <p className="font-medium leading-relaxed">{msg.content}</p>}
 
                   <div
                     className={`flex items-center gap-1 justify-end mt-1 ${

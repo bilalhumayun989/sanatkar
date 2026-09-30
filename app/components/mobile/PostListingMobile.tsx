@@ -1,29 +1,16 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, MessageSquare, Upload, Info, ChevronDown, X, Loader } from 'lucide-react';
-import { createClient } from '@supabase/supabase-js'; // یا آپ کا اپنا supabase client import path
+import BrandSelect from '@/app/components/BrandSelect';
+import { FIXED_CATEGORY_OPTIONS } from '@/lib/categoryConstants';
+import { createClient } from '@/lib/auth/supabase/client'; // یا آپ کا اپنا supabase client import path
 
-// Supabase Types
-interface Category {
-  id: string;
-  name: string;
-  icon_code?: number;
-  description?: string;
-  is_active?: boolean;
-  created_at?: string;
-}
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+const supabase = createClient();
 
 export default function PostListingMobile() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [loadingCategories, setLoadingCategories] = useState<boolean>(true);
+  const [selectedCategory, setSelectedCategory] = useState<string>('parts');
   
   const [condition, setCondition] = useState('Used');
   const [contactOption, setContactOption] = useState('Call');
@@ -31,14 +18,14 @@ export default function PostListingMobile() {
   // Form States
   const [formData, setFormData] = useState({
     title: '',
-    brand: '-- No Brand --',
+    brand: '',
     price: '',
     year: '',
     hours: '',
     location: '',
     model: '',
     origin: '',
-    stock_status: 'Select',
+    stock_status: '',
     phone_number: '',
     description: ''
   });
@@ -54,33 +41,6 @@ export default function PostListingMobile() {
 
   // File Input Refs
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null]);
-
-  // Supabase Table se Dynamic Categories Fetch کرنا
-  useEffect(() => {
-    async function fetchCategories() {
-      try {
-        setLoadingCategories(true);
-        const { data, error } = await supabase
-          .from('categories')
-          .select('id, name')
-          .eq('is_active', true)
-          .order('name', { ascending: true });
-
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-          setCategories(data);
-          setSelectedCategory(data[0].id); // Pehli category ko default select karna
-        }
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-      } finally {
-        setLoadingCategories(false);
-      }
-    }
-
-    fetchCategories();
-  }, []);
 
   // Image File Change Handler
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
@@ -169,13 +129,18 @@ export default function PostListingMobile() {
 
     try {
       // Validation
+      if (!formData.brand.trim()) {
+        setSubmitError('Select a brand or enter your brand name.');
+        setSubmitting(false);
+        return;
+      }
       if (!formData.title.trim()) {
         setSubmitError('Title is required');
         setSubmitting(false);
         return;
       }
 
-      if (!formData.price.trim()) {
+      if (!formData.price.trim() || !Number.isFinite(Number(formData.price)) || Number(formData.price) < 0) {
         setSubmitError('Price is required');
         setSubmitting(false);
         return;
@@ -205,14 +170,14 @@ export default function PostListingMobile() {
       // Prepare Listing Data
       const listingData = {
         title: formData.title,
-        brand: formData.brand,
+        brand: formData.brand.trim(),
         price: parseFloat(formData.price),
         year: formData.year || null,
         hours: formData.hours || null,
         location: formData.location,
         model: formData.model || null,
         origin: formData.origin || null,
-        stock_status: formData.stock_status,
+        stock_status: formData.stock_status || null,
         phone_number: formData.phone_number,
         contact_option: contactOption,
         condition: condition,
@@ -236,14 +201,14 @@ export default function PostListingMobile() {
       // Reset Form
       setFormData({
         title: '',
-        brand: '-- No Brand --',
+        brand: '',
         price: '',
         year: '',
         hours: '',
         location: '',
         model: '',
         origin: '',
-        stock_status: 'Select',
+        stock_status: '',
         phone_number: '',
         description: ''
       });
@@ -362,57 +327,15 @@ export default function PostListingMobile() {
           />
         </div>
 
-      {/* Brand */}
-<div className="space-y-1">
-  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-    BRAND
-  </label>
-  <input
-    type="text"
-    name="brand"
-    value={formData.brand}
-    onChange={handleInputChange}
-    placeholder="e.g. Caterpillar, Komatsu, or Custom Brand"
-    className="w-full h-11 px-4 bg-white rounded-xl text-xs font-medium text-slate-800 placeholder:text-slate-300 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#13BDC4]/30 shadow-2xs"
-  />
-</div>
-
-        {/* Dynamic Category Badges (Fetched from Supabase) */}
+        <div className="space-y-1">
+          <label className="text-[10px] font-bold text-slate-500 uppercase">Brand *</label>
+          <BrandSelect value={formData.brand} onChange={brand => setFormData(prev => ({ ...prev, brand }))} />
+        </div>
         <div className="space-y-1.5">
-          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-            CATEGORY *
-          </label>
-          
-          {loadingCategories ? (
-            /* Loading Skeletons */
-            <div className="flex flex-wrap items-center gap-2 py-1">
-              {[1, 2, 3, 4].map((n) => (
-                <div
-                  key={n}
-                  className="h-8 w-16 bg-slate-200 rounded-full animate-pulse shrink-0"
-                />
-              ))}
-            </div>
-          ) : categories.length === 0 ? (
-            <p className="text-xs text-slate-400 py-1">No categories available</p>
-          ) : (
-            <div className="flex flex-wrap items-center gap-2 py-1">
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all shrink-0 ${
-                    selectedCategory === cat.id
-                      ? 'bg-[#13BDC4] text-white shadow-xs'
-                      : 'bg-white text-slate-600 border border-slate-200'
-                  }`}
-                >
-                  {cat.name}
-                </button>
-              ))}
-            </div>
-          )}
+          <label className="text-[10px] font-bold text-slate-500 uppercase">Category *</label>
+          <select aria-label="Category" value={selectedCategory} onChange={event => setSelectedCategory(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm">
+            {FIXED_CATEGORY_OPTIONS.map(category => <option key={category.value} value={category.value}>{category.value === 'others' ? 'Other' : category.label}</option>)}
+          </select>
         </div>
 
         {/* Price & Year */}
@@ -426,7 +349,7 @@ export default function PostListingMobile() {
               name="price"
               value={formData.price}
               onChange={handleInputChange}
-              placeholder="USD"
+              placeholder="PKR"
               className="w-full h-11 px-4 bg-white rounded-xl text-xs font-medium text-slate-800 placeholder:text-slate-300 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#13BDC4]/30 shadow-2xs"
             />
           </div>
@@ -445,7 +368,11 @@ export default function PostListingMobile() {
           </div>
         </div>
 
-        {/* Hours & Location */}
+        <div className="space-y-1">
+          <label className="text-[10px] font-bold text-slate-500 uppercase">Hours</label>
+          <input aria-label="Hours" name="hours" type="number" min="0" value={formData.hours} onChange={handleInputChange} className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm" />
+        </div>
+        {/* Location */}
         <div className="grid grid-cols-2 gap-3">
          
           <div className="space-y-1">
@@ -470,7 +397,7 @@ export default function PostListingMobile() {
               CONDITION
             </label>
             <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-              {['New', 'Used'].map((item) => (
+              {['New', 'Used', 'Refurbished'].map((item) => (
                 <button
                   key={item}
                   type="button"
@@ -526,7 +453,7 @@ export default function PostListingMobile() {
                 value={formData.stock_status}
                 onChange={handleInputChange}
                 className="w-full h-11 px-4 bg-white rounded-xl text-xs font-medium text-slate-400 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#13BDC4]/30 appearance-none shadow-2xs pr-10">
-                <option>Select</option>
+                <option value="">Not specified</option>
                 <option>In Stock</option>
                 <option>Out of Stock</option>
               </select>

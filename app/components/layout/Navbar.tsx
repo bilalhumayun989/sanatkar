@@ -1,15 +1,24 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import { useState, useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Phone, Package, User, LogOut, Languages, ShieldCheck, ChevronDown, Heart, MessageSquare, Store } from 'lucide-react';
+import { Menu, X, Phone, Package, User, LogOut, Languages, ShieldCheck, ChevronDown, Heart, MessageSquare, Store, BadgeCheck, Clock, Bell } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { createClient } from '@/lib/auth/supabase/client';
 
 interface NavbarProps {
     forceSolid?: boolean;
+}
+
+interface NavbarNotification {
+    chatId: string;
+    senderName: string;
+    content: string;
+    createdAt: string;
+    unreadCount: number;
 }
 
 export default function Navbar({ forceSolid = false }: NavbarProps) {
@@ -19,6 +28,11 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [postAdOpen, setPostAdOpen] = useState(false);
     const [messageUnreadCount, setMessageUnreadCount] = useState(0);
+    const [notificationOpen, setNotificationOpen] = useState(false);
+    const [notifications, setNotifications] = useState<NavbarNotification[]>([]);
+    const desktopUserMenuRef = useRef<HTMLDivElement>(null);
+    const mobileUserMenuRef = useRef<HTMLDivElement>(null);
+    const notificationRef = useRef<HTMLDivElement>(null);
     const pathname = usePathname();
 
     const handleLogout = async () => {
@@ -38,6 +52,23 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
     }, [menuOpen]);
 
     useEffect(() => {
+        const handleOutsideClick = (event: MouseEvent) => {
+            const target = event.target as Node;
+            const clickedInsideDesktopMenu = desktopUserMenuRef.current?.contains(target);
+            const clickedInsideMobileMenu = mobileUserMenuRef.current?.contains(target);
+            if (!clickedInsideDesktopMenu && !clickedInsideMobileMenu) {
+                setUserMenuOpen(false);
+            }
+            if (!notificationRef.current?.contains(target)) {
+                setNotificationOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleOutsideClick);
+        return () => document.removeEventListener('mousedown', handleOutsideClick);
+    }, []);
+
+    useEffect(() => {
         if (!authUser?.id) {
             setMessageUnreadCount(0);
             return;
@@ -48,9 +79,19 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
         const fetchUnreadMessageCount = async () => {
             try {
                 const supabase = createClient();
+                const { data: chatRows } = await supabase
+                    .from('chats')
+                    .select('id')
+                    .or(`buyer_id.eq.${authUser.id},seller_id.eq.${authUser.id}`);
+                const chatIds = (chatRows || []).map(chat => chat.id);
+                if (chatIds.length === 0) {
+                    setMessageUnreadCount(0);
+                    return;
+                }
                 const { count, error } = await supabase
                     .from('messages')
                     .select('id', { count: 'exact', head: true })
+                    .in('chat_id', chatIds)
                     .neq('sender_id', authUser.id)
                     .eq('is_read', false);
 
@@ -73,14 +114,69 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
         };
     }, [authUser?.id]);
 
+    const loadNotifications = async () => {
+        if (!authUser?.id) return;
+        const supabase = createClient();
+        const { data: chats } = await supabase
+            .from('chats')
+            .select('id, buyer_id, seller_id')
+            .or(`buyer_id.eq.${authUser.id},seller_id.eq.${authUser.id}`);
+        const items = await Promise.all((chats || []).map(async (chat) => {
+            const { data: latest } = await supabase
+                .from('messages')
+                .select('content, created_at')
+                .eq('chat_id', chat.id)
+                .neq('sender_id', authUser.id)
+                .eq('is_read', false)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+            if (!latest) return null;
+            const otherId = chat.buyer_id === authUser.id ? chat.seller_id : chat.buyer_id;
+            const { data: profile } = await supabase.from('profiles').select('full_name, username').eq('id', otherId).maybeSingle();
+            const { count } = await supabase.from('messages').select('id', { count: 'exact', head: true }).eq('chat_id', chat.id).neq('sender_id', authUser.id).eq('is_read', false);
+            return { chatId: chat.id, senderName: profile?.full_name || profile?.username || 'New message', content: latest.content || 'Sent a message', createdAt: latest.created_at, unreadCount: count || 0 };
+        }));
+        setNotifications(items.filter(Boolean) as NavbarNotification[]);
+    };
+
+    useEffect(() => {
+        if (!authUser?.id) return;
+        const supabase = createClient();
+        const channel = supabase
+            .channel(`navbar_notifications_${authUser.id}`)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
+                const message = payload.new as { chat_id?: string; sender_id?: string };
+                if (!message.chat_id || message.sender_id === authUser.id) return;
+                const { data: chat } = await supabase
+                    .from('chats')
+                    .select('id')
+                    .eq('id', message.chat_id)
+                    .or(`buyer_id.eq.${authUser.id},seller_id.eq.${authUser.id}`)
+                    .maybeSingle();
+                if (!chat) return;
+                const { count } = await supabase
+                    .from('messages')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('chat_id', message.chat_id)
+                    .neq('sender_id', authUser.id)
+                    .eq('is_read', false);
+                setMessageUnreadCount(previous => Math.max(previous + 1, count || 0));
+            })
+            .subscribe();
+
+        return () => { void supabase.removeChannel(channel); };
+    }, [authUser?.id]);
+
     return (
         <>
-            <nav className="hidden lg:block absolute top-0 left-0 right-0 z-[100] py-0 px-2 bg-white/40 backdrop-blur-xl border-b border-white/30 text-slate-900 shadow-sm">
+            <nav className="hidden lg:block absolute top-0 left-0 right-0 z-[100] py-0 px-2 bg-white border-b border-slate-200 text-slate-900 shadow-sm">
                 <div className="container-wide flex justify-between items-center h-16">
                     
                     {/* Logo */}
-                    <Link href="/" className="flex items-center gap-2 group transition-transform active:scale-95 shrink-0 z-10">
-                        <img src="/sanatkar.png" alt="SanatHub Logo" className="h-8 sm:h-10 w-auto object-contain" />
+                    <Link href="/" className="flex items-center gap-2.5 group transition-opacity hover:opacity-80 active:opacity-70 shrink-0 z-10">
+                        <Image src="/favicon.png" alt="" width={40} height={40} className="h-10 w-10 object-contain" />
+                        <span className="text-xl font-extrabold leading-none text-slate-900">Sanatkar</span>
                     </Link>
 
                     {/* Desktop Navigation Links */}
@@ -125,7 +221,7 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
 
                         {isAdmin && (
                             <Link 
-                                href="/admin/dashboard" 
+                                href="/admin" 
                                 className="flex items-center gap-2 text-slate-800 hover:text-[#09ACC9] transition-colors whitespace-nowrap py-2 px-1"
                             >
                                 <ShieldCheck size={16} className="text-[#09ACC9]" /> {t('admin')}
@@ -142,7 +238,7 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                     {/* Desktop Actions */}
                     <div className="hidden lg:flex items-center gap-3">
                         {authUser ? (
-                            <div className="relative">
+                            <div ref={desktopUserMenuRef} className="relative">
                                 <button
                                     type="button"
                                     onClick={() => setUserMenuOpen((prev) => !prev)}
@@ -150,12 +246,28 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                                 >
                                     <User size={16} className="text-[#09ACC9]" />
                                     <span className="max-w-[100px] truncate">{authUser.name || authUser.email?.split('@')[0] || 'User'}</span>
+                                    {authUser.role === 'seller' && (
+                                        <span className="rounded-full bg-[#09ACC9]/10 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-[#078da5]">
+                                            Seller
+                                        </span>
+                                    )}
                                     <ChevronDown size={14} className={`transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
                                 </button>
 
                                 {/* User Dropdown */}
                                 {userMenuOpen && (
-                                    <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-white/60 bg-white/95 p-2 shadow-2xl backdrop-blur-2xl text-slate-800 z-50">
+                                    <div className="absolute right-0 mt-3 w-72 rounded-3xl border border-slate-200 bg-white/95 p-3 text-slate-800 shadow-[0_20px_50px_rgba(15,23,42,0.16)] backdrop-blur-2xl z-50">
+                                        <div className="mb-3 flex items-center gap-3 rounded-2xl bg-[#12343a] p-3 text-white">
+                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#73e3e2] text-base font-black text-[#12343a]">
+                                                {(authUser.name || authUser.email || 'U').charAt(0).toUpperCase()}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate text-sm font-black">{authUser.name || authUser.email?.split('@')[0] || 'User'}</p>
+                                                <p className="truncate text-[11px] text-white/60">{authUser.email}</p>
+                                            </div>
+                                            <span className="rounded-full bg-white/15 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-[#9af3f0]">{authUser.role}</span>
+                                        </div>
+                                        <p className="mb-1 px-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Account</p>
                                         {authUser.role === 'regular' ? (
                                             <div className="px-3 py-2 mb-1 rounded-xl bg-slate-50 border border-slate-100">
                                                 <div className="text-xs font-semibold text-slate-500 mb-1">Listings Quota</div>
@@ -192,6 +304,16 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                                             <Package size={16} className="text-[#09ACC9]" />
                                             {t('my_ads')}
                                         </Link>
+                                        {authUser.role === 'regular' && (authUser.seller_status === 'pending' ? (
+                                            <div className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-amber-600">
+                                                <Clock size={16} /> Requested
+                                            </div>
+                                        ) : (
+                                            <Link href="/become-seller" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-[#078da5] transition-colors hover:bg-[#09ACC9]/10">
+                                                <Store size={16} className="text-[#09ACC9]" />
+                                                {authUser.seller_status === 'rejected' ? 'Become a Seller Again' : 'Become a Seller'}
+                                            </Link>
+                                        ))}
                                         {authUser.role === 'seller' && (
                                             <Link
                                                 href="/my-shop"
@@ -202,6 +324,14 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                                                 {t('my_shop')}
                                             </Link>
                                         )}
+                                        <Link
+                                            href="/seller-verification"
+                                            onClick={() => setUserMenuOpen(false)}
+                                            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-[#078da5] transition-colors hover:bg-[#09ACC9]/10"
+                                        >
+                                            <BadgeCheck size={16} className="text-[#09ACC9]" />
+                                            {authUser?.verification_status === 'approved' ? 'Verified' : 'Get Verified Seller Badge'}
+                                        </Link>
                                         <Link
                                             href="/saved"
                                             onClick={() => setUserMenuOpen(false)}
@@ -254,6 +384,18 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                             <Languages size={16} className="text-[#09ACC9]" />
                             {language === 'en' ? 'اردو' : 'EN'}
                         </button>
+                        {authUser && (
+                            <div ref={notificationRef} className="relative">
+                                <button type="button" aria-label="Notifications" onClick={() => { setNotificationOpen(previous => !previous); void loadNotifications(); }} className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-300/80 bg-white/80 text-slate-700 shadow-sm transition hover:border-[#09ACC9] hover:text-[#09ACC9]">
+                                    <Bell size={17} />
+                                    {messageUnreadCount > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-black text-white">{messageUnreadCount > 99 ? '99+' : messageUnreadCount}</span>}
+                                </button>
+                                {notificationOpen && <div className="absolute right-0 mt-3 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.16)]">
+                                    <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3"><div><p className="text-sm font-black text-slate-900">Notifications</p><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Unread chat messages</p></div><span className="rounded-full bg-rose-50 px-2 py-1 text-[10px] font-black text-rose-600">{messageUnreadCount}</span></div>
+                                    <div className="max-h-80 overflow-y-auto p-2">{notifications.length === 0 ? <div className="px-4 py-8 text-center text-xs font-semibold text-slate-400">No new messages</div> : notifications.map(notification => <Link key={notification.chatId} href={`/messages?chat=${encodeURIComponent(notification.chatId)}`} onClick={() => setNotificationOpen(false)} className="flex items-start gap-3 rounded-xl p-3 transition hover:bg-rose-50"><span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-500"><MessageSquare size={15} /></span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><strong className="truncate text-xs font-black text-slate-800">{notification.senderName}</strong><b className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] text-white">{notification.unreadCount}</b></span><span className="mt-1 block truncate text-[11px] text-slate-500">{notification.content}</span><span className="mt-1 block text-[10px] font-semibold text-slate-400">{new Date(notification.createdAt).toLocaleString()}</span></span></Link>)}</div>
+                                </div>}
+                            </div>
+                        )}
                     </div>
 
                     {/* Mobile Actions (visible on md and smaller) */}
@@ -268,7 +410,7 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
 
                         {/* User Button for Tablet */}
                         {authUser && (
-                            <div className="relative hidden md:block lg:hidden">
+                            <div ref={mobileUserMenuRef} className="relative hidden md:block lg:hidden">
                                 <button
                                     type="button"
                                     onClick={() => setUserMenuOpen((prev) => !prev)}
@@ -315,6 +457,16 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                                             <Package size={16} className="text-[#09ACC9]" />
                                             {t('my_ads')}
                                         </Link>
+                                        {authUser.role === 'regular' && (authUser.seller_status === 'pending' ? (
+                                            <div className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-amber-600">
+                                                <Clock size={16} /> Requested
+                                            </div>
+                                        ) : (
+                                            <Link href="/become-seller" onClick={() => setUserMenuOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-[#078da5] transition-colors hover:bg-[#09ACC9]/10">
+                                                <Store size={16} className="text-[#09ACC9]" />
+                                                {authUser.seller_status === 'rejected' ? 'Become a Seller Again' : 'Become a Seller'}
+                                            </Link>
+                                        ))}
                                         {authUser.role === 'seller' && (
                                             <Link
                                                 href="/my-shop"
@@ -325,6 +477,14 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                                                 {t('my_shop')}
                                             </Link>
                                         )}
+                                        <Link
+                                            href="/seller-verification"
+                                            onClick={() => setUserMenuOpen(false)}
+                                            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-[#078da5] transition-colors hover:bg-[#09ACC9]/10"
+                                        >
+                                            <BadgeCheck size={16} className="text-[#09ACC9]" />
+                                            {authUser?.verification_status === 'approved' ? 'Verified' : 'Get Verified Seller Badge'}
+                                        </Link>
                                         <Link
                                             href="/saved"
                                             onClick={() => setUserMenuOpen(false)}
@@ -388,8 +548,22 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                     </button>
                 </div>
 
+                {authUser && (
+                    <div className="mx-4 mt-5 flex items-center gap-3 rounded-2xl bg-[#12343a] p-4 text-white shadow-lg shadow-[#12343a]/15">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#73e3e2] text-lg font-black text-[#12343a]">
+                            {(authUser.name || authUser.email || 'U').charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-black">{authUser.name || authUser.email?.split('@')[0] || 'User'}</p>
+                            <p className="truncate text-[11px] text-white/60">{authUser.email}</p>
+                        </div>
+                        <span className="rounded-full bg-white/15 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-[#9af3f0]">{authUser.role}</span>
+                    </div>
+                )}
+
                 {/* Mobile Navigation */}
-                <nav className="flex-1 flex flex-col gap-1 px-4 py-6 overflow-y-auto">
+                <nav className="flex-1 flex flex-col gap-1 px-4 py-5 overflow-y-auto">
+                    <p className="px-4 pb-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Explore</p>
                     <Link href="/buyer" onClick={() => setMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-4 rounded-xl font-semibold text-sm hover:bg-[#09ACC9]/10 hover:text-[#09ACC9] transition-colors">
                         <Package size={20} className="text-[#09ACC9]" />
@@ -411,6 +585,7 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                     {authUser && (
                         <>
                             <div className="border-t border-slate-200/60 my-2"></div>
+                            <p className="px-4 pb-1 pt-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Your workspace</p>
                             
                             {authUser.role === 'regular' ? (
                                 <div className="px-4 py-3 mx-2 my-2 rounded-xl bg-slate-50 border border-slate-100">
@@ -426,6 +601,10 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                                 </div>
                             ) : authUser.role === 'seller' ? (
                                 <div className="px-4 py-3 mx-2 my-2 rounded-xl bg-slate-50 border border-slate-100">
+                                    <div className="mb-1 flex items-center justify-between gap-2">
+                                        <div className="text-xs font-semibold text-slate-500">Seller Account</div>
+                                        <span className="rounded-full bg-[#09ACC9]/10 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider text-[#078da5]">Seller</span>
+                                    </div>
                                     <div className="text-xs font-semibold text-slate-500 mb-1">Total Listings</div>
                                     <div className="text-sm font-bold text-slate-800">
                                         {(authUser.total_listings_posted ?? 0)} posted
@@ -442,13 +621,24 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                             <Link href="/my-ads" onClick={() => setMenuOpen(false)}
                                 className="flex items-center gap-3 px-4 py-4 rounded-xl font-semibold text-sm hover:bg-[#09ACC9]/10 hover:text-[#09ACC9] transition-colors">
                                 <Package size={20} className="text-[#09ACC9]" />
-                                My Ads
+                                My Listings
                             </Link>
+
+                            {authUser.role === 'regular' && (authUser.seller_status === 'pending' ? (
+                                <div className="flex items-center gap-3 px-4 py-4 rounded-xl font-semibold text-sm text-amber-600">
+                                    <Clock size={20} /> Requested
+                                </div>
+                            ) : (
+                                <Link href="/become-seller" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-4 rounded-xl font-semibold text-sm text-[#078da5] hover:bg-[#09ACC9]/10 transition-colors">
+                                    <Store size={20} className="text-[#09ACC9]" />
+                                    {authUser.seller_status === 'rejected' ? 'Become a Seller Again' : 'Become a Seller'}
+                                </Link>
+                            ))}
                             
                             <Link href="/saved" onClick={() => setMenuOpen(false)}
                                 className="flex items-center gap-3 px-4 py-4 rounded-xl font-semibold text-sm hover:bg-[#09ACC9]/10 hover:text-[#09ACC9] transition-colors">
                                 <Heart size={20} className="text-[#09ACC9]" />
-                                Saved Ads
+                                Saved Listings
                             </Link>
 
                             {authUser?.role === 'seller' && (
@@ -458,6 +648,12 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                                     My Shop
                                 </Link>
                             )}
+
+                            <Link href="/seller-verification" onClick={() => setMenuOpen(false)}
+                                className="flex items-center gap-3 px-4 py-4 rounded-xl font-semibold text-sm text-[#078da5] hover:bg-[#09ACC9]/10 transition-colors">
+                                <BadgeCheck size={20} className="text-[#09ACC9]" />
+                                {authUser?.verification_status === 'approved' ? 'Verified' : 'Get Verified Seller Badge'}
+                            </Link>
                             
                             <Link href="/messages" onClick={() => setMenuOpen(false)}
                                 className="flex items-center justify-between gap-3 px-4 py-4 rounded-xl font-semibold text-sm hover:bg-[#09ACC9]/10 hover:text-[#09ACC9] transition-colors">

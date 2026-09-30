@@ -9,7 +9,6 @@ import { createClient } from '@/lib/auth/supabase/client';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { User, Mail, Phone, CreditCard, Loader2, Save, ArrowLeft, CheckCircle2, AlertCircle, Store } from 'lucide-react';
-import BecomeSellerModal from '@/app/components/profile/BecomeSellerModal';
 
 interface ProfileRecord {
   full_name?: string | null;
@@ -38,7 +37,6 @@ export default function ProfilePage() {
   const [cnic, setCnic] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [becomeSellerOpen, setBecomeSellerOpen] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
@@ -168,16 +166,15 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 )}
-                {profile?.role === 'regular' && (
-                  <button 
-                    type="button"
-                    onClick={() => setBecomeSellerOpen(true)}
-                    className="flex-1 md:flex-none flex justify-center items-center gap-2 bg-[#09ACC9] hover:bg-[#0092b8] text-white px-6 py-4 rounded-2xl font-bold transition-colors shadow-lg shadow-[#09ACC9]/20"
-                  >
-                    <Store size={18} />
-                    Become a Seller
+                {profile?.role === 'regular' && (profile.seller_status === 'pending' ? (
+                  <div className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-6 py-4 font-bold text-amber-700 md:flex-none">
+                    <Loader2 size={18} /> Requested
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => router.push('/become-seller')} className="flex-1 justify-center gap-2 rounded-2xl bg-[#09ACC9] px-6 py-4 font-bold text-white shadow-lg shadow-[#09ACC9]/20 transition-colors hover:bg-[#0092b8] md:flex-none">
+                    <Store size={18} className="inline-block" /> {profile.seller_status === 'rejected' ? 'Become a Seller Again' : 'Become a Seller'}
                   </button>
-                )}
+                ))}
               </div>
 
               {/* Fields */}
@@ -255,14 +252,6 @@ export default function ProfilePage() {
           )}
         </div>
         
-        <BecomeSellerModal 
-          isOpen={becomeSellerOpen} 
-          onClose={() => setBecomeSellerOpen(false)} 
-          onSuccess={() => {
-            setBecomeSellerOpen(false);
-            window.location.reload();
-          }} 
-        />
       </main>
       <Footer />
     </div>

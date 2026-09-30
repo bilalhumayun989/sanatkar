@@ -22,6 +22,7 @@ interface ShopData {
     shop_description: string | null;
     shop_image_url: string | null;
     seller_status: string | null;
+    verification_status: string | null;
 }
 
 function VerificationBadge({ status, rejectionReason }: { status: VerificationStatus; rejectionReason?: string | null }) {
@@ -91,11 +92,21 @@ export default function MyShopPage() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            const { data, error } = await supabase
+            let { data, error } = await supabase
                 .from('profiles')
-                .select('shop_name, shop_description, shop_image_url, seller_status')
+                .select('shop_name, shop_description, shop_image_url, seller_status, verification_status')
                 .eq('id', user.id)
                 .maybeSingle();
+
+            if (error?.message?.toLowerCase().includes('verification_status')) {
+                const fallback = await supabase
+                    .from('profiles')
+                    .select('shop_name, shop_description, shop_image_url, seller_status')
+                    .eq('id', user.id)
+                    .maybeSingle();
+                data = fallback.data ? { ...fallback.data, verification_status: null } : null;
+                error = fallback.error;
+            }
 
             if (error) throw error;
 
@@ -461,7 +472,7 @@ export default function MyShopPage() {
                                                 <h3 className="font-bold text-slate-900 text-base leading-snug truncate">
                                                     {title || 'Store Name Placeholder'}
                                                 </h3>
-                                                {shop?.seller_status === 'approved' && (
+                                                {shop?.verification_status === 'approved' && (
                                                     <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600">
                                                         <BadgeCheck size={12} /> Verified Seller
                                                     </span>

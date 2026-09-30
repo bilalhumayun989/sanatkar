@@ -15,19 +15,24 @@ import Footer from '@/app/components/layout/Footer';
 import { createClient } from '@/lib/auth/supabase/client';
 import { FIXED_CATEGORY_OPTIONS, normalizeCategoryValue } from '@/lib/categoryConstants';
 
+import BrandSelect from '@/app/components/BrandSelect';
+
 const CONDITIONS = ['new', 'used', 'refurbished'] as const;
 type Condition = typeof CONDITIONS[number];
 type Category = string;
 
 const CATEGORY_OPTIONS = FIXED_CATEGORY_OPTIONS.map(({ value, label }) => ({
     id: value,
-    name: label,
+    name: value === 'others' ? 'Other' : label,
     slug: value,
 }));
 
 const CITIES = ['Lahore', 'Karachi', 'Islamabad', 'Faisalabad', 'Rawalpindi', 'Multan', 'Peshawar', 'Quetta', 'Sialkot', 'Gujranwala', 'Hyderabad', 'Bahawalpur', 'Other'];
 
 interface FormState {
+    title: string;
+    origin: string;
+    stock_status: string;
     city: string;
     make: string;
     model: string;
@@ -37,10 +42,7 @@ interface FormState {
     mileage: string;
     price: string;
     description: string;
-    fuelType: string;
-    transmission: string;
     phone: string;
-    secondaryPhone: string;
     allowWhatsapp: boolean;
 }
 
@@ -80,39 +82,34 @@ function SellerPageContent() {
         refurbished: { label: t('cond_refurbished'), icon: RotateCcw },
     };
 
-    const descriptionTags = [
-        t('tag_like_new'), t('tag_first_owner'), t('tag_genuine_parts'), t('tag_full_service'),
-        t('tag_price_neg'), t('tag_fresh_import'), t('tag_minor_used'), t('tag_auth_workshop'),
-        t('tag_complete_paperwork'), t('tag_urgent_sale'), t('tag_no_repair'), t('tag_imported_model'),
-    ];
-
     const [form, setForm] = useState<FormState>({
+        title: '',
+        origin: '',
+        stock_status: '',
         city: '',
         make: '',
         model: '',
-        year: new Date().getFullYear().toString(),
+        year: '',
         condition: (urlCondition && CONDITIONS.includes(urlCondition as Condition)) ? urlCondition as Condition : 'new',
         category: 'parts',
         mileage: '',
         price: '',
         description: '',
-        fuelType: 'N/A',
-        transmission: 'N/A',
         phone: '',
-        secondaryPhone: '',
         allowWhatsapp: true,
     });
 
+    const [existingImages, setExistingImages] = useState<string[]>([]);
     const [images, setImages] = useState<File[]>([]);
     const [previews, setPreviews] = useState<string[]>([]);
     const [descChars, setDescChars] = useState(995);
-    const [showMoreTags, setShowMoreTags] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
     const [editingListing, setEditingListing] = useState(false);
     const [categoryOptions] = useState(CATEGORY_OPTIONS);
+    const [activeStep, setActiveStep] = useState(1);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -138,22 +135,23 @@ function SellerPageContent() {
                 if (error || !data) { setError(t('unable_open_editor')); return; }
 
                 setEditingListing(true);
+                setExistingImages(data.image_urls || []);
                 setForm(prev => ({
                     ...prev,
+                    title: data.title || '',
+                    origin: data.origin || '',
+                    stock_status: data.stock_status || '',
                     city: data.location || prev.city,
                     make: data.brand || data.make || prev.make,
                     model: data.model || prev.model,
-                    year: String(data.year || prev.year),
-                    condition: (CONDITIONS.includes(data.condition as Condition) ? data.condition : prev.condition) as Condition,
+                    year: String(data.year ?? ''),
+                    condition: (CONDITIONS.includes(data.condition?.toLowerCase() as Condition) ? data.condition.toLowerCase() : prev.condition) as Condition,
                     category: normalizeCategoryValue(data.category),
-                    mileage: String(data.hours || data.mileage || prev.mileage),
-                    price: String(data.price || prev.price),
+                    mileage: String(data.hours ?? ''),
+                    price: String(data.price ?? ''),
                     description: data.description || prev.description,
-                    fuelType: data.fuelType || prev.fuelType,
-                    transmission: data.transmission || prev.transmission,
-                    phone: data.phone || prev.phone,
-                    secondaryPhone: data.secondary_phone || data.secondaryPhone || prev.secondaryPhone,
-                    allowWhatsapp: data.allow_whatsapp ?? prev.allowWhatsapp,
+                    phone: data.phone_number || prev.phone,
+                    allowWhatsapp: data.contact_option?.toLowerCase() === 'whatsapp',
                 }));
             } catch {
                 setError(t('unable_open_editor'));
@@ -182,18 +180,28 @@ function SellerPageContent() {
         setForm(prev => ({ ...prev, [name]: value }));
     };
 
-    const addTag = (tag: string) => {
-        const current = form.description;
-        const newDesc = current ? `${current}, ${tag}` : tag;
-        setDescChars(995 - newDesc.length);
-        setForm(prev => ({ ...prev, description: newDesc }));
+    const resetDesc = () => { setForm(prev => ({ ...prev, description: '' })); setDescChars(995); };
+
+    const handleNextStep = () => {
+        setError('');
+        if (activeStep === 1 && (!form.title.trim() || !form.city || !form.make.trim() || !form.price || !Number.isFinite(Number(form.price)) || Number(form.price) < 0 || !form.description.trim())) {
+            setError(t('fill_required_fields'));
+            return;
+        }
+        if (activeStep === 2 && images.length + existingImages.length === 0) {
+            setError(t('adding_pictures_tip'));
+        }
+        setActiveStep(prev => Math.min(prev + 1, 3));
     };
 
-    const resetDesc = () => { setForm(prev => ({ ...prev, description: '' })); setDescChars(995); };
+    const handlePreviousStep = () => {
+        setError('');
+        setActiveStep(prev => Math.max(prev - 1, 1));
+    };
 
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
-        if (images.length + files.length > 6) { setError(t('max_images_allowed')); return; }
+        if (existingImages.length + images.length + files.length > 6) { setError(t('max_images_allowed')); return; }
         setImages(prev => [...prev, ...files]);
         setPreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))]);
         setError('');
@@ -208,7 +216,7 @@ function SellerPageContent() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        if (!form.city || !form.make || !form.price || !form.description || !form.phone) {
+        if (!form.title.trim() || !form.city || !form.make.trim() || !form.price || !Number.isFinite(Number(form.price)) || Number(form.price) < 0 || !form.description.trim() || !form.phone) {
             setError(t('fill_required_fields'));
             return;
         }
@@ -220,21 +228,23 @@ function SellerPageContent() {
             if (authError || !user) { setError(t('login_required')); return; }
 
             const basePayload: Record<string, unknown> = {
-                title: `${form.make} ${form.model}`.trim(),
-                brand: form.make,
+                title: form.title.trim(),
+                brand: form.make.trim(),
                 model: form.model,
                 category: normalizeCategoryValue(form.category),
                 price: Number(form.price),
-                year: Number(form.year) || new Date().getFullYear(),
-                hours: Number(form.mileage) || 0,
+                year: form.year ? Number(form.year) : null,
+                hours: form.mileage ? Number(form.mileage) : null,
+                origin: form.origin.trim() || null,
+                stock_status: form.stock_status || null,
                 location: form.city,
                 description: form.description,
-                image_urls: [],
+                image_urls: existingImages,
                 seller_id: user.id,
                 condition: form.condition,
                 status: 'active',
                 phone_number: form.phone,
-                contact_option: form.allowWhatsapp ? 'whatsapp' : 'phone',
+                contact_option: form.allowWhatsapp ? 'WhatsApp' : 'Call',
             };
 
             let listing: { id: string } | null = null;
@@ -290,7 +300,8 @@ function SellerPageContent() {
                 }));
             }
 
-            await supabase.from('listings').update({ image_urls: uploadedUrls }).eq('id', listing.id).eq('seller_id', user.id);
+            const { error: imageError } = await supabase.from('listings').update({ image_urls: [...existingImages, ...uploadedUrls] }).eq('id', listing.id).eq('seller_id', user.id);
+            if (imageError) throw imageError;
             setSuccess(true);
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : t('failed_post_listing');
@@ -313,7 +324,7 @@ function SellerPageContent() {
                         <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('ad_posted_success')}</h2>
                         <p className="text-gray-500 mb-6">{t('listing_submitted')}</p>
                         <div className="flex gap-3 justify-center">
-                            <button onClick={() => { setSuccess(false); setImages([]); setPreviews([]); }} className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:border-primary hover:text-primary transition-colors text-sm">
+                            <button onClick={() => { setSuccess(false); setImages([]); setPreviews([]); setExistingImages([]); }} className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:border-primary hover:text-primary transition-colors text-sm">
                                 {t('post_another')}
                             </button>
                             <Link href="/buyer" className="px-5 py-2.5 rounded-lg bg-primary text-white font-semibold hover:bg-primary-dark transition-colors text-sm">
@@ -328,36 +339,55 @@ function SellerPageContent() {
     }
 
     const isMachine = form.category === 'machines';
-    const visibleTags = showMoreTags ? descriptionTags : descriptionTags.slice(0, 6);
 
     return (
         <>
             <Navbar />
-            <div className="min-h-screen bg-[#F3F4F6] pt-20 pb-16">
-                <div className="max-w-4xl mx-auto px-4">
-                    <div className="py-6 mb-6">
-                        <h1 className="text-2xl font-bold text-gray-800">{editingListing ? t('edit_your_ad') : t('post_your_ad')}</h1>
-                        <p className="text-sm text-gray-500 mt-1">{t('all_fields_mandatory')}</p>
+            <div className="min-h-screen bg-[#F3F4F6] pt-20 pb-8">
+                <div className="max-w-6xl mx-auto px-4 sm:px-6">
+                    <div className="py-6 mb-3 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                        <div>
+                            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary mb-2">SANATKAR SELLER</p>
+                            <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">{editingListing ? t('edit_your_ad') : t('post_your_ad')}</h1>
+                            <p className="text-sm text-gray-500 mt-1">{t('all_fields_mandatory')}</p>
+                        </div>
+                        <div className="text-left lg:text-right">
+                            <span className="text-xs font-bold text-gray-400">STEP {activeStep} OF 3</span>
+                            <div className="mt-2 h-1.5 w-48 rounded-full bg-gray-200 overflow-hidden">
+                                <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${(activeStep / 3) * 100}%` }} />
+                            </div>
+                        </div>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-5">
+                        <div className="grid grid-cols-3 gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
+                            {[
+                                { step: 1, label: t('listing_information'), icon: FileText },
+                                { step: 2, label: t('upload_media'), icon: Camera },
+                                { step: 3, label: t('contact_section'), icon: PhoneIcon },
+                            ].map(({ step, label, icon: Icon }) => (
+                                <button key={step} type="button" onClick={() => step < activeStep && setActiveStep(step)}
+                                    className={`flex items-center justify-center gap-2 rounded-lg px-2 py-3 text-xs sm:text-sm font-bold transition-colors ${activeStep === step ? 'bg-primary text-white shadow-sm' : step < activeStep ? 'text-primary hover:bg-primary/10' : 'text-gray-400'}`}>
+                                    <span className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] ${activeStep === step ? 'bg-white/20' : 'bg-gray-100'}`}>{step}</span>
+                                    <Icon size={15} className="hidden sm:block" />
+                                    <span className="hidden sm:block">{label}</span>
+                                </button>
+                            ))}
+                        </div>
 
-                        {/* SECTION 1: Listing Info */}
+                        {activeStep === 1 && <>
                         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                             <SectionHeader step={1} title={t('listing_information')} icon={FileText} />
-                            <div className="px-6 py-6 space-y-5">
+                            <div className="px-4 sm:px-8 py-6 space-y-5">
 
                                 {/* Category */}
-                                {/* <div className="space-y-3">
-                                    <div className="flex flex-wrap gap-3">
-                                        {categoryOptions.map(option => (
-                                            <button key={option.slug} type="button" onClick={() => setForm(p => ({ ...p, category: option.slug }))}
-                                                className={`flex-1 min-w-[140px] py-2.5 rounded-lg border font-semibold text-sm transition-colors ${form.category === option.slug ? 'bg-primary border-primary text-white' : 'border-gray-300 text-gray-600 hover:border-primary hover:text-primary'}`}>
-                                                {option.name}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div> */}
+                                <div className="grid grid-cols-3 gap-4 items-start">
+                                    <label htmlFor="listing-category" className="text-sm font-semibold text-gray-600 text-right pt-2.5">Category *</label>
+                                    <select id="listing-category" name="category" value={form.category} onChange={handleChange}
+                                        className="col-span-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary">
+                                        {categoryOptions.map(option => <option key={option.slug} value={option.slug}>{option.name}</option>)}
+                                    </select>
+                                </div>
 
                                 {/* City */}
                                 <div className="grid grid-cols-3 gap-4 items-start">
@@ -373,16 +403,25 @@ function SellerPageContent() {
                                     </div>
                                 </div>
 
-                                {/* Brand / Part Name */}
                                 <div className="grid grid-cols-3 gap-4 items-start">
-                                    <label className="text-sm font-semibold text-gray-600 text-right pt-2.5 col-span-1">
-                                        {isMachine ? t('brand_name') : t('part_name')} <span className="text-primary">*</span>
-                                    </label>
-                                    <div className="col-span-2">
-                                        <input name="make" value={form.make} onChange={handleChange}
-                                            placeholder={isMachine ? 'e.g. Toyota, Siemens' : 'e.g. Brake Pad, Filter'}
-                                            className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
+                                    <label className="text-sm font-semibold text-gray-600 text-right pt-2.5">Title *</label>
+                                    <input aria-label="Product title" name="title" value={form.title} onChange={handleChange} required className="col-span-2 rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+                                </div>
+                                <div className="grid grid-cols-3 gap-4 items-start">
+                                    <label className="text-sm font-semibold text-gray-600 text-right pt-2.5">Brand *</label>
+                                    <div className="col-span-2"><BrandSelect value={form.make} onChange={make => setForm(prev => ({ ...prev, make }))} /></div>
+                                </div>
+                                {([{ name: 'model', label: 'Model', type: 'text' }, { name: 'mileage', label: 'Hours', type: 'number' }, { name: 'origin', label: 'Origin', type: 'text' }] as const).map(field => (
+                                    <div key={field.name} className="grid grid-cols-3 gap-4 items-start">
+                                        <label className="text-sm font-semibold text-gray-600 text-right pt-2.5">{field.label}</label>
+                                        <input aria-label={field.label} name={field.name} type={field.type} min={field.type === 'number' ? 0 : undefined} value={form[field.name]} onChange={handleChange} className="col-span-2 rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
                                     </div>
+                                ))}
+                                <div className="grid grid-cols-3 gap-4 items-start">
+                                    <label className="text-sm font-semibold text-gray-600 text-right pt-2.5">Stock status</label>
+                                    <select aria-label="Stock status" name="stock_status" value={form.stock_status} onChange={handleChange} className="col-span-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm">
+                                        <option value="">Not specified</option><option>In Stock</option><option>Out of Stock</option>
+                                    </select>
                                 </div>
 
                                 {/* Condition */}
@@ -450,31 +489,17 @@ function SellerPageContent() {
                                             </div>
                                         </div>
 
-                                        {/* Quick Tags */}
-                                        <div className="space-y-2">
-                                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('quick_tags')}</p>
-                                            <div className="flex flex-wrap gap-2">
-                                                {visibleTags.map(tag => (
-                                                    <button key={tag} type="button" onClick={() => addTag(tag)}
-                                                        className="px-3 py-1 rounded-full border border-gray-200 text-xs font-semibold text-gray-600 hover:border-primary hover:text-primary transition-colors bg-gray-50">
-                                                        + {tag}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                            <button type="button" onClick={() => setShowMoreTags(!showMoreTags)} className="text-xs text-primary font-semibold hover:underline">
-                                                {showMoreTags ? t('show_less') : t('show_more')}
-                                            </button>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        </>}
 
-                        {/* SECTION 2: Upload Media */}
+                        {activeStep === 2 && <>
                         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                             <SectionHeader step={2} title={t('upload_media')} icon={Camera} />
-                            <div className="px-6 py-6">
-                                <div className="border-2 border-dashed border-primary/30 rounded-xl p-8 mb-4">
+                            <div className="px-4 sm:px-8 py-6">
+                                <div className="border-2 border-dashed border-primary/30 rounded-xl p-5 sm:p-8 mb-4 bg-primary/[0.02]">
                                     <div className="flex flex-col items-center gap-3 mb-6">
                                         <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
                                             <ImagePlus size={28} className="text-primary" />
@@ -498,6 +523,12 @@ function SellerPageContent() {
                                             </div>
                                         ))}
                                     </div>
+                                    {existingImages.length > 0 && <div className="mb-4 grid grid-cols-4 gap-3">
+                                        {existingImages.map((src, index) => <div key={src} className="relative aspect-square overflow-hidden rounded-lg border border-gray-200">
+                                            <img src={src} alt="Saved product photo" className="h-full w-full object-cover" />
+                                            <button type="button" aria-label="Remove saved photo" onClick={() => setExistingImages(current => current.filter((_, i) => i !== index))} className="absolute right-1 top-1 rounded-full bg-white p-1"><X size={14} /></button>
+                                        </div>)}
+                                    </div>}
                                     {previews.length > 0 && (
                                         <div className="grid grid-cols-4 gap-3 mt-5">
                                             {previews.map((src, i) => (
@@ -521,11 +552,12 @@ function SellerPageContent() {
                                 <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleImageSelect} />
                             </div>
                         </div>
+                        </>}
 
-                        {/* SECTION 3: Contact Information */}
+                        {activeStep === 3 && <>
                         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                             <SectionHeader step={3} title={t('contact_section')} icon={PhoneIcon} />
-                            <div className="px-6 py-6 space-y-5">
+                            <div className="px-4 sm:px-8 py-6 space-y-5">
 
                                 {/* Phone */}
                                 <div className="grid grid-cols-3 gap-4 items-start">
@@ -539,7 +571,7 @@ function SellerPageContent() {
                                             </span>
                                             <input name="phone" value={form.phone} onChange={handleChange}
                                                 placeholder="03XXXXXXXXX"
-                                                maxLength={11}
+                                                maxLength={20}
                                                 className="flex-1 border border-gray-300 rounded-r-lg px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
                                         </div>
                                     </div>
@@ -561,6 +593,7 @@ function SellerPageContent() {
                                 </div>
                             </div>
                         </div>
+                        </>}
 
                         {/* Error */}
                         {error && (
@@ -570,16 +603,26 @@ function SellerPageContent() {
                             </div>
                         )}
 
-                        {/* Submit */}
-                        <div className="flex justify-end pb-4">
-                            <button type="submit" disabled={submitting}
-                                className="bg-primary hover:bg-primary-dark disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold px-10 py-3 rounded-lg text-sm transition-colors flex items-center gap-2 shadow-sm">
-                                {submitting ? (
-                                    <><Loader2 size={16} className="animate-spin" />{uploading ? t('uploading') : t('posting')}</>
-                                ) : (
-                                    <><Send size={16} /> {editingListing ? t('update_listing_btn') : t('post_listing_btn')}</>
-                                )}
+                        <div className="flex items-center justify-between gap-3 border-t border-gray-200 pt-4 pb-1">
+                            <button type="button" onClick={handlePreviousStep} disabled={activeStep === 1}
+                                className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-bold text-gray-600 transition-colors hover:border-primary hover:text-primary disabled:invisible">
+                                BACK
                             </button>
+                            {activeStep < 3 ? (
+                                <button type="button" onClick={handleNextStep}
+                                    className="flex items-center gap-2 rounded-lg bg-primary px-7 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-primary-dark">
+                                    CONTINUE <Send size={15} />
+                                </button>
+                            ) : (
+                                <button type="submit" disabled={submitting}
+                                    className="bg-primary hover:bg-primary-dark disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold px-8 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-2 shadow-sm">
+                                    {submitting ? (
+                                        <><Loader2 size={16} className="animate-spin" />{uploading ? t('uploading') : t('posting')}</>
+                                    ) : (
+                                        <><Send size={16} /> {editingListing ? t('update_listing_btn') : t('post_listing_btn')}</>
+                                    )}
+                                </button>
+                            )}
                         </div>
 
                     </form>

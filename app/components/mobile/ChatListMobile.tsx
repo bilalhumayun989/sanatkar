@@ -26,6 +26,7 @@ interface ChatItem {
 
 export default function ChatListMobile() {
   const [chats, setChats] = useState<ChatItem[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -39,6 +40,7 @@ export default function ChatListMobile() {
         setLoading(false);
         return;
       }
+      setCurrentUserId(user.id);
 
       // 1. Fetch chats with relational listings
       const { data: chatsData, error: chatsError } = await supabase
@@ -147,6 +149,27 @@ export default function ChatListMobile() {
     fetchUserChats();
   }, []);
 
+  useEffect(() => {
+    if (!currentUserId) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`mobile_inbox_${currentUserId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const message = payload.new as { chat_id: string; sender_id: string; content?: string; created_at: string };
+        setChats(previous => previous.map(chat => chat.id === message.chat_id
+          ? {
+              ...chat,
+              lastMessage: message.content || 'New message',
+              lastMessageDate: new Date(message.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'numeric', year: '2-digit' }),
+              unreadCount: message.sender_id === currentUserId ? chat.unreadCount : chat.unreadCount + 1,
+            }
+          : chat));
+      })
+      .subscribe();
+
+    return () => { void supabase.removeChannel(channel); };
+  }, [currentUserId]);
+
   const filteredChats = chats.filter((chat) => {
     const title = chat.listing?.title?.toLowerCase() || '';
     const brand = chat.listing?.brand?.toLowerCase() || '';
@@ -189,7 +212,7 @@ export default function ChatListMobile() {
             filteredChats.map((chat) => (
               <Link
                 key={chat.id}
-                href={`/messages/${chat.id}`}
+                href={`/messages?chat=${encodeURIComponent(chat.id)}`}
                 className="bg-white rounded-2xl p-3 flex items-center gap-3 shadow-[0_2px_10px_rgba(0,0,0,0.03)] border border-slate-100/80 active:scale-[0.99] transition-transform block"
               >
                 {/* Machine Image */}
@@ -224,7 +247,7 @@ export default function ChatListMobile() {
                     </p>
 
                     {chat.unreadCount > 0 && (
-                      <span className="w-4 h-4 rounded-full bg-[#13BDC4] text-white text-[9px] font-bold flex items-center justify-center shrink-0">
+                      <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
                         {chat.unreadCount}
                       </span>
                     )}

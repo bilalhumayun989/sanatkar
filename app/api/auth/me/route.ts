@@ -15,6 +15,8 @@ export async function GET(request: NextRequest) {
       email: user.email,
       name: profile.username,
       role: profile.role,
+      seller_status: profile.seller_status ?? null,
+      verification_status: profile.verification_status ?? null,
       total_listings_posted: profile.total_listings_posted ?? 0,
       onboarding_complete: profile.onboarding_complete ?? false,
     },

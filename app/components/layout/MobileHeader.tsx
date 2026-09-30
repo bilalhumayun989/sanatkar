@@ -2,10 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { User, Bell, Heart, Search, SlidersHorizontal, ChevronLeft } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { createClient } from '@/lib/auth/supabase/client';
+
+import PriceSlider, { type PriceRange } from '@/app/components/PriceSlider';
 
 interface UserProfile {
   username: string;
@@ -17,23 +19,24 @@ interface Category {
   name: string;
 }
 
-const QUICK_FILTERS = ['New Machines', 'Used', 'Accessories'];
-
 export default function MobileHeader() {
   const { user } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [unreadOffersCount, setUnreadOffersCount] = useState<number>(0);
-  const [activeQuickFilter, setActiveQuickFilter] = useState<string>('New Machines');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Filter Modal & Category States
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [brands, setBrands] = useState<Category[]>([]);
+  const [selectedBrand, setSelectedBrand] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedCondition, setSelectedCondition] = useState<string>('All');
   const [selectedYear, setSelectedYear] = useState<string>('Any');
-  const [priceRange, setPriceRange] = useState<number>(100);
+  const [priceRange, setPriceRange] = useState<PriceRange>([0, null]);
 
   useEffect(() => {
     if (isFilterOpen) {
@@ -82,6 +85,8 @@ export default function MobileHeader() {
         .eq('is_active', true);
 
       if (catData) setCategories(catData);
+      const { data: brandData } = await supabase.from('brands').select('id, name').eq('is_active', true).order('name');
+      setBrands(brandData || []);
       setLoading(false);
     }
 
@@ -109,9 +114,33 @@ export default function MobileHeader() {
 
   const handleReset = () => {
     setSelectedCategory('All');
+    setSelectedBrand('');
     setSelectedCondition('All');
     setSelectedYear('Any');
-    setPriceRange(100);
+    setPriceRange([0, null]);
+  };
+
+  const applyFilters = () => {
+    const params = new URLSearchParams(pathname === '/buyer' ? window.location.search : '');
+    const query = searchQuery.trim();
+    if (query) params.set('search', query); else params.delete('search');
+    if (selectedCategory !== 'All') params.set('category', selectedCategory); else params.delete('category');
+    if (selectedCondition !== 'All') params.set('condition', selectedCondition); else params.delete('condition');
+    if (selectedYear !== 'Any') params.set('year', selectedYear); else params.delete('year');
+    if (selectedBrand) params.set('brand', selectedBrand); else params.delete('brand');
+    params.delete('price');
+    if (priceRange[0] > 0) params.set('minPrice', String(priceRange[0])); else params.delete('minPrice');
+    if (priceRange[1] !== null) params.set('maxPrice', String(priceRange[1])); else params.delete('maxPrice');
+    setIsFilterOpen(false);
+    router.push('/buyer?' + params.toString() + '#products');
+  };
+  const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (pathname === '/buyer') {
+      window.dispatchEvent(new CustomEvent('marketplace-search', { detail: searchQuery }));
+      return;
+    }
+    applyFilters();
   };
 
   if (shouldHideHeader) {
@@ -162,50 +191,29 @@ export default function MobileHeader() {
           </div>
         </div>
 
-        <div className="relative flex items-center max-w-2xl mx-auto">
+        <form onSubmit={handleSearch} className="relative flex max-w-2xl items-center mx-auto">
           <div className="absolute left-3.5 text-slate-400 pointer-events-none">
             <Search className="w-4 h-4" />
           </div>
 
           <input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
             type="text"
             placeholder="Search machines, brands, category..."
             className="w-full bg-white text-slate-800 placeholder-slate-400 text-xs rounded-xl py-2.5 pl-9 pr-11 focus:outline-none shadow-inner font-medium"
           />
 
           <button
-            onClick={() => setIsFilterOpen(true)}
+            type="button"
+            onClick={() => pathname === '/buyer' ? window.dispatchEvent(new Event('marketplace-filters')) : setIsFilterOpen(true)}
             aria-label="Filter"
             className="absolute right-1 w-8 h-8 md:w-8.5 md:h-8.5 bg-[#EAEFF9] hover:bg-[#d8eff1] rounded-lg flex items-center justify-center text-[#13BDC4] transition-colors"
           >
             <SlidersHorizontal className="w-4 h-4" />
           </button>
-        </div>
+        </form>
       </div>
-
-      {/* QuickFilterChips - Normal (scrolls with content) - ONLY ON HOME PAGE */}
-      {pathname === '/' && (
-        <div className="lg:hidden bg-[#EAEFF9] py-2.5 px-3 mt-[110px]">
-          <div className="flex items-center space-x-2 overflow-x-auto max-w-2xl mx-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            {QUICK_FILTERS.map((item) => {
-              const isActive = activeQuickFilter === item;
-              return (
-                <button
-                  key={item}
-                  onClick={() => setActiveQuickFilter(item)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all shrink-0 ${
-                    isActive
-                      ? 'bg-[#13BDC4] text-white shadow-sm'
-                      : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200/60 shadow-[0_1px_2px_rgba(0,0,0,0.04)]'
-                  }`}
-                >
-                  {item}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Filter Modal */}
       {isFilterOpen && (
@@ -229,23 +237,13 @@ export default function MobileHeader() {
           </div>
 
           <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-5 space-y-6 text-slate-700 touch-pan-y">
-            <div>
-              <div className="flex justify-between items-center text-xs font-semibold mb-2">
-                <span className="text-slate-800">Price Range (PKR)</span>
-              </div>
-              <div className="flex justify-between text-xs text-[#13BDC4] font-bold mb-1">
-                <span>0K</span>
-                <span>{priceRange}K</span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="200"
-                value={priceRange}
-                onChange={(e) => setPriceRange(Number(e.target.value))}
-                className="w-full accent-[#13BDC4] h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
-              />
-            </div>
+            <PriceSlider value={priceRange} onChange={setPriceRange} />
+            <label className="block text-xs font-semibold">Brand
+              <select value={selectedBrand} onChange={e => setSelectedBrand(e.target.value)} className="mt-2 w-full rounded-lg border border-slate-200 bg-white p-3">
+                <option value="">All brands</option>
+                {brands.map(brand => <option key={brand.id} value={brand.name}>{brand.name}</option>)}
+              </select>
+            </label>
 
             <div>
               <h4 className="text-xs font-semibold text-slate-800 mb-2.5">Condition</h4>
@@ -282,9 +280,9 @@ export default function MobileHeader() {
                 {categories.map((cat) => (
                   <button
                     key={cat.id}
-                    onClick={() => setSelectedCategory(cat.id)}
+                    onClick={() => setSelectedCategory(cat.name.toLowerCase())}
                     className={`px-4 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                      selectedCategory === cat.id
+                      selectedCategory === cat.name.toLowerCase()
                         ? 'bg-[#13BDC4] text-white border-[#13BDC4]'
                         : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
                     }`}
@@ -317,7 +315,7 @@ export default function MobileHeader() {
 
           <div className="p-4 bg-[#EAEFF9] shrink-0">
             <button
-              onClick={() => setIsFilterOpen(false)}
+              onClick={applyFilters}
               className="w-full bg-[#13BDC4] hover:bg-[#0fa8ae] text-white py-3 rounded-full text-sm font-semibold shadow-md active:scale-[0.99] transition-all"
             >
               Apply Filters

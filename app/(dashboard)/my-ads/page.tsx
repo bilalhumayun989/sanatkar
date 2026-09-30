@@ -326,23 +326,34 @@ export default function MyAdsPage() {
     } finally { setSaving(false); }
   };
 
+  const activeListingsCount = listings.filter(listing => listing.status !== 'sold').length;
+  const soldListingsCount = listings.filter(listing => listing.status === 'sold').length;
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans">
       <Navbar forceSolid />
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-20 pt-32">
 
         {/* Header */}
-        <div className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
+        <div className="mb-8 flex flex-col gap-6 border-b border-slate-200 pb-7 md:flex-row md:items-end md:justify-between">
           <div>
             <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-primary bg-primary/10 px-3 py-1 rounded-full mb-2">
               <Sparkles size={14} /> {t('seller_dashboard')}
             </span>
             <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">{t('manage_listings')}</h1>
+            <p className="mt-2 max-w-xl text-sm font-medium leading-6 text-slate-500">Keep your inventory fresh, easy to scan, and ready for the next buyer.</p>
           </div>
-          <Link href="/seller"
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-primary/25 hover:bg-primary-dark transition-all active:scale-95 shrink-0">
-            <Plus size={18} /> {t('post_new_ad')}
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+              <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Active</p><p className="text-lg font-black text-emerald-600">{activeListingsCount}</p></div>
+              <div className="h-8 w-px bg-slate-200" />
+              <div><p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Sold</p><p className="text-lg font-black text-slate-700">{soldListingsCount}</p></div>
+            </div>
+            <Link href="/seller"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-primary/25 hover:bg-primary-dark transition-all active:scale-95 shrink-0">
+              <Plus size={18} /> {t('post_new_ad')}
+            </Link>
+          </div>
         </div>
 
         {/* Alerts */}
@@ -574,56 +585,67 @@ export default function MyAdsPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {listings.map(listing => {
               const isSold = listing.status === 'sold';
               return (
                 <div key={listing.id}
-                  className={`group relative flex flex-col overflow-hidden rounded-3xl border bg-white shadow-sm transition-all duration-300 hover:shadow-xl ${
-                    isSold ? 'border-slate-200 opacity-80' : 'border-slate-200 hover:border-slate-300'
+                  className={`group relative flex flex-col overflow-hidden rounded-2xl border bg-white shadow-[0_5px_20px_rgba(15,23,42,0.05)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_14px_32px_rgba(15,23,42,0.11)] ${
+                    isSold ? 'border-slate-200' : 'border-slate-200/80 hover:border-primary/30'
                   }`}>
-                  <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
+                  <div className="relative aspect-[1.5/1] w-full overflow-hidden bg-slate-100">
                     <img
                       src={Array.isArray(listing.image_urls) && listing.image_urls[0] ? listing.image_urls[0] : '/hero.jpg'}
                       alt={listing.title}
-                      className={`h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 ${isSold ? 'grayscale' : ''}`}
+                      className={`h-full w-full object-cover transition-transform duration-700 group-hover:scale-110 ${isSold ? 'grayscale opacity-75' : ''}`}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent opacity-60" />
-                    <div className="absolute left-4 top-4 flex gap-2">
-                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wider shadow-sm ${
-                        isSold ? 'bg-slate-900 text-white' : 'bg-emerald-500 text-white'
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-900/5 to-transparent" />
+                    <div className="absolute left-4 right-4 top-4 flex items-start justify-between gap-2">
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wider shadow-lg backdrop-blur-sm ${
+                        isSold ? 'bg-slate-900/85 text-white' : 'bg-emerald-500 text-white'
                       }`}>
+                        {isSold ? <CheckCircle2 size={12} /> : <Sparkles size={12} />}
                         {isSold ? t('sold_badge') : t('active_badge')}
                       </span>
+                      <button type="button" onClick={() => startEdit(listing)} aria-label={`Edit ${listing.title}`} className="rounded-full border border-white/30 bg-slate-950/35 p-2 text-white opacity-0 backdrop-blur-sm transition group-hover:opacity-100 hover:bg-primary">
+                        <Pencil size={14} />
+                      </button>
                     </div>
-                    {listing.city && (
-                      <div className="absolute bottom-3 left-4 flex items-center gap-1 text-xs font-semibold text-white drop-shadow">
-                        <MapPin size={14} className="text-primary" />
-                        <span>{listing.city}</span>
+                    <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3 text-white">
+                      <div className="min-w-0">
+                        <p className="truncate text-[10px] font-black uppercase tracking-[0.16em] text-white/70">{listing.brand || listing.category || 'Industrial item'}</p>
+                        <h3 className="mt-1 line-clamp-2 text-lg font-black leading-tight drop-shadow-sm">{listing.title}</h3>
                       </div>
-                    )}
+                      {(listing.city || listing.location) && <span className="flex shrink-0 items-center gap-1 text-[11px] font-bold text-white/85"><MapPin size={13} className="text-[#8ce9e6]" />{listing.city || listing.location}</span>}
+                    </div>
                   </div>
 
-                  <div className="flex flex-1 flex-col justify-between p-5">
+                  <div className="flex flex-1 flex-col justify-between p-4">
                     <div>
-                      <span className="text-xs font-bold uppercase tracking-wider text-slate-400">{listing.category || 'General'}</span>
-                      <h3 className="mt-1 text-lg font-bold text-slate-900 line-clamp-1 group-hover:text-primary transition-colors">{listing.title}</h3>
-                      <p className="mt-2 text-xl font-black text-primary">PKR {Number(listing.price || 0).toLocaleString()}</p>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-xl font-black tracking-tight text-slate-900">PKR {Number(listing.price || 0).toLocaleString()}</p>
+                        {listing.condition && <span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-black uppercase tracking-wider text-slate-500">{listing.condition}</span>}
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] font-semibold text-slate-500">
+                        {listing.year && <span className="rounded-md bg-slate-50 px-2 py-1">Year {listing.year}</span>}
+                        {(listing.hours || listing.mileage) && <span className="rounded-md bg-slate-50 px-2 py-1">{listing.hours || listing.mileage} hrs</span>}
+                        <span className="rounded-md bg-primary/8 px-2 py-1 text-primary">{listing.category || 'General'}</span>
+                      </div>
                     </div>
-                    <div className="mt-6 space-y-2.5 pt-4 border-t border-slate-100">
+                    <div className="mt-5 space-y-2.5 border-t border-slate-100 pt-4">
                       <div className="flex gap-2">
                         <button type="button" onClick={() => startEdit(listing)}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100 hover:border-slate-300 transition-all active:scale-95">
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white py-2.5 text-xs font-bold text-slate-700 transition-all hover:border-primary hover:bg-primary/5 hover:text-primary active:scale-95">
                           <Pencil size={15} /> {t('edit')}
                         </button>
                         <button type="button" onClick={() => handleDelete(listing.id)} disabled={deletingId === listing.id}
-                          className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl bg-rose-500 py-2.5 text-xs font-bold text-white hover:bg-rose-600 shadow-md shadow-rose-500/20 transition-all active:scale-95 disabled:opacity-60">
+                          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-rose-100 bg-rose-50 py-2.5 text-xs font-bold text-rose-600 transition-all hover:bg-rose-500 hover:text-white active:scale-95 disabled:opacity-60">
                           <Trash2 size={15} /> {deletingId === listing.id ? t('deleting') : t('delete')}
                         </button>
                       </div>
                       {!isSold ? (
                         <button type="button" onClick={() => handleMarkAsSold(listing.id, listing.status)} disabled={markingSoldId === listing.id}
-                          className="flex w-full items-center justify-center gap-2 rounded-2xl py-2.5 text-xs font-bold transition-all active:scale-95 disabled:opacity-60 bg-slate-900 text-white hover:bg-slate-800 shadow-md shadow-slate-900/10">
+                          className="flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-2.5 text-xs font-bold text-white shadow-md shadow-slate-900/10 transition-all hover:bg-primary active:scale-95 disabled:opacity-60">
                           {markingSoldId === listing.id ? (
                             <Loader2 size={15} className="animate-spin" />
                           ) : (

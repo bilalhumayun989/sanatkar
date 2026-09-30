@@ -1,7 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/auth/supabase/server';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
-import PartCard from '@/app/components/features/PartCard';
+import StoreCatalog from '@/app/components/features/StoreCatalog';
 import Link from 'next/link';
 import { ArrowLeft, Store, BadgeCheck, Package, Layers } from 'lucide-react';
 import type { Metadata } from 'next';
@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const supabase = await createServerSupabaseClient();
   const { data: shop } = await supabase
     .from('profiles')
-    .select('shop_name, shop_description')
+    .select('shop_name, shop_description, verification_status')
     .eq('id', id)
     .eq('role', 'seller')
     .eq('seller_status', 'approved')
@@ -34,7 +34,7 @@ export default async function PublicShopPage({ params }: PageProps) {
 
   const { data: shop, error: shopError } = await supabase
     .from('profiles')
-    .select('shop_name, shop_description, shop_image_url, seller_status')
+    .select('shop_name, shop_description, shop_image_url, seller_status, verification_status')
     .eq('id', id)
     .eq('role', 'seller')
     .eq('seller_status', 'approved')
@@ -42,7 +42,7 @@ export default async function PublicShopPage({ params }: PageProps) {
 
   if (shopError || !shop) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
+      <div className="min-h-screen flex flex-col bg-[var(--background)]">
         <Navbar forceSolid />
         <div className="flex-grow flex flex-col items-center justify-center p-6 text-center pt-32">
           <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white border border-slate-200/80 rounded-2xl flex items-center justify-center mb-5 shadow-sm">
@@ -53,7 +53,7 @@ export default async function PublicShopPage({ params }: PageProps) {
             This shop doesn't exist or hasn't been set up yet.
           </p>
           <Link 
-            href="/" 
+            href="/buyer#products"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary hover:bg-primary-dark text-white font-bold text-xs uppercase tracking-wider transition-all shadow-md shadow-primary/20 active:scale-[0.98]"
           >
             <ArrowLeft size={16} /> Back to Marketplace
@@ -71,7 +71,7 @@ export default async function PublicShopPage({ params }: PageProps) {
     .eq('status', 'active')
     .order('created_at', { ascending: false });
 
-  const isVerified = shop.seller_status === 'approved';
+  const isVerified = shop.verification_status === 'approved';
   const bannerImage = shop.shop_image_url || null;
   const logoImage = shop.shop_image_url || null;
 
@@ -83,14 +83,14 @@ export default async function PublicShopPage({ params }: PageProps) {
     location: item.location || item.city || 'Pakistan',
     image: Array.isArray(item.image_urls) && item.image_urls[0]
       ? item.image_urls[0]
-      : 'https://www.har-tech.com/wp-content/uploads/2024/02/usinage-pieces-mecaniques.jpg',
+      : '/placeholder.png',
     compatibility: item.mileage || 'Universal',
     condition: item.condition || 'New',
-    stockStatus: 'In Stock',
+    stockStatus: item.stock_status || 'Not specified',
     isFeatured: false,
-    sellerRole: null,
+    sellerRole: undefined,
     sellerId: id,
-    sellerName: null,
+    sellerName: undefined,
     category: item.category || 'General',
     createdAt: item.created_at || new Date().toISOString(),
   }));
@@ -99,9 +99,9 @@ export default async function PublicShopPage({ params }: PageProps) {
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-slate-800 font-sans">
       <Navbar forceSolid />
 
-      <main className="flex-grow pt-20">
+      <main className="flex-grow pt-32 lg:pt-20">
         {/* Banner Section */}
-        <div className="relative h-48 sm:h-64 w-full bg-slate-900 overflow-hidden">
+        <div className="relative mx-auto h-48 max-w-7xl overflow-hidden bg-slate-900 sm:h-64 lg:rounded-3xl">
           {bannerImage ? (
             <img 
               src={bannerImage} 
@@ -109,18 +109,18 @@ export default async function PublicShopPage({ params }: PageProps) {
               className="w-full h-full object-cover opacity-75" 
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-tr from-slate-950 via-slate-900 to-primary/40" />
+            <div className="w-full h-full bg-gradient-to-br from-[#12343a] via-[#174b54] to-primary" />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
         </div>
 
         {/* Shop Info Header */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 sm:-mt-16 relative z-10 mb-10">
-          <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xl shadow-slate-100/50 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 relative z-10 mb-7">
+          <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
             
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
               {/* Logo / Avatar */}
-              <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-2xl border-4 border-white shadow-lg overflow-hidden shrink-0 flex items-center justify-center p-1 -mt-12 sm:-mt-16 bg-gradient-to-br from-slate-50 to-slate-100">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-2xl border-4 border-white shadow-lg overflow-hidden shrink-0 flex items-center justify-center p-1 bg-gradient-to-br from-slate-50 to-slate-100">
                 {logoImage ? (
                   <img 
                     src={logoImage} 
@@ -171,43 +171,13 @@ export default async function PublicShopPage({ params }: PageProps) {
               <h2 className="text-xs font-bold text-primary uppercase tracking-widest mb-2 flex items-center gap-2">
                 <Store size={14} /> About Store
               </h2>
-              <p className="text-slate-600 text-sm leading-relaxed">
+              <p className="whitespace-pre-wrap text-slate-600 text-sm leading-7">
                 {shop.shop_description}
               </p>
             </div>
           )}
 
-          {/* Section Heading Bar */}
-          <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
-            <div className="flex items-center gap-2">
-              <Layers className="text-primary" size={20} />
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                Active Marketplace Ads
-              </h2>
-            </div>
-            <span className="text-xs font-bold text-slate-700 bg-slate-100 px-3.5 py-1.5 rounded-full border border-slate-200">
-              {parts.length} {parts.length === 1 ? 'Item' : 'Items'} Available
-            </span>
-          </div>
-
-          {/* Listings Grid Section */}
-          {parts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
-              {parts.map((part) => (
-                <PartCard key={part.id} part={part as any} />
-              ))}
-            </div>
-          ) : (
-            <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-16 text-center shadow-sm">
-              <div className="w-16 h-16 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-4 text-slate-400">
-                <Store size={32} />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-1">No Active Listings</h3>
-              <p className="text-slate-500 text-xs sm:text-sm max-w-sm mx-auto">
-                This store does not have any inventory listed for sale at the moment.
-              </p>
-            </div>
-          )}
+          <StoreCatalog parts={parts} />
 
         </div>
       </main>

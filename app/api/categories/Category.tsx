@@ -42,7 +42,7 @@ const CategoryImage = ({
   );
 };
 
-export default function CategoriesSection({ categories = [] }: { categories: Category[] }) {
+export default function CategoriesSection({ categories = [], title }: { categories: Category[]; title?: string }) {
   const { t } = useLanguage();
   const activeCategories = categories.filter((cat) => cat.is_active !== false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -82,26 +82,15 @@ export default function CategoriesSection({ categories = [] }: { categories: Cat
   };
 
   return (
-    <section className="container-wide py-10 md:py-16">
+    <section className="container-wide py-2 md:py-3 lg:!mx-0 lg:!max-w-none lg:!px-0">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-8 md:mb-12 gap-4">
-        <div className="text-left max-w-2xl">
-          <span className="inline-flex items-center rounded-full border border-cyan-500/20 bg-cyan-500/10 px-4 py-1.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-600 shadow-sm mb-3">
-            {t('shop_by_category')}
-          </span>
-          <h2 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight text-slate-900 leading-tight">
-            {t('browse_categories')}
-          </h2>
-          <p className="mt-2 text-sm sm:text-base text-slate-600">
-            {t('browse_categories_desc')}
-          </p>
-        </div>
-
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h2 className="text-lg font-bold text-slate-900 sm:text-xl">{title || t('browse_categories')}</h2>
         <Link
           href="/buyer"
-          className="self-start md:self-auto inline-flex items-center justify-center rounded-full bg-cyan-600 hover:bg-cyan-700 px-6 py-3 text-xs sm:text-sm font-bold text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
+          className="shrink-0 text-sm font-semibold text-[#079bb5] hover:text-[#087c91]"
         >
-          View Marketplace
+          View all
         </Link>
       </div>
 
@@ -128,22 +117,22 @@ export default function CategoriesSection({ categories = [] }: { categories: Cat
                 scrollbarWidth: 'none',
                 msOverflowStyle: 'none',
               }}
-              className="flex items-start gap-6 sm:gap-10 overflow-x-auto pb-4 pt-2 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden"
+              className="flex items-start gap-4 overflow-x-auto pb-2 pt-1 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden sm:gap-6"
             >
               {activeCategories.map((category) => (
                 <Link
                   key={category.id}
-                  href={`/buyer?category=${encodeURIComponent(category.name.toLowerCase())}`}
-                  className="group flex flex-col items-center gap-3 shrink-0 snap-start transition-all"
+                  href={`/buyer?category=${encodeURIComponent(category.name.toLowerCase())}#products`}
+                  className="group flex w-[76px] flex-col items-center gap-2 shrink-0 snap-start transition-all sm:w-[88px]"
                 >
-                  <div className="relative flex h-24 w-24 sm:h-28 sm:w-28 items-center justify-center rounded-full bg-slate-100/80 border border-slate-200/80 shadow-sm transition-all duration-300 group-hover:bg-cyan-500/10 group-hover:border-cyan-400 group-hover:shadow-md group-hover:-translate-y-1 overflow-hidden">
+                  <div className="relative flex aspect-square w-full items-center justify-center rounded-full bg-white border-2 border-[#13bdc4] transition-all duration-200 group-hover:shadow-sm overflow-hidden">
                     <CategoryImage 
                       name={category.name} 
                       imageUrl={category.image_url}
                     />
                   </div>
 
-                  <span className="text-xs sm:text-sm font-bold text-slate-800 text-center tracking-tight transition-colors group-hover:text-cyan-600 max-w-[110px] line-clamp-2">
+                  <span className="w-full truncate text-xs font-semibold text-slate-700 text-center transition-colors group-hover:text-[#079bb5]">
                     {category.name}
                   </span>
                 </Link>

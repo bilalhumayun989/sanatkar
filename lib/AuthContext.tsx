@@ -11,6 +11,8 @@ interface User {
     name?: string;
     username?: string;
     role: string;
+    seller_status?: string | null;
+    verification_status?: string | null;
     total_listings_posted?: number;
 }
 
@@ -47,13 +49,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
 
             if (data?.success && data?.user) {
-                const u = data.user as Partial<User> & { role?: string; total_listings_posted?: number };
+                const u = data.user as Partial<User> & { role?: string; seller_status?: string | null; total_listings_posted?: number };
                 setUser({
                     id: u.id ?? userId,
                     email: u.email ?? userEmail,
                     name: u.name,
                     username: u.username,
                     role: u.role === 'user' ? 'regular' : (u.role ?? 'regular'),
+                    seller_status: u.seller_status ?? null,
+                    verification_status: u.verification_status ?? null,
                     total_listings_posted: u.total_listings_posted ?? 0,
                 });
                 return true;
@@ -65,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const client = createClient();
             const { data: profileData, error } = await client
                 .from('profiles')
-                .select('id, username, role, total_listings_posted')
+                .select('id, username, role, seller_status, verification_status, total_listings_posted')
                 .eq('id', userId)
                 .maybeSingle();
 
@@ -76,6 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     name: profileData.username ?? undefined,
                     username: profileData.username ?? undefined,
                     role: profileData.role ?? 'regular',
+                    seller_status: profileData.seller_status ?? null,
+                    verification_status: profileData.verification_status ?? null,
                     total_listings_posted: profileData.total_listings_posted ?? 0,
                 });
                 return true;

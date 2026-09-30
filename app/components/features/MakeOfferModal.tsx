@@ -151,7 +151,7 @@ export default function MakeOfferModal({ listingId, sellerId, isOpen, onClose, c
             // Success — navigate to the chat
             setStep('');
             onClose();
-            router.push(`/messages/${chatId}`);
+            router.push(`/messages?chat=${encodeURIComponent(chatId)}`);
 
         } catch (err: any) {
             console.error('Make offer error:', err);

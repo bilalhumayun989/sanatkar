@@ -1,4 +1,4 @@
-import Image from 'next/image';
+import ProductGallery from '@/app/components/features/ProductGallery';
 import Navbar from '../../../components/layout/Navbar';
 import Footer from '../../../components/layout/Footer';
 import prisma from '@/lib/dbConn';
@@ -118,7 +118,7 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
   const sellerPhone = partDoc.phone_number || partDoc.seller?.phone || '';
   const sellerName = partDoc.seller?.role === 'admin'
     ? 'SanatKaar'
-    : partDoc.seller?.username || partDoc.seller?.name || 'Sajid Industrial Solutions';
+    : partDoc.seller?.username || partDoc.seller?.name || 'Marketplace seller';
   const sellerRoleDescription = partDoc.seller?.role === 'admin'
     ? 'Verified Platform Partner'
     : partDoc.seller?.role === 'seller'
@@ -138,20 +138,23 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
     price: Number(partDoc.price) || 0,
     location: partDoc.location || partDoc.city || 'Unknown',
     images,
-    image: images[0] || 'https://www.har-tech.com/wp-content/uploads/2024/02/usinage-pieces-mecaniques.jpg',
-    compatibility: partDoc.mileage || partDoc.hours || 'Universal Compatibility',
-    condition: partDoc.condition || partDoc.fuelType || 'New',
-    stockStatus: partDoc.status === 'active' ? 'In Stock' : partDoc.transmission || 'Unavailable',
+    image: images[0] || '/placeholder.png',
+    model: partDoc.model || 'Not specified',
+    year: partDoc.year == null ? 'Not specified' : String(partDoc.year),
+    hours: partDoc.hours == null ? 'Not specified' : String(partDoc.hours),
+    origin: partDoc.origin || 'Not specified',
+    condition: partDoc.condition || 'Not specified',
+    stockStatus: partDoc.stock_status || 'Not specified',
     category: partDoc.category || 'Mechanical',
-    description: partDoc.description || `High-performance industrial part designed for professional use. This component ensures high precision and longevity even under heavy workload.`,
+    description: partDoc.description || 'No description provided.',
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-slate-800">
+    <div className="min-h-screen flex flex-col bg-[var(--background)] text-slate-800">
       <Navbar />
 
-      <main className="flex-grow pt-20 sm:pt-28 pb-16 px-4">
-        <div className="max-w-7xl mx-auto">
+      <main className="flex-grow pt-36 lg:pt-28 pb-16 px-4">
+        <div className="max-w-[1100px] mx-auto">
           {/* Breadcrumb Navigation */}
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-6 overflow-x-auto whitespace-nowrap pb-2 scrollbar-none">
             <Link href="/" className="hover:text-primary transition-colors flex-shrink-0">HOME</Link>
@@ -163,121 +166,73 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
             <span className="text-primary font-bold flex-shrink-0 truncate max-w-[200px]">{part.partName.toUpperCase()}</span>
           </div>
 
-          <div className="flex flex-col lg:flex-row gap-8">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
             {/* Left Column: Media & Details */}
-            <div className="flex-1 space-y-6">
+            <div className="contents">
               
-              {/* Product Gallery Card */}
-              <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden relative">
-                <div className="h-[280px] sm:h-[400px] md:h-[500px] w-full relative bg-slate-900">
-                  <Image
-                    src={part.image}
-                    alt={part.partName}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 60vw, 800px"
-                    className="object-cover opacity-95 transition-transform duration-500 hover:scale-105"
-                    priority
-                  />
-                </div>
+              <div className="order-1 lg:col-start-1"><ProductGallery images={part.images} title={part.partName} /></div>
 
-                {part.images.length > 1 && (
-                  <div className="grid grid-cols-4 gap-2 p-3 bg-slate-50/50 border-t border-slate-100">
-                    {part.images.slice(0, 4).map((src: string, index: number) => (
-                      <div key={index} className="relative h-20 overflow-hidden rounded-xl border border-slate-200/80 bg-white">
-                        <Image src={src} alt={`Thumbnail ${index + 1}`} fill sizes="200px" className="object-cover" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Technical Specifications */}
-              <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/60 p-6 sm:p-8 shadow-sm">
-                <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight mb-6 flex items-center gap-2">
+              {/* Product specifications */}
+              <div className="order-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-start-1">
+                <h2 className="text-base font-semibold text-slate-900 tracking-tight mb-4 flex items-center gap-2">
                   <Settings className="w-5 h-5 text-primary" /> Technical Specifications
                 </h2>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <SpecItem label="Manufacturer" value={part.brand} icon={<Settings className="w-4 h-4 text-primary" />} />
-                  <SpecItem label="Model" value={part.partName} icon={<Tag className="w-4 h-4 text-primary" />} />
+                  <SpecItem label="Model" value={part.model} icon={<Tag className="w-4 h-4 text-primary" />} />
                   <SpecItem label="Condition" value={part.condition} icon={<Sparkles className="w-4 h-4 text-primary" />} />
                   <SpecItem label="Category" value={part.category} icon={<Package className="w-4 h-4 text-primary" />} />
-                  <SpecItem label="Compatibility" value={part.compatibility} icon={<Wrench className="w-4 h-4 text-primary" />} />
-                  <SpecItem label="Origin" value="Global" icon={<Globe className="w-4 h-4 text-primary" />} />
-                  <SpecItem label="Warranty" value="Verified Quality" icon={<ShieldCheck className="w-4 h-4 text-primary" />} />
+                  <SpecItem label="Hours" value={part.hours} icon={<Wrench className="w-4 h-4 text-primary" />} />
+                  <SpecItem label="Origin" value={part.origin} icon={<Globe className="w-4 h-4 text-primary" />} />
+                  <SpecItem label="Year" value={part.year} icon={<ShieldCheck className="w-4 h-4 text-primary" />} />
                   <SpecItem label="Stock Status" value={part.stockStatus} icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />} />
                 </div>
               </div>
 
               {/* Description & Guarantee */}
-              <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/60 p-6 sm:p-8 shadow-sm">
-                <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight mb-4">
-                  Part Details & Background
+              <div className="order-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-start-1">
+                <h2 className="text-base font-semibold text-slate-900 tracking-tight mb-4">
+                  About this product
                 </h2>
-                <p className="text-slate-600 text-xs sm:text-sm leading-relaxed mb-8 font-medium">
+                <p className="whitespace-pre-wrap text-slate-600 text-sm leading-7">
                   {part.description}
                 </p>
 
-                {/* Trust Badges */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 border-t border-slate-100">
-                  <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                    <div className="w-10 h-10 bg-emerald-100/80 rounded-lg flex items-center justify-center text-emerald-700 shrink-0">
-                      <ShieldCheck size={20} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-900 uppercase">Secure Payment</p>
-                      <p className="text-[11px] text-slate-500 font-medium">100% Protected</p>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                    <div className="w-10 h-10 bg-blue-100/80 rounded-lg flex items-center justify-center text-blue-700 shrink-0">
-                      <Truck size={20} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-900 uppercase">Fast Dispatch</p>
-                      <p className="text-[11px] text-slate-500 font-medium">24-48 Hour Shipping</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                    <div className="w-10 h-10 bg-purple-100/80 rounded-lg flex items-center justify-center text-purple-700 shrink-0">
-                      <Clock size={20} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-900 uppercase">24/7 Support</p>
-                      <p className="text-[11px] text-slate-500 font-medium">Expert Assistance</p>
-                    </div>
-                  </div>
-                </div>
               </div>
 
             </div>
 
             {/* Right Column: Pricing & Seller Contact */}
-            <aside className="w-full lg:w-[380px] space-y-6">
-              <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/60 p-6 sm:p-7 shadow-sm lg:sticky lg:top-28">
+            <aside className="order-2 w-full lg:col-start-2 lg:row-start-1 lg:row-span-3 lg:sticky lg:top-24">
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                 
+                <div className="mb-5">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-primary">{part.brand}</p>
+                  <h1 className="text-xl font-bold leading-snug tracking-tight text-slate-900">{part.partName}</h1>
+                  <div className="mt-3 flex flex-wrap gap-2"><span className="rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-semibold capitalize text-primary">{part.condition}</span><span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-medium capitalize text-slate-600">{part.category}</span></div>
+                </div>
                 {/* Price Display */}
-                <div className="mb-6 pb-6 border-b border-slate-100">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Part Investment</p>
+                <div className="mb-4 pb-4 border-b border-slate-100">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Asking price</p>
                   <div className="flex items-baseline gap-2">
                     <span className="text-primary text-base sm:text-lg font-black">PKR</span>
-                    <p className="text-slate-900 text-4xl sm:text-5xl font-black tracking-tight tabular-nums leading-none">
+                    <p className="text-slate-900 text-2xl sm:text-3xl font-bold break-words tracking-tight tabular-nums leading-none">
                       {part.price.toLocaleString()}
                     </p>
                   </div>
-                  <div className="text-emerald-600 text-xs font-bold mt-3 flex items-center gap-1.5 uppercase tracking-wide">
-                    <span className="inline-block w-2 h-2 bg-emerald-500 rounded-full animate-pulse" /> Available for immediate dispatch
+                  <div className="text-slate-500 text-xs font-bold mt-3 flex items-center gap-1.5 uppercase tracking-wide">
+                    <span className="inline-block w-2 h-2 bg-primary rounded-full" /> {partDoc.status === 'active' ? 'Active listing' : partDoc.status === 'sold' ? 'Sold' : 'Listing unavailable'}
                   </div>
                 </div>
 
                 {/* Location */}
-                <div className="p-3.5 bg-slate-50 rounded-xl mb-6 flex items-center gap-3 border border-slate-100">
-                  <div className="p-2 bg-white rounded-lg shadow-sm text-primary">
+                <div className="mb-4 flex items-center gap-2 text-slate-500">
+                  <div className="text-primary">
                     <MapPin size={16} />
                   </div>
-                  <p className="text-slate-700 text-xs sm:text-sm font-bold">{part.location}, Pakistan</p>
+                  <p className="text-slate-700 text-xs sm:text-sm font-bold">{part.location}</p>
                 </div>
 
                 {/* Action Buttons */}
@@ -286,10 +241,11 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
                     listingId={id}
                     sellerId={partDoc.seller?.id || partDoc.sellerId || partDoc.seller_id || ''}
                     currentPrice={part.price}
+                    compact
                   />
                   {sellerPhone ? (
                     <a href={`tel:${sellerPhone}`} className="block">
-                      <button className="w-full border border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
+                      <button className="w-full border border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary py-3 rounded-lg font-semibold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
                         <Phone size={16} /> {sellerPhone}
                       </button>
                     </a>
@@ -302,10 +258,10 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
 
                 {/* Seller Info Footer */}
                 <Link 
-                  href={partDoc.seller?.id ? `/seller-profile/${partDoc.seller.id}` : '/buyer'} 
-                  className="mt-6 pt-6 border-t border-slate-100 flex items-center gap-4 group/seller transition-all hover:bg-slate-50/80 p-2.5 rounded-xl -mx-2"
+                  href={(partDoc.seller_id || partDoc.seller?.id || partDoc.sellerId) ? `/shop/${partDoc.seller_id || partDoc.seller?.id || partDoc.sellerId}` : '/buyer'}
+                  className="mt-4 flex items-center gap-3 border-t border-slate-100 pt-4 group/seller transition-colors hover:text-primary"
                 >
-                  <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600 border border-slate-200/80 group-hover/seller:bg-white group-hover/seller:shadow-sm transition-all shrink-0">
+                  <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600 border border-slate-200/80 group-hover/seller:bg-white group-hover/seller:shadow-sm transition-all shrink-0">
                     <UserCheck size={20} className="text-slate-500" />
                   </div>
                   <div className="min-w-0">
@@ -338,7 +294,7 @@ function SpecItem({ label, value, icon }: { label: string; value: string; icon: 
       </div>
       <div className="min-w-0">
         <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider truncate">{label}</p>
-        <p className="text-xs font-bold text-slate-800 truncate">{value}</p>
+        <p className="text-sm font-semibold text-slate-800 break-words">{value}</p>
       </div>
     </div>
   );

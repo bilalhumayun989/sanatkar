@@ -74,7 +74,7 @@ export async function getCurrentProfile(request: NextRequest) {
   const admin = createAdminClient();
   const { data: profile } = await admin
     .from('profiles')
-    .select('id, username, role, total_listings_posted, onboarding_complete')
+    .select('id, username, role, seller_status, verification_status, total_listings_posted, onboarding_complete')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -92,11 +92,11 @@ export async function getCurrentProfile(request: NextRequest) {
       role: 'regular',
       onboarding_complete: false,
     })
-    .select('id, username, role, total_listings_posted, onboarding_complete')
+    .select('id, username, role, seller_status, verification_status, total_listings_posted, onboarding_complete')
     .single();
 
   return {
     user,
-    profile: newProfile ?? { id: user.id, username, role: 'regular', onboarding_complete: false },
+    profile: newProfile ?? { id: user.id, username, role: 'regular', seller_status: null, verification_status: null, total_listings_posted: 0, onboarding_complete: false },
   };
 }

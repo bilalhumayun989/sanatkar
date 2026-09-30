@@ -50,7 +50,7 @@ export default function BottomNav() {
 
   const navItems = [
     { label: 'Home', href: '/', icon: Home },
-    { label: 'My Ads', href: '/my-listings', icon: Briefcase },
+    { label: 'My Listings', href: '/my-listings', icon: Briefcase },
     { label: 'SELL NOW', href: '/sell', isCta: true, icon: Plus },
     { label: 'Chats', href: '/messages', icon: MessageCircle },
     { label: 'Profile', href: '/mobile-profile', icon: User },

@@ -1,12 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { createClient } from '@/lib/auth/supabase/client';
 import Link from 'next/link';
 import { 
   MessageSquare, Loader2, User, Search, Circle, 
-  ArrowUpRight, Tag, DollarSign, Clock, ChevronRight, Inbox
+  ArrowUpRight, Tag, DollarSign, Clock, ChevronRight, Inbox, Send, MoreVertical, Plus, CheckCheck
 } from 'lucide-react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import ChatRoomMobile from '@/app/components/mobile/ChatRoomMobile';
 import ChatListMobile from '@/app/components/mobile/ChatListMobile';
 
 interface ListingInfo {
@@ -41,14 +43,37 @@ interface ChatRecord {
   listings?: ListingInfo[] | null;
   otherUser?: OtherUser;
   latestMessage?: LatestMessage | null;
+  unreadCount?: number;
 }
 
-export default function MessagesInboxPage() {
+interface ChatMessage {
+  id: string;
+  chat_id: string;
+  sender_id: string;
+  content?: string | null;
+  created_at: string;
+  is_read?: boolean;
+  type?: string;
+  offer_amount?: number | string | null;
+}
+
+export default function MessagesPage() {
+  return <Suspense fallback={<div className="p-12 text-center">Loading messages...</div>}><MessagesInboxPage /></Suspense>;
+}
+
+function MessagesInboxPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const requestedChatId = searchParams.get('chat');
   const [chats, setChats] = useState<ChatRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isMobileView, setIsMobileView] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [activeMessages, setActiveMessages] = useState<ChatMessage[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     const updateView = () => setIsMobileView(window.innerWidth < 1024);
@@ -63,7 +88,7 @@ export default function MessagesInboxPage() {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
-          window.location.href = '/login?next=/messages';
+          window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
           return;
         }
         setCurrentUserId(user.id);
@@ -99,13 +124,23 @@ export default function MessagesInboxPage() {
               .limit(1)
               .maybeSingle();
 
+            const { count: unreadCount } = await supabase
+              .from('messages')
+              .select('id', { count: 'exact', head: true })
+              .eq('chat_id', chat.id)
+              .neq('sender_id', user.id)
+              .eq('is_read', false);
+
             return {
               ...chat,
               otherUser: profile || { username: 'Unknown User' },
-              latestMessage
+              latestMessage,
+              unreadCount: unreadCount || 0,
             };
           }));
           setChats(enhancedChats);
+          const targetChat = new URLSearchParams(window.location.search).get('chat');
+          setSelectedChatId(targetChat ? enhancedChats.find(chat => chat.id === targetChat)?.id || null : enhancedChats[0]?.id || null);
         }
       } catch (err) {
         console.error(err);
@@ -117,8 +152,107 @@ export default function MessagesInboxPage() {
     fetchChats();
   }, []);
 
+  useEffect(() => {
+    if (requestedChatId) setSelectedChatId(chats.some(chat => chat.id === requestedChatId) ? requestedChatId : null);
+  }, [requestedChatId, chats]);
+
+  useEffect(() => {
+    if (!selectedChatId || !currentUserId) { setActiveMessages([]); return; }
+    let active = true;
+    setActiveMessages([]);
+
+    const loadActiveChat = async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('messages')
+        .select('id, chat_id, sender_id, content, created_at, is_read, type, offer_amount')
+        .eq('chat_id', selectedChatId)
+        .order('created_at', { ascending: true });
+
+      if (!active) return;
+      const messages = (data || []) as ChatMessage[];
+      setActiveMessages(messages);
+      const unreadIds = messages.filter(message => message.sender_id !== currentUserId && !message.is_read).map(message => message.id);
+      if (unreadIds.length > 0) {
+        await supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
+        setChats(previous => previous.map(chat => chat.id === selectedChatId && chat.latestMessage
+          ? { ...chat, unreadCount: 0, latestMessage: { ...chat.latestMessage, is_read: true } }
+          : chat));
+      }
+    };
+
+    loadActiveChat().catch(error => console.error('Active chat load failed:', error));
+    return () => { active = false; };
+  }, [selectedChatId, currentUserId]);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`inbox_${currentUserId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const incoming = payload.new as ChatMessage;
+        const isMine = incoming.sender_id === currentUserId;
+        const isActiveChat = incoming.chat_id === selectedChatId;
+
+        setChats(previous => previous.map(chat => chat.id === incoming.chat_id
+          ? {
+              ...chat,
+              unreadCount: isMine || isActiveChat ? 0 : (chat.unreadCount || 0) + 1,
+              latestMessage: {
+                ...chat.latestMessage,
+                content: incoming.content || '',
+                created_at: incoming.created_at,
+                sender_id: incoming.sender_id,
+                is_read: isMine || isActiveChat,
+                type: incoming.type,
+                offer_amount: incoming.offer_amount,
+              },
+            }
+          : chat));
+
+        if (isActiveChat) {
+          setActiveMessages(previous => previous.some(message => message.id === incoming.id) ? previous : [...previous, incoming]);
+          if (!isMine) {
+            void supabase.from('messages').update({ is_read: true }).eq('id', incoming.id);
+          }
+        }
+      })
+      .subscribe();
+
+    return () => { void supabase.removeChannel(channel); };
+  }, [currentUserId, selectedChatId]);
+
+  const handleSendMessage = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!newMessage.trim() || !selectedChatId || !currentUserId || sending) return;
+
+    setSending(true);
+    const content = newMessage.trim();
+    setNewMessage('');
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.from('messages').insert({
+        chat_id: selectedChatId,
+        sender_id: currentUserId,
+        content,
+        type: 'text',
+      }).select().single();
+      if (error) throw error;
+      setActiveMessages(previous => [...previous, data as ChatMessage]);
+      setChats(previous => previous.map(chat => chat.id === selectedChatId
+        ? { ...chat, unreadCount: 0, latestMessage: { content, created_at: data.created_at, sender_id: currentUserId, is_read: true, type: 'text' } }
+        : chat));
+    } catch (error) {
+      console.error('Message send failed:', error);
+      setNewMessage(content);
+    } finally {
+      setSending(false);
+    }
+  };
+
   if (isMobileView) {
-    return <ChatListMobile />;
+    return requestedChatId ? <ChatRoomMobile key={requestedChatId} chatId={requestedChatId} /> : <ChatListMobile />;
   }
 
   const filteredChats = chats.filter(chat => {
@@ -128,6 +262,7 @@ export default function MessagesInboxPage() {
     return otherName.toLowerCase().includes(searchQuery.toLowerCase()) || 
            listingTitle.toLowerCase().includes(searchQuery.toLowerCase());
   });
+  const selectedChat = chats.find(chat => chat.id === selectedChatId) || null;
 
   if (loading) {
     return (
@@ -139,11 +274,11 @@ export default function MessagesInboxPage() {
   }
 
   return (
-    <div className="pt-24 sm:pt-28 pb-16 min-h-screen bg-[#F8FAFC]">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6">
+    <div className="h-[calc(100vh-64px)] overflow-hidden bg-[#F8FAFC] pt-4 pb-0 sm:pt-5">
+      <div className="flex h-full min-h-0 w-full flex-col px-4 sm:px-6 lg:px-8">
         
         {/* Top Header Section */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div className="flex shrink-0 flex-col justify-between gap-4 pb-5 sm:flex-row sm:items-center">
           <div>
             <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
               <Inbox size={14} className="text-primary" />
@@ -178,7 +313,73 @@ export default function MessagesInboxPage() {
             </Link>
           </div>
         ) : (
-          /* Active Chat Container */
+          <>
+          <div className="grid min-h-0 flex-1 grid-cols-[minmax(280px,360px)_1fr] overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+            <aside className="flex min-h-0 flex-col border-r border-slate-200 bg-white">
+              <div className="border-b border-slate-100 p-4">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">Inbox</p><h2 className="text-lg font-black text-slate-900">Chats</h2></div>
+                  <Link href="/buyer" className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-[11px] font-black text-white shadow-md shadow-primary/20 hover:bg-primary-dark"><Plus size={14} /> New Chat</Link>
+                </div>
+                <div className="relative">
+                  <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input type="text" placeholder="Search chats" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-xs font-medium text-slate-800 outline-none transition focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/10" />
+                </div>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {filteredChats.map((chat) => {
+                  const listing = Array.isArray(chat.listings) ? chat.listings[0] ?? null : chat.listings ?? null;
+                  const name = chat.otherUser?.username || chat.otherUser?.full_name || (chat.buyer_id === currentUserId ? 'Seller' : 'Buyer');
+                  const isUnread = (chat.unreadCount || 0) > 0;
+                  const isSelected = chat.id === selectedChatId;
+                  const time = chat.latestMessage?.created_at ? new Date(chat.latestMessage.created_at) : null;
+                  return (
+                    <button key={chat.id} type="button" onClick={() => { setSelectedChatId(chat.id); router.replace('/messages?chat=' + encodeURIComponent(chat.id), { scroll: false }); }} className={`relative flex w-full items-center gap-3 border-b border-slate-100 px-4 py-3.5 text-left transition-colors ${isSelected ? 'bg-primary/[0.08]' : 'hover:bg-slate-50'} ${isUnread ? 'bg-primary/[0.03]' : ''}`}>
+                      {isSelected && <span className="absolute inset-y-0 left-0 w-1 bg-primary" />}
+                      <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+                        {chat.otherUser?.avatar_url ? <img src={chat.otherUser.avatar_url} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-slate-400"><User size={20} /></div>}
+                        {isUnread && <span className="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full border-2 border-white bg-primary" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2"><p className={`truncate text-sm ${isUnread ? 'font-black text-slate-900' : 'font-bold text-slate-700'}`}>{name}</p><span className="shrink-0 text-[10px] font-semibold text-slate-400">{time ? time.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : ''}</span></div>
+                        <p className="mt-1 truncate text-[11px] font-semibold text-slate-400">{listing?.title || listing?.brand || 'Machine part'}</p>
+                        <div className="mt-1 flex items-center justify-between gap-2"><p className={`truncate text-xs ${isUnread ? 'font-bold text-slate-700' : 'text-slate-500'}`}>{chat.latestMessage?.content || 'No messages yet'}</p>{isUnread && <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-black text-white">{chat.unreadCount}</span>}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </aside>
+
+            <section className="flex min-h-0 min-w-0 flex-col bg-[#f7fafb]">
+              {selectedChat ? (() => {
+                const name = selectedChat.otherUser?.username || selectedChat.otherUser?.full_name || 'User';
+                const listing = Array.isArray(selectedChat.listings) ? selectedChat.listings[0] ?? null : selectedChat.listings ?? null;
+                return <>
+                  <header className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
+                    <div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-primary">{selectedChat.otherUser?.avatar_url ? <img src={selectedChat.otherUser.avatar_url} alt="" className="h-full w-full object-cover" /> : <User size={19} />}</div><div className="min-w-0"><h2 className="truncate text-sm font-black text-slate-900">{name}</h2><p className="truncate text-[11px] font-semibold text-slate-400">{listing?.title || listing?.brand || 'Conversation'}</p></div></div>
+                    <button type="button" aria-label="Chat options" className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><MoreVertical size={18} /></button>
+                  </header>
+                  <div className="min-h-0 flex-1 overflow-y-auto p-5">
+                    <div className="mx-auto mb-5 w-fit rounded-full bg-white px-3 py-1 text-[10px] font-bold text-slate-400 shadow-sm">Conversation started</div>
+                    <div className="mx-auto flex max-w-2xl flex-col gap-2">
+                      {activeMessages.map(message => {
+                        const mine = message.sender_id === currentUserId;
+                        const isOffer = message.type === 'offer';
+                        return <div key={message.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[78%] rounded-2xl px-4 py-3 shadow-sm ${isOffer ? 'border border-primary/25 bg-primary/[0.06]' : mine ? 'rounded-br-md bg-primary text-white' : 'rounded-bl-md border border-slate-200 bg-white text-slate-700'}`}>
+                          {isOffer ? <><p className="text-[10px] font-black uppercase tracking-wider text-primary">{mine ? 'You made an offer' : 'Received an offer'}</p><p className="mt-1 text-2xl font-black text-slate-900">PKR {Number(message.offer_amount || 0).toLocaleString()}</p>{message.content && <p className="mt-1 whitespace-pre-wrap text-sm leading-5 text-slate-600">{message.content}</p>}</> : <p className="whitespace-pre-wrap text-sm leading-5">{message.content}</p>}
+                          <div className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${isOffer ? 'text-slate-400' : mine ? 'text-white/65' : 'text-slate-400'}`}>{new Date(message.created_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}{mine && <CheckCheck size={13} />}</div>
+                        </div></div>;
+                      })}
+                    </div>
+                  </div>
+                  <form onSubmit={handleSendMessage} className="border-t border-slate-200 bg-white p-4"><div className="mx-auto flex max-w-2xl items-center gap-2"><input value={newMessage} onChange={event => setNewMessage(event.target.value)} placeholder="Type a message" className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/10" /><button type="submit" disabled={sending || !newMessage.trim()} aria-label="Send message" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-md shadow-primary/20 transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-50"><Send size={17} /></button></div></form>
+                </>;
+              })() : <div className="flex flex-1 flex-col items-center justify-center p-8 text-center"><div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-primary/10 text-primary"><MessageSquare size={28} /></div><h2 className="mt-5 text-xl font-black text-slate-900">Select a conversation</h2><p className="mt-2 max-w-xs text-sm leading-6 text-slate-500">Choose a chat from the left to view messages and reply.</p></div>}
+            </section>
+          </div>
+          <div className="hidden">
+          {/* Legacy full-width list kept as a fallback for route compatibility. */}
           <div className="bg-white rounded-3xl border border-slate-200/60 shadow-sm overflow-hidden">
             
             {/* Search Bar Bar */}
@@ -213,7 +414,7 @@ export default function MessagesInboxPage() {
                 return (
                   <Link 
                     key={chat.id} 
-                    href={`/messages/${chat.id}`}
+                    href={`/messages?chat=${encodeURIComponent(chat.id)}`}
                     className={`group relative flex items-center gap-4 sm:gap-5 p-4 sm:p-5 transition-all duration-200 hover:bg-slate-50/80 ${
                       isUnread ? 'bg-primary/[0.02]' : ''
                     }`}
@@ -291,6 +492,8 @@ export default function MessagesInboxPage() {
               })}
             </div>
           </div>
+          </div>
+          </>
         )}
       </div>
     </div>

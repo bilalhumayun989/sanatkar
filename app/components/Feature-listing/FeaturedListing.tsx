@@ -166,26 +166,16 @@ export default function FeaturedListing() {
   };
 
   return (
-    <section className="container-wide py-10 md:py-8">
+    <section className="container-wide py-10 md:py-8 lg:!mx-0 lg:!max-w-none lg:!px-0">
       {/* Top Header */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between mb-8 md:mb-12 gap-4">
-        <div className="text-left max-w-2xl">
-          <span className="inline-flex items-center rounded-full border border-cyan-500/20 bg-cyan-500/10 px-4 py-1.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.2em] text-cyan-600 shadow-sm mb-3">
-            {t('trending_badge')}
-          </span>
-          <h2 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight text-slate-900 leading-tight">
-            {t('featured_items')}
-          </h2>
-          <p className="mt-2 text-sm sm:text-base text-slate-600">
-            {t('explore_categories_desc')}
-          </p>
-        </div>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h2 className="text-lg font-bold text-slate-900 sm:text-xl">{t('featured_items')}</h2>
 
         <Link
           href="/buyer"
-          className="self-start md:self-auto inline-flex items-center justify-center rounded-full bg-cyan-600 hover:bg-cyan-700 px-6 py-3 text-xs sm:text-sm font-bold text-white shadow-lg transition-all duration-300 hover:scale-105 active:scale-95"
+          className="shrink-0 text-sm font-semibold text-[#079bb5] hover:text-[#087c91]"
         >
-          View All
+          View all
         </Link>
       </div>
 
@@ -229,7 +219,7 @@ export default function FeaturedListing() {
                     <Link
                       key={item.id}
                       href={`/listings/${item.id}`}
-                      className="group relative flex flex-col justify-between w-[200px] sm:w-[240px] shrink-0 snap-start rounded-2xl bg-[#0092b8] p-3.5 transition-transform duration-300 hover:shadow-xl hover:-translate-y-1"
+                      className="group relative flex w-[200px] shrink-0 snap-start flex-col justify-between rounded-xl border border-slate-200 bg-white p-3 transition-shadow hover:shadow-md sm:w-[220px]"
                     >
                       {/* Image Area */}
                       <div className="relative aspect-square w-full rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center mb-3">
@@ -249,19 +239,19 @@ export default function FeaturedListing() {
                       {/* Title & Info */}
                       <div className="flex flex-col flex-grow justify-between">
                         <div>
-                          <div className="text-sm font-bold text-white tracking-tight line-clamp-1">
+                          <div className="line-clamp-1 text-sm font-bold tracking-tight text-slate-900">
                             {item.title}
                           </div>
                           {item.brand && (
-                            <div className="text-[11px] text-white/90 mt-0.5 font-medium">
+                            <div className="mt-0.5 text-[11px] font-medium text-slate-500">
                               {item.brand} {item.model ? `• ${item.model}` : ''}
                             </div>
                           )}
                         </div>
 
                         {/* Price & Saved Icon Row */}
-                        <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/20">
-                          <div className="text-sm sm:text-base font-black text-white">
+                        <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
+                          <div className="text-sm font-bold text-[#079bb5]">
                             PKR {Number(item.price).toLocaleString()}
                           </div>
 
@@ -272,7 +262,7 @@ export default function FeaturedListing() {
                             className={`flex h-8 w-8 items-center justify-center rounded-lg border transition-all ${
                               isSaved
                                 ? 'bg-[#13bdc4] border-[#13bdc4] text-white shadow-sm'
-                                : 'bg-white/80 border-slate-200 text-slate-500 hover:border-[#13bdc4] hover:text-[#13bdc4]'
+                                : 'bg-white border-slate-200 text-slate-500 hover:border-[#13bdc4] hover:text-[#13bdc4]'
                             }`}
                           >
                             <Bookmark
