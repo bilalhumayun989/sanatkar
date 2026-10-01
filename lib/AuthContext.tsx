@@ -125,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [fetchProfile]);
 
     useEffect(() => {
+      try {
         const client = createClient();
 
         // onAuthStateChange is the single source of truth
@@ -149,6 +150,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return () => {
             subscription.unsubscribe();
         };
+      } catch (error) {
+        console.error('Unable to initialize authentication:', error);
+        setUser(null);
+        setLoading(false);
+      }
     }, [fetchProfile]);
 
     const isAdmin = user?.role === 'admin';
