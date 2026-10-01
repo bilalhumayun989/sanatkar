@@ -181,6 +181,7 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
 
                     {/* Desktop Navigation Links */}
                     <div className="hidden lg:flex items-center gap-6 xl:gap-8 text-sm font-semibold tracking-wide">
+                        <Link href="/blogs" aria-current={pathname.startsWith('/blogs') ? 'page' : undefined} className="text-slate-800 hover:text-[#09ACC9] transition-colors whitespace-nowrap py-2 px-1">Blogs</Link>
                         <Link 
                             href="/buyer" 
                             className="text-slate-800 hover:text-[#09ACC9] transition-colors whitespace-nowrap py-2 px-1"
@@ -563,6 +564,7 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
 
                 {/* Mobile Navigation */}
                 <nav className="flex-1 flex flex-col gap-1 px-4 py-5 overflow-y-auto">
+                    <Link href="/blogs" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-4 rounded-xl font-semibold text-sm hover:bg-[#09ACC9]/10 hover:text-[#09ACC9]">Blogs</Link>
                     <p className="px-4 pb-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Explore</p>
                     <Link href="/buyer" onClick={() => setMenuOpen(false)}
                         className="flex items-center gap-3 px-4 py-4 rounded-xl font-semibold text-sm hover:bg-[#09ACC9]/10 hover:text-[#09ACC9] transition-colors">

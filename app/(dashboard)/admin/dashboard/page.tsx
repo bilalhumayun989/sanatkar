@@ -3,9 +3,10 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Package, Users, LayoutDashboard, Settings, Menu, Search, Filter, Shield, Bell, CheckCircle2, Clock, XCircle, ArrowUpRight, LogOut, Loader2, Save, Megaphone, Store, ShieldCheck } from 'lucide-react';
+import { FileText, Package, Users, LayoutDashboard, Settings, Menu, Search, Filter, Shield, Bell, CheckCircle2, Clock, XCircle, ArrowUpRight, LogOut, Loader2, Save, Megaphone, Store, ShieldCheck } from 'lucide-react';
 import { createClient } from '@/lib/auth/supabase/client';
 import AdConfigForm from '@/app/components/forms/AdConfigForm';
+import BlogManager from '@/app/components/blog/BlogManager';
 import { useAuth } from '@/lib/AuthContext';
 import { fetchJson } from '@/lib/utils/fetchJson';
 
@@ -34,7 +35,7 @@ const users = [
     { id: 5, name: 'Usman Siddiq', email: 'usman@example.com', listings: 4, joined: 'Dec 9, 2025', status: 'active' },
 ];
 
-type Tab = 'dashboard' | 'listings' | 'users' | 'ads' | 'shop_verifications' | 'settings';
+type Tab = 'dashboard' | 'listings' | 'users' | 'ads' | 'shop_verifications' | 'settings' | 'blogs';
 
 function StatusBadge({ status }: { status: string }) {
     const config: Record<string, { bg: string, text: string, icon: any }> = {
@@ -291,6 +292,7 @@ function AdminDashboardContent() {
 
     const navItems: { tab: Tab; label: string; icon: any; count?: number }[] = [
         { tab: 'dashboard', label: 'Dashboard Overview', icon: LayoutDashboard },
+        { tab: 'blogs', label: 'Manage Blogs', icon: FileText },
         { tab: 'listings', label: 'Manage Inventory', icon: Package, count: stats.pendingApprovals },
         { tab: 'users', label: 'User Directory', icon: Users },
         { tab: 'ads', label: 'Ad Content', icon: Megaphone },
@@ -465,6 +467,7 @@ function AdminDashboardContent() {
                 {/* Dynamic Page Content */}
                 <main className="flex-1 p-6 lg:p-8 overflow-auto relative z-10">
                     {/* DASHBOARD TAB */}
+                    {activeTab === 'blogs' && <BlogManager />}
                     {activeTab === 'dashboard' && (
                         <div className="space-y-8 fade-in-up">
                             {/* KPI Grid */}

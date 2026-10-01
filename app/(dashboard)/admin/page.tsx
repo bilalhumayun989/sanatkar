@@ -8,12 +8,14 @@ import {
   BadgeCheck, BarChart3, Check, ChevronRight, FolderKanban, LayoutDashboard,
   LogOut, Menu, Package, Pencil, Plus, Search, Shield, Star, Store, Trash2, Users, X, XCircle
 } from 'lucide-react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, BookOpen } from 'lucide-react';
+import BlogManager from '@/app/components/blog/BlogManager';
 
-type Section = 'dashboard' | 'sellers' | 'categories' | 'brands' | 'listings' | 'badges' | 'users';
+type Section = 'dashboard' | 'sellers' | 'categories' | 'brands' | 'listings' | 'badges' | 'users' | 'blogs';
 
 const sections: { id: Section; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'blogs', label: 'Manage Blogs', icon: BookOpen },
   { id: 'sellers', label: 'Verify Sellers', icon: Store },
   { id: 'categories', label: 'Categories', icon: FolderKanban },
   { id: 'brands', label: 'Brands', icon: BadgeCheck },
@@ -69,14 +71,27 @@ export default function AdminPage() {
         .select('id, username, full_name, email, phone, cnic, shop_name, shop_description, shop_image_url, seller_status, created_at')
         .eq('seller_status', 'pending')
         .order('created_at');
-      sellerRequestData = fallbackSellers.data || [];
+      sellerRequestData = (fallbackSellers.data || []).map(seller => ({
+        ...seller,
+        shop_address: null,
+        city: null,
+      }));
       if (fallbackSellers.error) {
         const minimalSellers = await supabase
           .from('profiles')
           .select('id, username, full_name, email, seller_status, created_at')
           .eq('seller_status', 'pending')
           .order('created_at');
-        sellerRequestData = minimalSellers.data || [];
+        sellerRequestData = (minimalSellers.data || []).map(seller => ({
+          ...seller,
+          phone: null,
+          cnic: null,
+          shop_name: null,
+          shop_description: null,
+          shop_address: null,
+          city: null,
+          shop_image_url: null,
+        }));
       }
     }
     setSellerRequests(sellerRequestData);
@@ -169,13 +184,14 @@ export default function AdminPage() {
         <header className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200 bg-white/90 px-5 py-4 backdrop-blur-xl sm:px-8"><div className="flex items-center gap-3"><button onClick={() => setSidebarOpen(true)} className="rounded-xl p-2 text-slate-500 hover:bg-slate-100 lg:hidden"><Menu size={21} /></button><div><p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Admin workspace</p><h1 className="text-xl font-black capitalize">{section.replace('-', ' ')}</h1></div></div><div className="flex items-center gap-3"><div className="relative hidden sm:block"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search current view" className="w-64 rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-primary focus:bg-white" /></div><button type="button" onClick={() => void loadData()} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-bold text-slate-600 hover:border-primary hover:text-primary"><RefreshCw size={15} /> Refresh</button></div></header>
         <div className="mx-auto max-w-[1500px] p-5 sm:p-8">
           {message && <div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{message}</div>}
+          {section === 'blogs' && <BlogManager />}
           {section === 'dashboard' && <DashboardStats profiles={profiles} listings={listings} sellerRequests={sellerRequests} badgeRequests={badgeRequests} onNavigate={setSection} />}
-          {section === 'sellers' && <SellerRequests requests={sellerRequests} onApprove={id => updateProfile(id, { role: 'seller', seller_status: 'approved' }, 'Seller approved')} onReject={id => updateProfile(id, { seller_status: 'rejected' }, 'Seller rejected')} />}
-          {section === 'badges' && <BadgeRequests requests={badgeRequests} onApprove={id => updateProfile(id, { verification_status: 'approved', verification_reviewed_at: new Date().toISOString() }, 'Badge approved')} onReject={id => updateProfile(id, { verification_status: 'rejected', verification_reviewed_at: new Date().toISOString() }, 'Badge rejected')} />}
-          {section === 'categories' && <Taxonomy onTogglePopular={togglePopular} updatingCategory={updatingCategory} title="Categories" items={categories} value={categoryName} setValue={setCategoryName} editingId={editingCategory} setEditingId={setEditingCategory} onSave={() => saveTaxonomy('categories')} onDelete={id => deleteRecord('categories', id)} />}
-          {section === 'brands' && <Taxonomy title="Brands" items={brands} value={brandName} setValue={setBrandName} editingId={editingBrand} setEditingId={setEditingBrand} onSave={() => saveTaxonomy('brands')} onDelete={id => deleteRecord('brands', id)} />}
-          {section === 'users' && <UserManagement profiles={filteredProfiles} onUpdate={(id, role) => updateProfile(id, { role }, 'User role updated')} onDelete={id => deleteRecord('profiles', id)} />}
-          {section === 'listings' && <ListingManagement listings={filteredListings} onUpdate={async (id, updates) => { const { error } = await supabase.from('listings').update(updates).eq('id', id); if (error) notify(error.message); else { notify('Listing updated'); await loadData(); } }} onDelete={id => deleteRecord('listings', id)} />}
+          {section === 'sellers' && <SellerRequests requests={sellerRequests} onApprove={(id: string) => updateProfile(id, { role: 'seller', seller_status: 'approved' }, 'Seller approved')} onReject={(id: string) => updateProfile(id, { seller_status: 'rejected' }, 'Seller rejected')} />}
+          {section === 'badges' && <BadgeRequests requests={badgeRequests} onApprove={(id: string) => updateProfile(id, { verification_status: 'approved', verification_reviewed_at: new Date().toISOString() }, 'Badge approved')} onReject={(id: string) => updateProfile(id, { verification_status: 'rejected', verification_reviewed_at: new Date().toISOString() }, 'Badge rejected')} />}
+          {section === 'categories' && <Taxonomy onTogglePopular={togglePopular} updatingCategory={updatingCategory} title="Categories" items={categories} value={categoryName} setValue={setCategoryName} editingId={editingCategory} setEditingId={setEditingCategory} onSave={() => saveTaxonomy('categories')} onDelete={(id: string) => deleteRecord('categories', id)} />}
+          {section === 'brands' && <Taxonomy title="Brands" items={brands} value={brandName} setValue={setBrandName} editingId={editingBrand} setEditingId={setEditingBrand} onSave={() => saveTaxonomy('brands')} onDelete={(id: string) => deleteRecord('brands', id)} />}
+          {section === 'users' && <UserManagement profiles={filteredProfiles} onUpdate={(id: string, role: 'regular' | 'seller' | 'admin') => updateProfile(id, { role }, 'User role updated')} onDelete={(id: string) => deleteRecord('profiles', id)} />}
+          {section === 'listings' && <ListingManagement listings={filteredListings} onUpdate={async (id: string, updates: Record<string, unknown>) => { const { error } = await supabase.from('listings').update(updates).eq('id', id); if (error) notify(error.message); else { notify('Listing updated'); await loadData(); } }} onDelete={(id: string) => deleteRecord('listings', id)} />}
         </div>
       </main>
     </div>

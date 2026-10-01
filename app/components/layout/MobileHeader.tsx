@@ -168,6 +168,7 @@ export default function MobileHeader() {
           </div>
 
           <div className="flex items-center space-x-2">
+            <Link href="/blogs" className="rounded-full bg-white/20 px-3 py-2 text-xs font-bold hover:bg-white/30">Blogs</Link>
             <Link
               href="/notifications"
               aria-label="Notifications"
