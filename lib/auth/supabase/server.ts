@@ -17,7 +17,7 @@ export function supabaseSetupError() {
 /** Use in API routes and server components */
 export function createClient() {
   const { url, key } = config();
-  return createSupabaseClient(url, key);
+  return createSupabaseClient(url, key, { auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false } });
 }
 
 /** Use in server components/server actions. */
@@ -29,7 +29,7 @@ export async function createServerSupabaseClient() {
   });
 }
 
-/** Use in a route handler so Supabase session refreshes are written to its response. */
+/** Use in a route handler to read the access-token cookie and collect auth cookie changes. */
 export function createRouteSupabaseClient(request: NextRequest) {
   const { url, key } = config();
   const response = NextResponse.next();

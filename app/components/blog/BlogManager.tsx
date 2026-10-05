@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { Eye, FileText, Plus, Save, Trash2, X } from 'lucide-react';
+import { Eye, FileText, Plus, Save, Trash2, Upload, X } from 'lucide-react';
 import { createClient } from '@/lib/auth/supabase/client';
 import { blogDate, blogSlug, validateBlog, type BlogInput, type BlogPost } from '@/lib/blog';
 import BlogContent from './BlogContent';
@@ -19,6 +19,7 @@ export default function BlogManager() {
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<BlogInput | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState(false);
   const [query, setQuery] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -27,10 +28,18 @@ export default function BlogManager() {
     setLoading(true);
     try {
       const { data, error: loadError } = await createClient().from('blog_posts').select('*').order('created_at', { ascending: false });
-      if (loadError) throw loadError;
+      if (loadError) {
+        setPosts([]);
+        setError(loadError.code === 'PGRST205' || loadError.code === '42P01'
+          ? 'Blog database setup is incomplete. Your administrator needs to apply the blog database setup before articles can be created or loaded.'
+          : loadError.code === '42501' || loadError.code === 'PGRST301'
+            ? 'Your session or permissions could not be verified. Sign in with an administrator account and try again.'
+            : 'Could not load blogs. Check your connection and try again.');
+        return;
+      }
       setPosts((data || []) as BlogPost[]);
       setError('');
-    } catch { setError('Could not load blogs. Check your connection and make sure the blog database migration has been applied.'); }
+    } catch { setError('Could not load blogs. Check your connection and try again.'); }
     finally { setLoading(false); }
   }, []);
 
@@ -45,7 +54,7 @@ export default function BlogManager() {
   }
 
   function close() {
-    if (saving) return;
+    if (saving || uploading) return;
     if (!window.confirm('Close the editor? Unsaved changes will be lost.')) return;
     setForm(null);
     setPreview(false);
@@ -55,9 +64,36 @@ export default function BlogManager() {
     setForm(current => current ? { ...current, [key]: value } : current);
   }
 
+  async function uploadCover(file: File) {
+    if (uploading || saving) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setError('Choose a JPEG, PNG, or WebP image.');
+      return;
+    }
+    if (!file.size || file.size > 5 * 1024 * 1024) {
+      setError('Choose an image smaller than 5 MB.');
+      return;
+    }
+    setNotice('');
+    setUploading(true);
+    setError('');
+    try {
+      const supabase = createClient();
+      const extension = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[file.type];
+      const path = crypto.randomUUID() + '.' + extension;
+      const { error: uploadError } = await supabase.storage.from('blog-images').upload(path, file, { contentType: file.type, upsert: false });
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from('blog-images').getPublicUrl(path);
+      update('cover_image_url', data.publicUrl);
+      setNotice('Cover uploaded. Save the article to use this image.');
+    } catch {
+      setError('Could not upload the cover. Check your admin access and that blog image storage is configured, then try again.');
+    } finally { setUploading(false); }
+  }
+
   async function save(event: FormEvent) {
     event.preventDefault();
-    if (!form || saving) return;
+    if (!form || saving || uploading) return;
     const input = Object.fromEntries(Object.entries(form).map(([key, value]) => [key, value.trim()])) as BlogInput;
     const validation = validateBlog(input);
     if (validation) { setError(validation); return; }
@@ -99,16 +135,25 @@ export default function BlogManager() {
     {error && <div role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}{!form && <button onClick={() => void load()} className="ml-3 underline">Retry</button>}</div>}
     {notice && <p role="status" className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">{notice}</p>}
     {form ? <form onSubmit={save} className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-7">
-      <div className="mb-6 flex items-center justify-between"><h3 className="text-lg font-bold">{editing ? 'Edit article' : 'Create an article'}</h3><button type="button" onClick={close} disabled={saving} aria-label="Close editor" className="rounded-lg p-2 hover:bg-slate-100"><X size={20} /></button></div>
-      <fieldset disabled={saving} className="space-y-5 disabled:opacity-60">
+      <div className="mb-6 flex items-center justify-between"><h3 className="text-lg font-bold">{editing ? 'Edit article' : 'Create an article'}</h3><button type="button" onClick={close} disabled={saving || uploading} aria-label="Close editor" className="rounded-lg p-2 hover:bg-slate-100"><X size={20} /></button></div>
+      <fieldset disabled={saving || uploading} className="space-y-5 disabled:opacity-60">
         <label className="block text-sm font-bold">Title<input required maxLength={180} value={form.title} onChange={event => { const title = event.target.value; setForm(current => current ? { ...current, title, slug: !editing && (!current.slug || current.slug === blogSlug(current.title)) ? blogSlug(title) : current.slug } : current); }} className={fieldClass} placeholder="Give your story a great headline" /></label>
         <div className="grid gap-5 sm:grid-cols-2"><label className="block text-sm font-bold">URL slug<input required maxLength={160} value={form.slug} onChange={event => update('slug', event.target.value)} className={fieldClass} /><span className="mt-1 block break-all text-xs font-normal text-slate-400">/blogs/{form.slug || 'your-article'}{editing ? ' — Changing this changes the article link.' : ''}</span></label><label className="block text-sm font-bold">Author<input required maxLength={100} value={form.author_name} onChange={event => update('author_name', event.target.value)} className={fieldClass} /></label></div>
         <div className="grid gap-5 sm:grid-cols-2"><label className="block text-sm font-bold">Category<input required maxLength={60} list="blog-categories" value={form.category} onChange={event => update('category', event.target.value)} className={fieldClass} /><datalist id="blog-categories">{['Guides', 'Maintenance', 'Industry insights', 'Stories'].map(item => <option key={item} value={item} />)}</datalist></label><label className="block text-sm font-bold">Visibility<select value={form.status} onChange={event => update('status', event.target.value as BlogInput['status'])} className={fieldClass}><option value="draft">Draft — only administrators</option><option value="published">Published — visible to everyone</option></select></label></div>
         <label className="block text-sm font-bold">Short description<textarea required maxLength={320} rows={3} value={form.excerpt} onChange={event => update('excerpt', event.target.value)} className={fieldClass} placeholder="A short introduction for the blog cards and search results." /><span className="text-xs font-normal text-slate-400">{form.excerpt.length}/320 characters</span></label>
-        <label className="block text-sm font-bold">Cover image URL <span className="font-normal text-slate-400">(optional)</span><input type="url" value={form.cover_image_url} onChange={event => update('cover_image_url', event.target.value)} className={fieldClass} placeholder="https://example.com/image.jpg" /><span className="mt-1 block text-xs font-normal text-slate-400">Use a publicly accessible HTTPS image. An illustrated cover appears when no image is provided.</span></label>
+        <div className="space-y-3">
+          <label className="block text-sm font-bold">Cover image <span className="font-normal text-slate-400">(optional)</span>
+            <span className="mt-2 flex items-center gap-2 text-xs font-normal text-slate-500"><Upload size={16} /> {uploading ? 'Uploading cover...' : 'Upload a JPEG, PNG, or WebP image, up to 5 MB.'}</span>
+            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void uploadCover(file); }} className={fieldClass} />
+          </label>
+          <label className="block text-sm font-bold" htmlFor="blog-cover-url">Or use an image URL</label>
+          <input id="blog-cover-url" type="url" value={form.cover_image_url} onChange={event => update('cover_image_url', event.target.value)} className={fieldClass} placeholder="https://example.com/image.jpg" />
+          <p className="text-xs text-slate-400">Use a public HTTPS image. A branded cover appears when no image is provided.</p>
+          {form.cover_image_url && <div className="max-w-sm"><BlogCover src={form.cover_image_url} title={form.title} className="aspect-[16/9] rounded-xl" /><button type="button" onClick={() => update('cover_image_url', '')} className="mt-2 text-xs font-bold text-red-500">Remove cover from article</button></div>}
+        </div>
         <div><div className="flex items-center justify-between"><label htmlFor="blog-content" className="text-sm font-bold">Article content</label><button type="button" onClick={() => setPreview(current => !current)} className="inline-flex items-center gap-1 text-sm font-bold text-teal-700"><Eye size={16} /> {preview ? 'Hide preview' : 'Preview article'}</button></div><p id="blog-content-help" className="mt-2 text-xs leading-5 text-slate-500">Separate paragraphs with a blank line. Use ## for section headings, ### for subheadings, and - for bullet points. Put a blank line before and after headings and lists.</p><textarea id="blog-content" aria-describedby="blog-content-help" required maxLength={60000} rows={16} value={form.content} onChange={event => update('content', event.target.value)} className={`${fieldClass} leading-7`} placeholder={'Start your story here…\n\n## A useful heading\n\nShare your advice.'} /></div>
         {preview && <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:p-8"><p className="mb-5 text-xs font-bold uppercase tracking-widest text-teal-700">Article preview</p><BlogCover src={form.cover_image_url} title={form.title} className="mb-6 aspect-[16/9] max-h-72 rounded-xl" /><h2 className="mb-3 text-3xl font-bold">{form.title || 'Your article title'}</h2><p className="mb-7 text-lg text-slate-500">{form.excerpt}</p><BlogContent content={form.content} /></div>}
-        <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5"><button type="button" onClick={close} className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold">Cancel</button><button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-3 text-sm font-bold text-white disabled:opacity-50"><Save size={17} />{saving ? 'Saving…' : form.status === 'published' ? 'Publish article' : 'Save draft'}</button></div>
+        <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5"><button type="button" onClick={close} className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold">Cancel</button><button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-3 text-sm font-bold text-white disabled:opacity-50"><Save size={17} />{uploading ? 'Uploading...' : saving ? 'Saving…' : form.status === 'published' ? 'Publish article' : 'Save draft'}</button></div>
       </fieldset>
     </form> : <>
       <label className="mb-5 block max-w-md"><span className="sr-only">Search blog posts</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search articles, categories, or status…" className={fieldClass} /></label>

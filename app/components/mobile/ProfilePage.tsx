@@ -18,7 +18,8 @@ import {
   ChevronRight,
   Loader2,
   Store,
-  MessageSquare
+  MessageSquare,
+  FileText
 } from 'lucide-react';
 
 interface UserProfile {
@@ -304,6 +305,19 @@ export default function ProfilePage() {
               <ChevronRight className="w-4 h-4 text-slate-400" />
             </Link>
           </div>
+        </div>
+
+        <div className="space-y-2 pt-1">
+          <h2 className="px-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Settings</h2>
+          <nav aria-label="Policy settings" className="divide-y divide-slate-100 overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-2xs">
+            {[
+              { href: '/terms-and-conditions', label: 'Terms & Conditions', icon: FileText },
+              { href: '/privacy-policy', label: 'Privacy Policy', icon: ShieldCheck },
+            ].map(item => <Link key={item.href} href={item.href} className="flex items-center justify-between p-3.5 transition-colors hover:bg-slate-50">
+              <span className="flex items-center gap-3"><item.icon className="h-4 w-4 text-[#13BDC4]" /><span className="text-xs font-semibold text-slate-700">{item.label}</span></span>
+              <ChevronRight className="h-4 w-4 text-slate-400" />
+            </Link>)}
+          </nav>
         </div>
 
         {/* ADMIN SECTION */}

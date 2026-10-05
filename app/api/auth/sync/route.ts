@@ -1,43 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteSupabaseClient } from '@/lib/auth/supabase/server';
+import { createClient } from '@/lib/auth/supabase/server';
+import { createServerClient } from '@/lib/auth/supabase/ssr';
+import { AUTH_COOKIE_NAME, authCookieOptions, authCookieValue } from '@/lib/auth/supabase/auth-cookie';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const response = NextResponse.json({ success: true, message: 'Session synced successfully' });
-    
-    // Check if email verification status needs updating
-    if (body.emailVerified && body.access_token) {
-      try {
-        const { client } = createRouteSupabaseClient(request);
-        const { data: { user } } = await client.auth.getUser(body.access_token);
-        
-        if (user && user.email_confirmed_at) {
-          // Update email_verified status in profiles table
-          await client
-            .from('profiles')
-            .update({ email_verified: true })
-            .eq('id', user.id)
-            .eq('email_verified', false); // Only update if not already verified
-        }
-      } catch (e) {
-        // Non-fatal error, continue with session sync
-        console.error('Error updating email verification status:', e);
-      }
+    if (typeof body?.access_token !== 'string' || !body.access_token) {
+      return NextResponse.json({ success: false, message: 'A valid access token is required.' }, { status: 400 });
     }
-    
-    let sessionData = JSON.stringify(body);
-    try {
-        const parsed = JSON.parse(sessionData);
-        if (parsed.user) delete parsed.user;
-        if (parsed.emailVerified) delete parsed.emailVerified; // Remove custom field
-        sessionData = JSON.stringify(parsed);
-    } catch (e) {}
-    
-    response.cookies.set('sb-sanatkar-auth', sessionData, { httpOnly: true, sameSite: 'lax', path: '/', secure: process.env.NODE_ENV === 'production', maxAge: 604800 });
-
+    const { data: { user }, error } = await createClient().auth.getUser(body.access_token);
+    if (error || !user) {
+      return NextResponse.json({ success: false, message: 'Session expired. Please sign in again.' }, { status: 401 });
+    }
+    if (body.emailVerified && user.email_confirmed_at) {
+      const client = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+        cookies: { getAll: () => [{ name: AUTH_COOKIE_NAME, value: authCookieValue(body) }], setAll: () => {} },
+      });
+      const { error: profileError } = await client.from('profiles').update({ email_verified: true }).eq('id', user.id).eq('email_verified', false);
+      if (profileError) console.error('Unable to update email verification:', profileError.code);
+    }
+    const response = NextResponse.json({ success: true, message: 'Session synced successfully' });
+    response.cookies.set(AUTH_COOKIE_NAME, authCookieValue(body), authCookieOptions());
     return response;
-  } catch (err: any) {
-    return new Response(JSON.stringify({ success: false, message: err?.message || 'Failed to sync session' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+  } catch {
+    return NextResponse.json({ success: false, message: 'Failed to sync session' }, { status: 400 });
   }
 }

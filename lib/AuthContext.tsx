@@ -1,7 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useState, useEffect, useRef } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { createContext, useCallback, useContext, useState, useEffect } from 'react';
 import { fetchJson } from '@/lib/utils/fetchJson';
 import { createClient } from '@/lib/auth/supabase/client';
 
@@ -31,14 +30,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     // loading stays true until we know for sure whether user is logged in or not
     const [loading, setLoading] = useState(true);
-    const pathname = usePathname();
-    const router = useRouter();
 
     const fetchProfile = useCallback(async (
         accessToken: string,
         userId: string,
         userEmail: string,
-        userMetadata?: Record<string, unknown>
+        userMetadata?: Record<string, unknown>,
+        shouldApply: () => boolean = () => true
     ): Promise<boolean> => {
         // Method 1: Try API route
         try {
@@ -49,6 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
 
             if (data?.success && data?.user) {
+                if (!shouldApply()) return false;
                 const u = data.user as Partial<User> & { role?: string; seller_status?: string | null; total_listings_posted?: number };
                 setUser({
                     id: u.id ?? userId,
@@ -74,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .maybeSingle();
 
             if (!error && profileData) {
+                if (!shouldApply()) return false;
                 setUser({
                     id: profileData.id,
                     email: userEmail,
@@ -87,6 +87,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return true;
             }
         } catch (_) { /* fall through */ }
+
+        if (!shouldApply()) return false;
 
         // Method 3: Use session data as fallback (better than redirecting to login)
         const displayName = typeof userMetadata?.full_name === 'string'
@@ -125,30 +127,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [fetchProfile]);
 
     useEffect(() => {
+      let active = true;
+      let generation = 0;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let controller: AbortController | undefined;
       try {
         const client = createClient();
-
-        // onAuthStateChange is the single source of truth
-        const { data: { subscription } } = client.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_OUT' || !session) {
-                setUser(null);
-                setLoading(false);
-                return;
-            }
-
-            if (session?.access_token) {
-                await fetchProfile(
-                    session.access_token,
-                    session.user.id,
-                    session.user.email ?? '',
-                    session.user.user_metadata
-                );
-                setLoading(false);
-            }
+        // Auth callbacks run under Supabase's session lock. Defer queries and
+        // cookie synchronization until that lock has been released.
+        const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
+          const currentGeneration = ++generation;
+          if (timer) clearTimeout(timer);
+          controller?.abort();
+          if (!session) {
+            setUser(null);
+            setLoading(false);
+          }
+          timer = setTimeout(async () => {
+            if (!active || currentGeneration !== generation) return;
+            controller = new AbortController();
+            try {
+              await fetch(session ? '/api/auth/sync' : '/api/auth/logout', {
+                method: 'POST', credentials: 'include', signal: controller.signal,
+                ...(session ? {
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ access_token: session.access_token, expires_at: session.expires_at }),
+                } : {}),
+              });
+            } catch { /* Bearer-authenticated profile requests still work if cookie sync fails. */ }
+            if (!active || currentGeneration !== generation || !session) return;
+            await fetchProfile(
+              session.access_token, session.user.id, session.user.email ?? '',
+              session.user.user_metadata, () => active && currentGeneration === generation
+            );
+            if (active && currentGeneration === generation) setLoading(false);
+          }, 0);
         });
-
         return () => {
-            subscription.unsubscribe();
+          active = false;
+          if (timer) clearTimeout(timer);
+          controller?.abort();
+          subscription.unsubscribe();
         };
       } catch (error) {
         console.error('Unable to initialize authentication:', error);

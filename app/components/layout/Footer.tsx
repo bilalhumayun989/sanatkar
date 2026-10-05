@@ -1,13 +1,11 @@
 'use client';
 
-import { Facebook, Twitter, Instagram, Youtube, Mail, MapPin, Phone, ShieldCheck, ArrowUpRight, Send, Package, Store } from 'lucide-react';
+import { Facebook, Twitter, Instagram, Youtube, Mail, MapPin, Phone, Send } from 'lucide-react';
 import Link from 'next/link';
 import { useLanguage } from '@/lib/LanguageContext';
-import { useAuth } from '@/lib/AuthContext';
 
 export default function Footer() {
     const { t } = useLanguage();
-    const { isAdmin } = useAuth();
 
     return (
         <footer className="hidden md:block relative bg-white text-slate-600 pt-16 pb-8 border-t border-slate-200 font-sans" id="contact">
@@ -48,6 +46,17 @@ export default function Footer() {
                         </div>
                     </div>
 
+
+                    <div className="lg:col-span-2">
+                        <h4 className="mb-5 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-900">
+                            <span className="h-1.5 w-1.5 rounded-full bg-[#0092B8]" /> Explore
+                        </h4>
+                        <nav aria-label="Footer links" className="flex flex-col items-start gap-3.5 text-sm font-medium">
+                            <Link href="/blogs" className="hover:text-[#0092B8]">Blogs</Link>
+                            <Link href="/terms-and-conditions" className="hover:text-[#0092B8]">Terms & Conditions</Link>
+                            <Link href="/privacy-policy" className="hover:text-[#0092B8]">Privacy Policy</Link>
+                        </nav>
+                    </div>
 
                     {/* ── Contact Info ── */}
                     <div className="lg:col-span-3">

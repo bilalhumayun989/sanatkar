@@ -132,7 +132,7 @@ export default function AdminPage() {
     setUpdatingCategory(id);
     try {
       const { data, error } = await supabase.from('categories').update({ is_popular: popular }).eq('id', id).select('id').single();
-      if (error || !data) { notify(error?.message || 'Could not update category'); return; }
+      if (error || !data) { notify(error?.code === 'PGRST204' || error?.code === '42703' ? 'Popular categories need database setup. Run supabase/migrations/20260930_popular_categories.sql in your Supabase SQL editor, then retry.' : error?.message || 'Could not update category'); return; }
       setCategories(items => items.map(item => item.id === id ? { ...item, is_popular: popular } : item));
       notify(popular ? 'Category marked popular' : 'Category removed from popular');
     } finally { setUpdatingCategory(null); }

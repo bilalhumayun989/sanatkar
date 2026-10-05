@@ -1,2 +1,1 @@
-ALTER TABLE public.categories
-  ADD COLUMN IF NOT EXISTS is_popular BOOLEAN NOT NULL DEFAULT FALSE;
+﻿m

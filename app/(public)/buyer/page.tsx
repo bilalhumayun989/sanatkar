@@ -1,17 +1,22 @@
 'use client';
 
-import { Suspense, useEffect, useState, useMemo } from 'react';
+import { Fragment, Suspense, useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
 import PartCard from '@/app/components/features/PartCard';
+import ProductAdSlot from '@/app/components/ads/ProductAdSlot';
 import { Part as PartType } from '@/lib/database/mockData';
 import { Search, SlidersHorizontal, Check, Loader2, X, Package } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import PriceSlider, { type PriceRange } from '@/app/components/PriceSlider';
 import { FIXED_CATEGORY_OPTIONS } from '@/lib/categoryConstants';
+
+// Switch off to hide the reserved ad banners without leaving gaps.
+const SHOW_PRODUCT_ADS = false;
+const PRODUCTS_PER_AD = 8;
 
 export default function BuyerPage() {
     return (
@@ -30,7 +35,7 @@ function BuyerPageContent() {
     const urlBrand = searchParams.get('brand');
     const urlPrice = searchParams.get('price');
     const [parts, setParts] = useState<(PartType & { categoryId?: string; year?: number })[]>([]);
-    const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+    const [categories, setCategories] = useState<{ id: string; name: string; is_popular?: boolean; is_active?: boolean }[]>([]);
     const [visibleCount, setVisibleCount] = useState(20);
     const [priceRange, setPriceRange] = useState<PriceRange>([0, null]);
     const [condition, setCondition] = useState('');
@@ -149,10 +154,36 @@ function BuyerPageContent() {
             }
         };
 
-        fetch('/api/categories').then(r => r.json()).then(data => { if (data.success) setCategories(data.categories); }).catch(console.error);
         fetchParts();
         fetchBrands();
         fetchAd();
+    }, []);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        let inFlight = false;
+        const loadCategories = async () => {
+            if (inFlight || document.visibilityState !== 'visible') return;
+            inFlight = true;
+            try {
+                const response = await fetch('/api/categories', { cache: 'no-store', signal: controller.signal });
+                if (!response.ok) return;
+                const result = await response.json();
+                if (!controller.signal.aborted && result.success && Array.isArray(result.categories)) setCategories(result.categories);
+            } catch { /* Keep the last category list if a refresh fails. */ }
+            finally { inFlight = false; }
+        };
+        void loadCategories();
+        const refresh = () => { void loadCategories(); };
+        window.addEventListener('focus', refresh);
+        document.addEventListener('visibilitychange', refresh);
+        const interval = window.setInterval(refresh, 60000);
+        return () => {
+            controller.abort();
+            window.removeEventListener('focus', refresh);
+            document.removeEventListener('visibilitychange', refresh);
+            window.clearInterval(interval);
+        };
     }, []);
 
     useEffect(() => {
@@ -308,10 +339,16 @@ function BuyerPageContent() {
                             />
                             <button type="button" onClick={scrollToProducts} className="absolute right-2 top-2 bottom-2 hidden rounded-xl bg-[#079bb5] px-6 text-sm font-black text-white transition hover:bg-[#087c91] active:scale-95 sm:block">{t('search')}</button>
                         </div>
-                        <div className="mt-5 flex flex-wrap items-center gap-2 text-xs text-white/60">
-                            <span className="font-bold text-white/80">{t('popular')}</span>
-                            {['Bearings', 'Belts', 'Needles'].map((item) => <button key={item} type="button" onClick={() => setSearchQuery(item)} className="rounded-full border border-white/15 px-3 py-1.5 transition hover:border-[#73e3e2] hover:text-white">{item}</button>)}
-                        </div>
+                        {categories.some(category => category.is_popular === true && category.is_active !== false) && (
+                            <nav aria-label="Popular categories" className="mt-5 flex flex-wrap items-center gap-2 text-xs text-white/70">
+                                <span className="font-bold text-white/80">{t('popular')}</span>
+                                {categories.filter(category => category.is_popular === true && category.is_active !== false).map(category => (
+                                    <button key={category.id} type="button" aria-pressed={selectedCategory === category.id || selectedCategory?.toLowerCase() === category.name.toLowerCase()} onClick={() => { setSelectedCategory(category.id); setSearchQuery(''); scrollToProducts(); }} className="rounded-full border border-white/20 px-3 py-2 font-semibold transition hover:border-[#73e3e2] hover:text-white aria-pressed:border-[#73e3e2] aria-pressed:bg-[#73e3e2]/15 aria-pressed:text-[#9af3f0]">
+                                        {category.name}
+                                    </button>
+                                ))}
+                            </nav>
+                        )}
                     </div>
                     <div className="relative hidden min-h-[390px] overflow-hidden lg:block">
                         <img src="/hero2.jfif" alt="Industrial machine parts" className="h-full w-full object-cover object-center" />
@@ -474,9 +511,14 @@ function BuyerPageContent() {
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                                 {filteredParts.slice(0, visibleCount).map((part, idx) => (
-                                    <div key={part.id} className="reveal-up" style={{ animationDelay: `${(idx % 20) * 0.05}s` }}>
-                                        <PartCard part={part as any} compact />
-                                    </div>
+                                    <Fragment key={part.id}>
+                                        <div className="reveal-up" style={{ animationDelay: `${(idx % 20) * 0.05}s` }}>
+                                            <PartCard part={part as any} compact />
+                                        </div>
+                                        {SHOW_PRODUCT_ADS && (idx + 1) % PRODUCTS_PER_AD === 0 && idx + 1 < Math.min(visibleCount, filteredParts.length) && (
+                                            <ProductAdSlot slot={(idx + 1) / PRODUCTS_PER_AD} />
+                                        )}
+                                    </Fragment>
                                 ))}
                             </div>
                         )}

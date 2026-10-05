@@ -13,6 +13,10 @@ import FeaturedListing from './components/Feature-listing/FeaturedListing';
 import FeaturedListingsMobile from './components/mobile/FeaturedListingMobile';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
+import HomeAdSlot from './components/ads/HomeAdSlot';
+
+// Set to true when home-page advertising is ready.
+const SHOW_HOME_ADS = false;
 
 interface Brand {
   id: string;
@@ -226,7 +230,11 @@ export default function Home() {
     <div className="min-h-screen bg-[#f6f8f9] text-slate-900 lg:pt-16">
       <Navbar />
 
-      <main className="mx-auto w-full max-w-[1440px] space-y-7 px-4 pb-10 pt-[124px] sm:px-6 lg:space-y-9 lg:px-8 lg:pt-6">
+      <div className={SHOW_HOME_ADS
+        ? "mx-auto grid w-full max-w-[1680px] grid-cols-1 gap-7 px-4 pb-10 pt-[124px] sm:px-6 lg:grid-cols-[minmax(0,1fr)_200px] lg:gap-6 lg:px-8 lg:pt-6"
+        : "mx-auto w-full max-w-[1440px] px-4 pb-10 pt-[124px] sm:px-6 lg:px-8 lg:pt-6"}>
+        {SHOW_HOME_ADS && <HomeAdSlot />}
+      <main className="min-w-0 space-y-7 lg:col-start-1 lg:row-start-1 lg:space-y-9">
         <form onSubmit={submitSearch} className="hidden lg:block">
           <div className="relative">
             <div className="flex h-14 w-full items-center gap-2 rounded-full border border-slate-200 bg-white p-1.5 shadow-[0_3px_12px_rgba(15,23,42,0.07)] transition focus-within:border-[#13bdc4] focus-within:ring-2 focus-within:ring-[#13bdc4]/15">
@@ -422,6 +430,7 @@ export default function Home() {
         </section>
 
       </main>
+      </div>
 
       <div className="hidden lg:block">
         <Footer />

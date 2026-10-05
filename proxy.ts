@@ -1,11 +1,8 @@
-import { createServerClient, isSupabaseConfigured } from '@/lib/auth/supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-export default async function middleware(request: NextRequest) {
-  // Supabase is experiencing latency issues according to status.supabase.com
-  // Temporarily disable middleware to prevent timeout loops until Supabase fixes the issue
-  console.log('Middleware bypassed due to Supabase latency issues for:', request.nextUrl.pathname);
-
+// Authentication is checked in API handlers and database row-level policies.
+// The browser refreshes the session; the proxy does not rotate refresh tokens.
+export default function middleware(request: NextRequest) {
   return NextResponse.next({ request });
 }
 
