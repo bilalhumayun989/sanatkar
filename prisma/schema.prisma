@@ -6,112 +6,268 @@ datasource db {
   provider = "postgresql"
 }
 
-enum Role {
-  user
-  admin
-  seller
-}
-
-enum Condition {
-  new
-  used
-  refurbished
-}
-
-enum CarStatus {
-  available
-  sold
-}
-
-enum OrderStatus {
-  pending
-  confirmed
-  shipped
-  delivered
-  cancelled
-}
-
-model User {
-  id                  String    @id @default(cuid())
-  name                String
-  email               String    @unique
-  password            String
-  role                Role      @default(user)
-  isVerified          Boolean   @default(false)
-  verifyToken         String?
-  verifyTokenExpire   DateTime?
-  resetPasswordToken  String?
-  resetPasswordExpire DateTime?
-  pakwheelsUrl        String?
-  darazUrl            String?
-  createdAt           DateTime  @default(now())
-
-  cars           Car[]   @relation("SellerCars")
-  ordersAsBuyer  Order[] @relation("BuyerOrders")
-  ordersAsSeller Order[] @relation("SellerOrders")
-}
-
-model Car {
-  id           String    @id @default(cuid())
-  make         String
-  model        String
-  year         Int
-  price        Float
-  description  String
-  images       String[]
-  sellerId     String
-  seller       User      @relation("SellerCars", fields: [sellerId], references: [id])
-  condition    Condition
-  fuelType     String    @default("")
-  transmission String    @default("")
-  category     String    @default("")
-  mileage      Int       @default(0)
-  location     String
-  status       CarStatus @default(available)
-  isFeatured   Boolean   @default(false)
-  allowWhatsapp Boolean  @default(true)
-  createdAt    DateTime  @default(now())
-
-  orders Order[] @relation("CarOrders")
-}
-
 model Order {
-  id               String      @id @default(cuid())
-  buyerId          String
-  buyer            User        @relation("BuyerOrders", fields: [buyerId], references: [id])
-  sellerId         String
-  seller           User        @relation("SellerOrders", fields: [sellerId], references: [id])
-  productId        String
-  product          Car         @relation("CarOrders", fields: [productId], references: [id])
-  quantity         Int         @default(1)
-  totalPrice       Float
-  status           OrderStatus @default(pending)
-  
-  shippingFullName String
-  shippingPhone    String
-  shippingAddress  String
-  shippingCity     String
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  buyerId          String   @map("buyer_id") @db.Uuid
+  sellerId         String   @map("seller_id") @db.Uuid
+  productId        String   @map("product_id") @db.Uuid
+  quantity         Int      @default(1)
+  totalPrice       Decimal  @map("total_price") @db.Decimal
+  status           String   @default("pending")
+  shippingFullName String   @map("shipping_full_name")
+  shippingPhone    String   @map("shipping_phone")
+  shippingAddress  String   @map("shipping_address")
+  shippingCity     String   @map("shipping_city")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  buyer            Profile  @relation("OrderBuyer", fields: [buyerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  seller           Profile  @relation("OrderSeller", fields: [sellerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  product          Listing  @relation(fields: [productId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  @@index([buyerId, createdAt])
+  @@index([sellerId, createdAt])
+  @@map("orders")
 }
 
 model Ad {
-  id          String   @id @default(cuid())
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   title       String   @default("Want to Sell Your Car Fast & Extra Easy?")
   description String   @default("List your vehicle today and get it seen by millions of potential buyers across Pakistan.")
-  buttonText  String   @default("Post an Ad for Free")
-  buttonLink  String   @default("/seller")
-  imageUrl    String   @default("https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&q=80")
-  badgeText   String   @default("PROMOTED")
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  buttonText  String   @default("Post an Ad for Free") @map("button_text")
+  buttonLink  String   @default("/seller") @map("button_link")
+  imageUrl    String   @default("https://images.unsplash.com/photo-1552519507-da3b142c6e3d?auto=format&fit=crop&q=80") @map("image_url")
+  badgeText   String   @default("PROMOTED") @map("badge_text")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("ads")
 }
 
 model Category {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  isPopular Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  iconCode  Int?     @default(58345) @map("icon_code")
+  description String? @default("")
+  isActive  Boolean? @default(true) @map("is_active")
+  isPopular Boolean  @default(false) @map("is_popular")
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  imageUrl  String?  @default("") @map("image_url")
+
+  @@map("categories")
+}
+
+// Supabase Auth remains the identity provider. Profile.id is the Supabase UUID.
+model Profile {
+  id                       String          @id @db.Uuid
+  username                 String          @default("Unknown")
+  email                    String
+  role                     String          @default("regular")
+  phone                    String?
+  fullName                 String?         @map("full_name")
+  cnic                     String?
+  emailVerified            Boolean         @default(false) @map("email_verified")
+  sellerStatus             String?         @map("seller_status")
+  shopName                 String?         @map("shop_name")
+  shopDescription          String?         @map("shop_description")
+  shopAddress              String?         @map("shop_address")
+  city                     String?
+  shopImageUrl             String?         @map("shop_image_url")
+  verificationStatus       String?         @map("verification_status")
+  verificationProofUrl     String?         @map("verification_proof_url")
+  verificationRequestedAt  DateTime?       @map("verification_requested_at") @db.Timestamptz(6)
+  verificationReviewedAt   DateTime?       @map("verification_reviewed_at") @db.Timestamptz(6)
+  totalListingsPosted      Int             @default(0) @map("total_listings_posted")
+  onboardingComplete       Boolean         @default(false) @map("onboarding_complete")
+  createdAt                DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  badgeRequests            BadgeRequest[]
+  buyerChats               Chat[]           @relation("ChatBuyer")
+  sellerChats              Chat[]           @relation("ChatSeller")
+  favorites                Favorite[]
+  listings                 Listing[]
+  messages                 Message[]
+  notifications            Notification[]
+  buyerOffers              Offer[]          @relation("OfferBuyer")
+  sellerOffers             Offer[]          @relation("OfferSeller")
+  ordersBought             Order[]          @relation("OrderBuyer")
+  ordersSold               Order[]          @relation("OrderSeller")
+
+  @@index([role, sellerStatus, createdAt(sort: Desc)], map: "profiles_seller_review_idx")
+  @@index([role, verificationStatus, verificationRequestedAt(sort: Desc)], map: "profiles_verification_review_idx")
+
+  @@map("profiles")
+}
+
+model Listing {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title         String
+  price         Decimal  @db.Decimal
+  location      String
+  imageUrls     String[] @default([]) @map("image_urls")
+  year          String?
+  brand         String?
+  category      String?   @default("Machine")
+  description   String?
+  hours         String?
+  condition     String?   @default("Used")
+  sellerId      String?  @db.Uuid @map("seller_id")
+  status        String?  @default("active")
+  model         String?
+  origin        String?
+  stockStatus   String?  @map("stock_status")
+  phoneNumber   String?  @map("phone_number")
+  contactOption String?  @map("contact_option")
+  isFeatured    Boolean? @default(false) @map("is_featured")
+  createdAt     DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  chats         Chat[]
+  favorites     Favorite[]
+  listingShares ListingShare[]
+  listingViews  ListingView[]
+  seller        Profile? @relation(fields: [sellerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  offers        Offer[]
+  orders        Order[]
+
+  @@map("listings")
+}
+
+model Brand {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  logoUrl     String?   @default("") @map("logo_url")
+  description String?   @default("")
+  isActive    Boolean?  @default(true) @map("is_active")
+  createdAt   DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("brands")
+}
+
+model Favorite {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @db.Uuid @map("user_id")
+  listingId String   @db.Uuid @map("listing_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  profile   Profile @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([userId, listingId])
+  @@map("favorites")
+}
+
+model BlogPost {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug          String   @unique
+  title         String
+  excerpt       String
+  content       String
+  category      String
+  authorName    String   @map("author_name")
+  coverImageUrl String   @default("") @map("cover_image_url")
+  status        String   @default("draft")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("blog_posts")
+}
+
+model Chat {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  listingId String?   @db.Uuid @map("listing_id")
+  buyerId   String?   @db.Uuid @map("buyer_id")
+  sellerId  String?   @db.Uuid @map("seller_id")
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.Timestamptz(6)
+  hiddenFor ChatHiddenFor[]
+  buyer    Profile? @relation("ChatBuyer", fields: [buyerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  listing  Listing? @relation(fields: [listingId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  seller   Profile? @relation("ChatSeller", fields: [sellerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  messages Message[]
+
+  @@map("chats")
+}
+
+model Message {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chatId      String?   @db.Uuid @map("chat_id")
+  senderId    String?   @db.Uuid @map("sender_id")
+  content     String
+  type        String?   @default("text")
+  offerAmount Decimal?  @map("offer_amount") @db.Decimal
+  isRead      Boolean?  @default(false) @map("is_read")
+  createdAt   DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  chat        Chat? @relation(fields: [chatId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sender      Profile? @relation(fields: [senderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("messages")
+}
+
+model Offer {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  listingId  String?   @db.Uuid @map("listing_id")
+  buyerId    String?   @db.Uuid @map("buyer_id")
+  sellerId   String?   @db.Uuid @map("seller_id")
+  offerPrice Decimal   @map("offer_price") @db.Decimal
+  status     String?   @default("pending")
+  createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  buyer      Profile? @relation("OfferBuyer", fields: [buyerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  listing    Listing? @relation(fields: [listingId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  seller     Profile? @relation("OfferSeller", fields: [sellerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("offers")
+}
+
+model Notification {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String?   @db.Uuid @map("user_id")
+  title     String
+  message   String
+  type      String?   @default("general")
+  isRead    Boolean?  @default(false) @map("is_read")
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  profile   Profile? @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("notifications")
+}
+
+model BadgeRequest {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @db.Uuid @map("user_id")
+  fullName    String   @default("") @map("full_name")
+  phoneNumber String   @default("") @map("phone_number")
+  paymentRef  String   @default("") @map("payment_ref")
+  status      String   @default("pending")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  profile     Profile @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("badge_requests")
+}
+
+model ListingView {
+  listingId     String   @db.Uuid @map("listing_id")
+  viewerId      String   @db.Uuid @map("viewer_id")
+  firstViewedAt DateTime @default(now()) @map("first_viewed_at") @db.Timestamptz(6)
+  listing       Listing @relation(fields: [listingId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([listingId, viewerId])
+  @@map("listing_views")
+}
+
+model ListingShare {
+  listingId String   @db.Uuid @map("listing_id")
+  sharerId  String   @db.Uuid @map("sharer_id")
+  eventId   String   @id @map("event_id")
+  sharedAt  DateTime @default(now()) @map("shared_at") @db.Timestamptz(6)
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("listing_shares")
+}
+
+model ChatHiddenFor {
+  chatId   String   @db.Uuid @map("chat_id")
+  userId   String   @db.Uuid @map("user_id")
+  hiddenAt DateTime @default(now()) @map("hidden_at") @db.Timestamptz(6)
+  chat     Chat @relation(fields: [chatId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([chatId, userId])
+  @@map("chat_hidden_for")
 }

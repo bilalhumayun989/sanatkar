@@ -56,48 +56,17 @@ export default function ProfilePage() {
           return;
         }
 
-        // 2. Profile Fetching from public.profiles
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (profileError && profileError.code !== 'PGRST116') {
-          console.error('Profile fetch error:', profileError);
-        }
-
-        if (profileData) {
-          setProfile(profileData);
-        } else {
-          // Fallback if profile row is missing
-          setProfile({
-            id: user.id,
-            username: user.user_metadata?.full_name || 'User',
-            email: user.email || '',
-            role: 'regular',
-            email_verified: false,
-          });
-        }
-
-        // 3. Active Listings Count
-        const { count: activeCount } = await supabase
-          .from('listings')
-          .select('id', { count: 'exact', head: true })
-          .eq('seller_id', user.id)
-          .eq('status', 'active');
-
-        // Total Listings Count
-        const { count: totalCount } = await supabase
-          .from('listings')
-          .select('id', { count: 'exact', head: true })
-          .eq('seller_id', user.id);
-
-        setStats((prev) => ({
-          ...prev,
-          activeListings: activeCount || 0,
-          totalListings: totalCount || 0,
-        }));
+        const response = await fetch('/api/profile/me', { cache: 'no-store' });
+        const result = await response.json();
+        if (!response.ok || !result.success || !result.profile) throw new Error(result.message || 'Profile could not be loaded.');
+        const profileData = result.profile;
+        setProfile(profileData);
+        setStats({
+          activeListings: Number(profileData.active_listings) || 0,
+          totalListings: Number(profileData.total_listings_posted) || 0,
+          offersCount: Number(profileData.offers_count) || 0,
+          viewsCount: Number(profileData.views_count) || 0,
+        });
 
       } catch (err) {
         console.error('Unexpected error loading profile:', err);

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
 import { ArrowLeft, MapPin, ShieldCheck, TrendingUp } from 'lucide-react';
-import { createClient } from '@/lib/auth/supabase/client';
 
 interface Listing {
   id: string;
@@ -25,18 +24,15 @@ export default function FeaturedPage() {
 
   useEffect(() => {
     const fetchFeatured = async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('listings')
-        .select('id, title, price, location, image_urls, year, brand, condition, is_featured')
-        .eq('is_featured', true)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        setListings(data as Listing[]);
+      try {
+        const response = await fetch('/api/listings?featured=true&limit=24', { cache: 'no-store' });
+        const result = await response.json();
+        if (response.ok && result.success && Array.isArray(result.data)) setListings(result.data as Listing[]);
+      } catch (error) {
+        console.error('Featured listings fetch failed:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchFeatured();

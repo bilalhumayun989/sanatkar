@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/auth/supabase/client';
 import { X, Send, Loader2, CheckCircle } from 'lucide-react';
 
 interface MakeOfferModalProps {
@@ -41,121 +40,30 @@ export default function MakeOfferModal({ listingId, sellerId, isOpen, onClose, c
         setLoading(true);
 
         try {
-            const supabase = createClient();
-
-            // Step 1: Verify user session
-            setStep('Checking your session...');
-            const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-            if (authError || !user) {
+            setStep('Sending offer...');
+            const response = await fetch('/api/offers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ listing_id: listingId, amount, message }),
+            });
+            const result = await response.json();
+            if (response.status === 401) {
                 onClose();
                 router.push(`/login?next=${encodeURIComponent(`/buyer/${listingId}`)}`);
                 return;
             }
-
-            // Debug: log key values so we can see what's being sent
-            console.log('[MakeOffer] user.id:', user.id);
-            console.log('[MakeOffer] sellerId:', sellerId);
-            console.log('[MakeOffer] listingId:', listingId);
-            console.log('[MakeOffer] amount:', amount);
-
-            if (user.id === sellerId) {
-                setError('You cannot make an offer on your own listing.');
-                setLoading(false);
-                return;
-            }
-
-            // Step 2: Find or create chat
-            setStep('Setting up conversation...');
-            let chatId: string | null = null;
-
-            const { data: existingChat, error: chatLookupError } = await supabase
-                .from('chats')
-                .select('id')
-                .eq('listing_id', listingId)
-                .eq('buyer_id', user.id)
-                .maybeSingle();
-
-            if (chatLookupError) {
-                console.error('Chat lookup error:', chatLookupError);
-                // RLS or permission error
-                if (chatLookupError.code === '42501' || chatLookupError.message?.includes('permission')) {
-                    setError('Permission denied. Please make sure you are logged in and try again.');
-                    return;
-                }
-            }
-
-            if (existingChat?.id) {
-                chatId = existingChat.id;
-            } else {
-                // Create a new chat
-                const { data: newChat, error: createChatError } = await supabase
-                    .from('chats')
-                    .insert({
-                        listing_id: listingId,
-                        buyer_id: user.id,
-                        seller_id: sellerId,
-                    })
-                    .select('id')
-                    .single();
-
-                if (createChatError) {
-                    console.error('Create chat error:', createChatError);
-                    throw new Error(`Could not start conversation: ${createChatError.message}`);
-                }
-                chatId = newChat.id;
-            }
-
-            if (!chatId) {
-                throw new Error('Failed to get or create a chat session.');
-            }
-
-            // Step 3: Save offer record
-            setStep('Saving your offer...');
-            const { error: offerError } = await supabase
-                .from('offers')
-                .insert({
-                    listing_id: listingId,
-                    buyer_id: user.id,
-                    seller_id: sellerId,
-                    offer_price: amount,
-                });
-
-            if (offerError) {
-                console.error('Offer insert error:', offerError);
-                // Don't block — offer table errors are non-critical
-                // The message is the primary record
-            }
-
-            // Step 4: Send the offer message
-            setStep('Sending message...');
-            const msgContent = message.trim()
-                ? message.trim()
-                : `I would like to offer PKR ${amount.toLocaleString()} for this item.`;
-
-            const { error: messageError } = await supabase
-                .from('messages')
-                .insert({
-                    chat_id: chatId,
-                    sender_id: user.id,
-                    content: msgContent,
-                    type: 'offer',
-                    offer_amount: amount,
-                });
-
-            if (messageError) {
-                console.error('Message insert error:', messageError);
-                throw new Error(`Could not send offer message: ${messageError.message}`);
+            if (!response.ok || !result.success || !result.chat_id) {
+                throw new Error(result.message || 'Could not send offer.');
             }
 
             // Success — navigate to the chat
             setStep('');
             onClose();
-            router.push(`/messages?chat=${encodeURIComponent(chatId)}`);
+            router.push(`/messages?chat=${encodeURIComponent(result.chat_id)}`);
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Make offer error:', err);
-            setError(err.message || 'Something went wrong. Please try again.');
+            setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
         } finally {
             setLoading(false);
             setStep('');

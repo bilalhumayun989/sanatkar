@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ShieldCheck, Loader2 } from 'lucide-react';
-import { createClient } from '@/lib/auth/supabase/client';
 
 interface Listing {
   id: string;
@@ -29,34 +28,39 @@ export default function RecentListingsMobile() {
     if (isInitial) setLoading(true);
     else setLoadingMore(true);
 
-    const supabase = createClient();
-    const from = pageIndex * ITEMS_PER_PAGE;
-    const to = from + ITEMS_PER_PAGE - 1;
+    try {
+      const response = await fetch(`/api/listings?limit=${ITEMS_PER_PAGE}&page=${pageIndex + 1}`, { cache: 'no-store' });
+      const result = await response.json();
 
-    const { data, error, count } = await supabase
-      .from('listings')
-      .select('id, title, price, category, brand, image_urls, year', { count: 'exact' })
-      .eq('status', 'active')
-      .order('created_at', { ascending: false })
-      .range(from, to);
+      if (response.ok && result.success && Array.isArray(result.data)) {
+        const mapped = (result.data as any[]).map((item) => ({
+          id: item.id,
+          title: item.title,
+          price: Number(item.price) || 0,
+          category: item.category,
+          brand: item.brand,
+          image_urls: Array.isArray(item.image_urls) ? item.image_urls : [],
+          year: item.year,
+        }));
 
-    if (!error && data) {
-      if (isInitial) {
-        setListings(data);
+        if (isInitial) {
+          setListings(mapped);
+        } else {
+          setListings((prev) => [...prev, ...mapped]);
+        }
+
+        const totalPages = result.pagination?.pages ?? 1;
+        setHasMore((pageIndex + 1) < totalPages);
       } else {
-        setListings((prev) => [...prev, ...data]);
-      }
-
-      // Check if more items are available
-      if (count !== null && from + data.length >= count) {
-        setHasMore(false);
-      } else if (data.length < ITEMS_PER_PAGE) {
         setHasMore(false);
       }
+    } catch (error) {
+      console.error('Failed to fetch recent listings:', error);
+      setHasMore(false);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
     }
-
-    setLoading(false);
-    setLoadingMore(false);
   }
 
   useEffect(() => {

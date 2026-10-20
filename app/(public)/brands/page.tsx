@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
 import { ArrowLeft, Search, SlidersHorizontal, Loader2, Package } from 'lucide-react';
-import { createClient } from '@/lib/auth/supabase/client';
 import PartCard from '@/app/components/features/PartCard';
 
 interface Brand {
@@ -41,17 +40,15 @@ export default function BrandsPage() {
 
   useEffect(() => {
     const fetchBrands = async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('brands')
-        .select('id, name, logo_url')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        setBrands(data as Brand[]);
+      try {
+        const response = await fetch('/api/brands', { cache: 'no-store' });
+        const result = await response.json();
+        if (response.ok && result.success && Array.isArray(result.brands)) setBrands(result.brands as Brand[]);
+      } catch (error) {
+        console.error('Failed to fetch brands:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchBrands();
@@ -59,15 +56,12 @@ export default function BrandsPage() {
 
   useEffect(() => {
     const fetchListings = async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('listings')
-        .select('id, title, brand, make, model, price, location, city, image_urls, condition, category, status, created_at')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        setListings(data as Listing[]);
+      try {
+        const response = await fetch('/api/listings?limit=200', { cache: 'no-store' });
+        const result = await response.json();
+        if (response.ok && result.success && Array.isArray(result.data)) setListings(result.data as Listing[]);
+      } catch (error) {
+        console.error('Failed to fetch listings:', error);
       }
     };
 

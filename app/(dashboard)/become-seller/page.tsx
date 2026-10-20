@@ -69,11 +69,19 @@ export default function BecomeSellerPage() {
       const supabase = createClient();
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session?.access_token) throw new Error('Your session has expired. Please sign in again.');
-      const extension = imageFile.name.split('.').pop() || 'jpg';
-      const imagePath = `${user.id}/seller-application-${Date.now()}.${extension}`;
-      const { error: uploadError } = await supabase.storage.from('shop-images').upload(imagePath, imageFile, { upsert: false });
-      if (uploadError) throw new Error(`Photo upload failed: ${uploadError.message}`);
-      const { data: imageData } = supabase.storage.from('shop-images').getPublicUrl(imagePath);
+      const formData = new FormData();
+      formData.append('file', imageFile);
+      formData.append('folder', 'shops');
+      const uploadResponse = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sessionData.session.access_token}` },
+        body: formData,
+      });
+      const uploadResult = await uploadResponse.json();
+      if (!uploadResponse.ok || !uploadResult.success || !uploadResult.urls?.[0]) {
+        throw new Error(uploadResult.message || 'Photo upload failed.');
+      }
+      const shopImageUrl = uploadResult.urls[0] as string;
 
       const { response, data } = await fetchJson('/api/profile/seller-application', {
         method: 'POST',
@@ -81,7 +89,7 @@ export default function BecomeSellerPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${sessionData.session.access_token}`,
         },
-        body: JSON.stringify({ shopName, shopDescription, shopAddress, city, cnic, phone, shopImageUrl: imageData.publicUrl }),
+        body: JSON.stringify({ shopName, shopDescription, shopAddress, city, cnic, phone, shopImageUrl }),
       });
 
       if (response.status === 401) {

@@ -1,64 +1,64 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/dbConn';
-import { getCurrentProfile } from '@/lib/auth/supabase/server';
+import { getCurrentProfile, getCurrentUser } from '@/lib/auth/supabase/server';
+import { PATCH as updateListing } from '@/app/api/listings/[id]/route';
 
-export async function GET(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-    try {
-        const params = await props.params;
-        const car = await prisma.car.findUnique({ where: { id: params.id } });
-        if (!car) {
-            return NextResponse.json({ message: 'Car not found' }, { status: 404 });
-        }
-        return NextResponse.json(car, { status: 200 });
-    } catch (error: any) {
-        return NextResponse.json({ message: error.message }, { status: 500 });
+type Context = { params: Promise<{ id: string }> };
+
+export async function GET(request: NextRequest, { params }: Context) {
+  const { id } = await params;
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ message: 'Product not found' }, { status: 404 });
+  try {
+    const row = await prisma.listing.findUnique({
+      where: { id },
+      include: { seller: { select: { id: true, username: true, role: true, phone: true } } },
+    });
+    if (!row) return NextResponse.json({ message: 'Product not found' }, { status: 404 });
+    if (row.status !== 'active' && row.status !== 'sold') {
+      const { user } = await getCurrentUser(request);
+      if (!user || (row.sellerId !== user.id && (await prisma.profile.findUnique({ where: { id: user.id }, select: { role: true } }))?.role !== 'admin')) {
+        return NextResponse.json({ message: 'Product not found' }, { status: 404 });
+      }
     }
+    return NextResponse.json({
+      id: row.id,
+      make: row.brand ?? '',
+      model: row.model ?? row.title,
+      year: Number(row.year) || 0,
+      price: Number(row.price),
+      description: row.description ?? '',
+      images: row.imageUrls,
+      sellerId: row.sellerId,
+      seller: row.seller ? { id: row.seller.id, name: row.seller.username, username: row.seller.username, role: row.seller.role, phone: row.seller.phone } : null,
+      condition: row.condition ?? 'Used',
+      category: row.category ?? '',
+      mileage: Number(row.hours) || 0,
+      location: row.location,
+      status: row.status === 'active' ? 'available' : row.status,
+      isFeatured: row.isFeatured ?? false,
+      createdAt: row.createdAt,
+    });
+  } catch (error) {
+    console.error('Product query failed:', error);
+    return NextResponse.json({ message: 'Unable to load product.' }, { status: 500 });
+  }
 }
 
-export async function PUT(req: NextRequest, props: { params: Promise<{ id: string }> }) {
-    try {
-        const { user, profile } = await getCurrentProfile(req);
-        if (!user || !profile) {
-            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-        }
+export async function PUT(request: NextRequest, context: Context) {
+  return updateListing(request, context);
+}
 
-        const body = await req.json();
-        const params = await props.params;
-
-        // Ensure car exists
-        const existingCar = await prisma.car.findUnique({ where: { id: params.id } });
-        if (!existingCar) {
-            return NextResponse.json({ message: 'Car not found' }, { status: 404 });
-        }
-        if (existingCar.sellerId !== user.id && profile.role !== 'admin') {
-            return NextResponse.json({ message: 'You do not own this listing.' }, { status: 403 });
-        }
-
-        // Only allow updating relevant fields
-        const { make, model, year, price, description, condition, mileage, location, images, status, isFeatured, fuelType, transmission, category } = body;
-
-        const updatedCar = await prisma.car.update({
-            where: { id: params.id },
-            data: {
-                ...(make !== undefined && { make }),
-                ...(model !== undefined && { model }),
-                ...(year !== undefined && { year: Number(year) }),
-                ...(price !== undefined && { price: Number(price) }),
-                ...(description !== undefined && { description }),
-                ...(condition !== undefined && { condition }),
-                ...(mileage !== undefined && { mileage: Number(mileage) }),
-                ...(location !== undefined && { location }),
-                ...(images !== undefined && { images }),
-                ...(status !== undefined && { status }),
-                ...(isFeatured !== undefined && { isFeatured }),
-                ...(fuelType !== undefined && { fuelType }),
-                ...(transmission !== undefined && { transmission }),
-                ...(category !== undefined && { category }),
-            },
-        });
-
-        return NextResponse.json(updatedCar, { status: 200 });
-    } catch (error: any) {
-        return NextResponse.json({ message: error.message }, { status: 500 });
-    }
+export async function DELETE(request: NextRequest, context: Context) {
+  const { user, profile } = await getCurrentProfile(request);
+  if (!user || !profile) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  const { id } = await context.params;
+  const listing = await prisma.listing.findUnique({ where: { id }, select: { sellerId: true } });
+  if (!listing) return NextResponse.json({ message: 'Product not found' }, { status: 404 });
+  if (listing.sellerId !== user.id && profile.role !== 'admin') return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+  try {
+    await prisma.listing.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json({ message: 'This listing cannot be deleted while it has related activity.' }, { status: 409 });
+  }
 }

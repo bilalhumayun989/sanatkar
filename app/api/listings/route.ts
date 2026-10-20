@@ -1,95 +1,144 @@
-import { NextResponse, NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import prisma from '@/lib/dbConn';
-import { createAdminClient, getCurrentUser } from '@/lib/auth/supabase/server';
+import { getCurrentProfile, getCurrentUser } from '@/lib/auth/supabase/server';
+import { listingSellerSelect, parseImageUrls, serializeListing } from '@/lib/listings';
 
-function mapListingItem(item: any) {
-  const imageUrls = Array.isArray(item.image_urls)
-    ? item.image_urls
-    : item.image_urls
-      ? [item.image_urls]
-      : Array.isArray(item.images)
-        ? item.images
-        : [];
+export const dynamic = 'force-dynamic';
 
-  return {
-    id: item.id,
-    title: item.title || item.model || item.make || 'Listing',
-    brand: item.brand || item.make || item.title || 'Unknown',
-    category: item.category || 'General',
-    price: Number(item.price) || 0,
-    location: item.location || item.city || 'Pakistan',
-    description: item.description || '',
-    image_urls: imageUrls,
-    make: item.make || item.brand || '',
-    model: item.model || item.title || '',
-    city: item.city || item.location || '',
-    mileage: item.mileage || item.hours || 0,
-    condition: item.condition || item.fuelType || 'New',
-    created_at: item.created_at || item.createdAt || null,
-    status: item.status || 'active',
-  };
+function boundedInt(value: string | null, fallback: number, max: number) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? Math.min(parsed, max) : fallback;
 }
 
 export async function GET(request: NextRequest) {
   try {
-    let currentUserId: string | null = null;
-    
-    // Try to get current user, but don't fail if auth doesn't work
-    try {
+    const params = request.nextUrl.searchParams;
+    const includeOwn = params.get('includeOwn') === 'true';
+    let userId: string | null = null;
+    if (includeOwn) {
       const { user } = await getCurrentUser(request);
-      currentUserId = user?.id || null;
-    } catch (authError) {
-      console.warn('Auth error in listings API:', authError);
-      // Continue without user ID - will show all listings
+      if (!user) return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+      userId = user.id;
     }
 
-    // Check if this is a request to include own listings (for my-ads page)
-    const url = new URL(request.url);
-    const includeOwnListings = url.searchParams.get('includeOwn') === 'true';
-
-    const supabase = createAdminClient();
-    
-    // Build query
-    let query = supabase
-      .from('listings')
-      .select('*')
-      .eq('status', 'active')  // Only show active listings
-      .order('created_at', { ascending: false })
-      .limit(12);
-
-    // If user is logged in and we shouldn't include their listings, exclude them
-    // For now, allow users to see their own listings in the "Just Dropped" collections
-    // if (currentUserId && !includeOwnListings) {
-    //   query = query.neq('seller_id', currentUserId);
-    // }
-
-    const { data, error } = await query;
-
-    if (!error && Array.isArray(data) && data.length > 0) {
-      return NextResponse.json({ success: true, data: data.map(mapListingItem) });
+    const where: Prisma.ListingWhereInput = {
+      ...(includeOwn && userId
+        ? { OR: [{ status: 'active' }, { sellerId: userId }] }
+        : { status: 'active' }),
+      ...(params.get('category') ? { category: { equals: params.get('category')!, mode: 'insensitive' } } : {}),
+      ...(params.get('brand') ? { brand: { equals: params.get('brand')!, mode: 'insensitive' } } : {}),
+      ...(params.get('sellerId') ? { sellerId: params.get('sellerId')! } : {}),
+      ...(params.get('featured') === 'true' ? { isFeatured: true } : {}),
+    };
+    const minPriceValue = params.get('minPrice');
+    const maxPriceValue = params.get('maxPrice');
+    const minPrice = minPriceValue?.trim() ? Number(minPriceValue) : null;
+    const maxPrice = maxPriceValue?.trim() ? Number(maxPriceValue) : null;
+    if ((minPrice !== null && Number.isFinite(minPrice)) || (maxPrice !== null && Number.isFinite(maxPrice))) {
+      where.price = {
+        ...(minPrice !== null && Number.isFinite(minPrice) ? { gte: minPrice } : {}),
+        ...(maxPrice !== null && Number.isFinite(maxPrice) ? { lte: maxPrice } : {}),
+      };
+    }
+    const search = params.get('q')?.trim();
+    if (search) {
+      where.AND = [
+        ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+        {
+          OR: [
+            { title: { contains: search, mode: 'insensitive' } },
+            { brand: { contains: search, mode: 'insensitive' } },
+            { model: { contains: search, mode: 'insensitive' } },
+            { description: { contains: search, mode: 'insensitive' } },
+          ],
+        },
+      ];
     }
 
-    if (!error) {
-      return NextResponse.json({ success: true, data: [] });
-    }
+    const page = boundedInt(params.get('page'), 1, 10_000);
+    const pageSize = boundedInt(params.get('limit'), 12, 60);
+    const sort = params.get('sort');
+    const orderBy: Prisma.ListingOrderByWithRelationInput = sort === 'price-asc'
+      ? { price: 'asc' }
+      : sort === 'price-desc'
+        ? { price: 'desc' }
+        : { createdAt: 'desc' };
+    const [rows, total] = await prisma.$transaction([
+      prisma.listing.findMany({
+        where,
+        include: { seller: { select: listingSellerSelect } },
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.listing.count({ where }),
+    ]);
 
-    console.warn('Supabase listings query failed, falling back to Prisma:', error?.message || 'unknown error');
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    console.warn('Supabase listings route error, falling back to Prisma:', message);
-  }
-
-  try {
-    const cars = await prisma.car.findMany({
-      where: { status: 'available' },
-      orderBy: { createdAt: 'desc' },
-      take: 12,
+    return NextResponse.json({
+      success: true,
+      data: rows.map(serializeListing),
+      pagination: { page, pageSize, total, pages: Math.ceil(total / pageSize) },
     });
+  } catch (error) {
+    console.error('Listings query failed:', error);
+    return NextResponse.json({ success: false, message: 'Unable to load listings.' }, { status: 500 });
+  }
+}
 
-    return NextResponse.json({ success: true, data: cars.map(mapListingItem) });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Listings route error:', message);
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+export async function POST(request: NextRequest) {
+  try {
+    const { user, profile } = await getCurrentProfile(request);
+    if (!user || !profile) return NextResponse.json({ message: 'Please sign in to post a listing.' }, { status: 401 });
+
+    const body: unknown = await request.json();
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ message: 'Invalid listing data.' }, { status: 400 });
+    }
+    const input = body as Record<string, unknown>;
+    const brand = String(input.brand ?? input.make ?? '').trim();
+    const model = String(input.model ?? '').trim();
+    const title = String(input.title ?? `${brand} ${model}`.trim()).trim();
+    const location = String(input.location ?? input.city ?? '').trim();
+    const price = Number(input.price);
+    const description = String(input.description ?? '').trim();
+    if (!title || !brand || !location || !description || !Number.isFinite(price) || price <= 0) {
+      return NextResponse.json({ message: 'Title, brand, location, description, and a valid price are required.' }, { status: 400 });
+    }
+
+    const data = {
+      title: title.slice(0, 180),
+      brand: brand.slice(0, 100),
+      model: model.slice(0, 120) || null,
+      year: input.year == null ? null : String(input.year).slice(0, 20),
+      price,
+      location: location.slice(0, 160),
+      description: description.slice(0, 12_000),
+      category: String(input.category ?? 'Machine').trim().slice(0, 100) || 'Machine',
+      condition: String(input.condition ?? 'Used').slice(0, 40),
+      hours: String(input.hours ?? input.mileage ?? '').slice(0, 40) || null,
+      imageUrls: parseImageUrls(input.image_urls ?? input.images),
+      phoneNumber: typeof input.phone_number === 'string' ? input.phone_number.slice(0, 40) : null,
+      contactOption: typeof input.contact_option === 'string' ? input.contact_option.slice(0, 30) : null,
+      sellerId: user.id,
+      status: 'active',
+      isFeatured: profile.role === 'admin',
+    };
+
+    const listing = await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM profiles WHERE id = ${user.id}::uuid FOR UPDATE`;
+      if (profile.role === 'regular') {
+        const count = await tx.listing.count({ where: { sellerId: user.id } });
+        if (count >= 3) throw new Error('AD_LIMIT_REACHED');
+      }
+      return tx.listing.create({ data, include: { seller: { select: listingSellerSelect } } });
+    });
+    return NextResponse.json({ success: true, listing: serializeListing(listing) }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Error && error.message === 'AD_LIMIT_REACHED') {
+      return NextResponse.json({ code: 'AD_LIMIT_REACHED', message: 'You have reached the 3-listing limit. Submit a seller application to post more.' }, { status: 403 });
+    }
+    console.error('Create listing failed:', error);
+    return NextResponse.json({ message: 'Unable to create listing.' }, { status: 500 });
   }
 }

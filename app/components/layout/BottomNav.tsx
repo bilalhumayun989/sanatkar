@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Briefcase, Plus, MessageCircle, User } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
-import { createClient } from '@/lib/auth/supabase/client';
 
 export default function BottomNav() {
   const pathname = usePathname();
@@ -22,26 +21,23 @@ export default function BottomNav() {
 
     const fetchUnreadCount = async () => {
       try {
-        const supabase = createClient();
-        const { count, error } = await supabase
-          .from('messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('is_read', false)
-          .neq('sender_id', authUser.id);
+        const response = await fetch('/api/chats', { cache: 'no-store' });
+        const result = await response.json();
 
         if (!active) return;
-        if (!error) {
-          setMessageUnreadCount(count ?? 0);
-        }
-      } catch {
-        if (active) setMessageUnreadCount(0);
+        if (!response.ok || !result.success) throw new Error(result.message || 'Unread count unavailable.');
+        setMessageUnreadCount((result.chats || []).reduce((count: number, chat: { unreadCount?: number }) => count + (Number(chat.unreadCount) || 0), 0));
+      } catch (error) {
+        console.error('Failed to load unread message count:', error);
       }
     };
 
-    fetchUnreadCount();
+    void fetchUnreadCount();
+    const interval = window.setInterval(() => { void fetchUnreadCount(); }, 10000);
 
     return () => {
       active = false;
+      window.clearInterval(interval);
     };
   }, [authUser?.id]);
 

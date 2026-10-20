@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/auth/supabase/client';
 
 export default function BrandSelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   const [brands, setBrands] = useState<string[]>([]);
@@ -10,11 +9,13 @@ export default function BrandSelect({ value, onChange }: { value: string; onChan
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let active = true;
-    createClient().from('brands').select('name').eq('is_active', true).order('name')
-      .then(({ data, error }) => {
+    fetch('/api/brands', { cache: 'no-store' }).then(async response => {
+      if (!response.ok) throw new Error('Unable to load brands');
+      return response.json();
+    }).then(({ brands, success }) => {
         if (!active) return;
-        setBrands(Array.from(new Set((data || []).map(b => b.name.trim()).filter((name: string) => name && name.toLowerCase() !== 'other'))));
-        setFailed(Boolean(error));
+        setBrands(Array.from(new Set(((success ? brands : []) || []).map((brand: { name: string }) => brand.name.trim()).filter((name: string) => name && name.toLowerCase() !== 'other'))));
+        setFailed(!success);
         setLoading(false);
       }, () => { if (active) { setFailed(true); setLoading(false); } });
     return () => { active = false; };

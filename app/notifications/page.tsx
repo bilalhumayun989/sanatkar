@@ -4,20 +4,19 @@ import React, { useEffect, useState } from 'react';
 import { Bell, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/AuthContext';
-import { createClient } from '@/lib/auth/supabase/client';
 
 interface OfferItem {
   id: string;
   offer_price: number;
   status: string;
-  created_at: string;
-  listings: {
+  created_at: string | null;
+  listing?: {
     title: string;
-  };
-  buyer: {
-    full_name: string;
-    username: string;
-  };
+  } | null;
+  buyer?: {
+    full_name: string | null;
+    username: string | null;
+  } | null;
 }
 
 interface ChatNotification {
@@ -41,77 +40,22 @@ export default function NotificationsPage() {
         setLoading(false);
         return;
       }
-      const supabase = createClient();
 
-      const { data: offersData } = await supabase
-        .from('offers')
-        .select(`
-          id,
-          offer_price,
-          status,
-          created_at,
-          listings (
-            title
-          ),
-          buyer:buyer_id (
-            full_name,
-            username
-          )
-        `)
-        .eq('seller_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (offersData) {
-        setOffers(offersData as unknown as OfferItem[]);
+      try {
+        const response = await fetch('/api/notifications', { credentials: 'include' });
+        const json = await response.json();
+        if (!response.ok || !json.success) {
+          throw new Error(json.message || 'Unable to load notifications.');
+        }
+        setOffers((json.offers || []) as OfferItem[]);
+        setChatNotifications((json.chat_notifications || []) as ChatNotification[]);
+      } catch (error) {
+        console.error('Failed to load notifications:', error);
+        setOffers([]);
+        setChatNotifications([]);
+      } finally {
+        setLoading(false);
       }
-
-      const { error: markViewedError } = await supabase
-        .from('offers')
-        .update({ status: 'viewed' })
-        .eq('seller_id', user.id)
-        .eq('status', 'pending');
-
-      if (markViewedError) {
-        console.error('Failed to mark offers as viewed:', markViewedError);
-      }
-
-      const { data: chats } = await supabase
-        .from('chats')
-        .select('id, buyer_id, seller_id, listings:listing_id (title)')
-        .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`);
-
-      const unreadChats = await Promise.all((chats || []).map(async (chat: any) => {
-        const { data: latest } = await supabase
-          .from('messages')
-          .select('content, created_at, sender_id')
-          .eq('chat_id', chat.id)
-          .neq('sender_id', user.id)
-          .eq('is_read', false)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (!latest) return null;
-
-        const { count } = await supabase
-          .from('messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('chat_id', chat.id)
-          .neq('sender_id', user.id)
-          .eq('is_read', false);
-        const otherUserId = chat.buyer_id === user.id ? chat.seller_id : chat.buyer_id;
-        const { data: profile } = await supabase.from('profiles').select('full_name, username').eq('id', otherUserId).maybeSingle();
-        const listing = Array.isArray(chat.listings) ? chat.listings[0] : chat.listings;
-        return {
-          chatId: chat.id,
-          senderName: profile?.full_name || profile?.username || 'New message',
-          listingTitle: listing?.title || 'Conversation',
-          content: latest.content || 'Sent a message',
-          createdAt: latest.created_at,
-          unreadCount: count || 0,
-        } as ChatNotification;
-      }));
-      setChatNotifications(unreadChats.filter(Boolean) as ChatNotification[]);
-      setLoading(false);
     }
 
     fetchNotifications();
@@ -132,21 +76,12 @@ export default function NotificationsPage() {
 
   return (
     <div className="min-h-screen bg-[#EAEFF9] text-slate-800 pb-20">
-      {/* Top Title Bar */}
-      {/* <div className="bg-[#13BDC4] text-white px-4 py-3 flex items-center space-x-3 shadow-md sticky top-0 z-10">
-        <Link href="/" className="p-1 hover:bg-white/10 rounded-full transition-colors">
-          <ChevronLeft className="w-6 h-6 text-white" />
-        </Link>
-        <h1 className="text-base font-semibold">Notifications & Offers</h1>
-      </div> */}
-
-      {/* Offers Content List */}
       <div className="p-4 max-w-2xl mx-auto mt-28">
         {loading ? (
           <div className="text-center py-2 text-slate-500 text-sm font-medium">
             Loading offers...
           </div>
-        ) : offers.length === 0 ? (
+        ) : offers.length === 0 && chatNotifications.length === 0 ? (
           <div className="text-center py-20 flex flex-col items-center justify-center">
             <div className="w-16 h-16 bg-cyan-50 rounded-full flex items-center justify-center mb-4">
               <Bell className="w-8 h-8 text-[#13BDC4]/60" />
@@ -180,7 +115,7 @@ export default function NotificationsPage() {
                       Offer Received
                     </span>
                     <h3 className="text-sm font-bold text-slate-800 mt-1">
-                      {offer.listings?.title || 'Listing Item'}
+                      {offer.listing?.title || 'Listing Item'}
                     </h3>
                   </div>
                   <span className="text-sm font-extrabold text-slate-900">

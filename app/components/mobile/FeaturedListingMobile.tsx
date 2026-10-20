@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { MapPin } from 'lucide-react';
-import { createClient } from '@/lib/auth/supabase/client';
 
 interface Listing {
   id: string;
@@ -24,19 +23,17 @@ export default function FeaturedListingsMobile() {
 
   useEffect(() => {
     async function fetchFeatured() {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('listings')
-        .select('id, title, price, location, image_urls, year, brand, condition, is_featured')
-        .eq('is_featured', true)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(3); // Top 3 featured items for exact match with UI layout
-
-      if (!error && data) {
-        setFeaturedListings(data);
+      try {
+        const response = await fetch('/api/listings?featured=true&limit=3', { cache: 'no-store' });
+        const result = await response.json();
+        if (response.ok && result.success && Array.isArray(result.data)) {
+          setFeaturedListings(result.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch featured listings:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
 
     fetchFeatured();

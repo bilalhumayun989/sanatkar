@@ -6,7 +6,6 @@ import Image from 'next/image';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
 import { Search, Store, CheckCircle2, Package, MapPin, Users } from 'lucide-react';
-import { createClient } from '@/lib/auth/supabase/client';
 
 interface Shop {
   id: string;
@@ -26,58 +25,10 @@ export default function AllShopsPage() {
   useEffect(() => {
     const fetchShops = async () => {
       try {
-        const supabase = createClient();
-        
-        // Load the badge field when available, but keep the directory usable before migration rollout.
-        let { data: shopsData, error: shopsError } = await supabase
-          .from('profiles')
-          .select(`
-            id,
-            shop_name,
-            shop_description,
-            shop_image_url,
-            verification_status
-          `)
-          .eq('role', 'seller')
-          .eq('seller_status', 'approved');
-
-        if (shopsError) {
-          const fallback = await supabase
-            .from('profiles')
-            .select('id, shop_name, shop_description, shop_image_url')
-            .eq('role', 'seller')
-            .eq('seller_status', 'approved');
-          shopsData = fallback.data?.map(shop => ({ ...shop, verification_status: null })) || null;
-          shopsError = fallback.error;
-        }
-
-        if (shopsError) {
-          console.error('Error fetching shops:', shopsError);
-          setError('Failed to fetch shops');
-          return;
-        }
-
-        // Get listing counts for each shop
-        const shopsWithCounts = await Promise.all(
-          (shopsData || []).map(async (shop) => {
-            const { count } = await supabase
-              .from('listings')
-              .select('*', { count: 'exact', head: true })
-              .eq('seller_id', shop.id)
-              .eq('status', 'active');
-
-            return {
-              id: shop.id,
-              title: shop.shop_name || 'Unnamed Shop',
-              description: shop.shop_description || '',
-              image_urls: shop.shop_image_url ? [shop.shop_image_url] : [],
-              verification_status: shop.verification_status,
-              listing_count: count || 0
-            };
-          })
-        );
-
-        setShops(shopsWithCounts);
+        const response = await fetch('/api/shops', { cache: 'no-store' });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'Failed to fetch shops');
+        setShops(result.shops || []);
       } catch (error) {
         console.error('Failed to fetch shops:', error);
         setError('Failed to load shops');

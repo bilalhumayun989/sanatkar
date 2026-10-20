@@ -33,16 +33,10 @@ export default function EditProfilePage() {
           return;
         }
 
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (error && error.code !== 'PGRST116') {
-          console.error('Profile fetch error:', error);
-        }
-
+        const response = await fetch('/api/profile/me', { cache: 'no-store' });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'Profile could not be loaded.');
+        const data = result.profile;
         if (data) {
           setFormData({
             full_name: data.full_name || '',
@@ -85,20 +79,18 @@ export default function EditProfilePage() {
         return;
       }
 
-      const { error } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user.id,
+      const response = await fetch('/api/profile/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           full_name: formData.full_name,
           username: formData.username || formData.full_name,
-          email: formData.email,
           phone: formData.phone,
           cnic: formData.cnic,
-        });
-
-      if (error) {
-        throw error;
-      }
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Profile update failed.');
 
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
       setTimeout(() => router.push('/mobile-profile'), 1200);

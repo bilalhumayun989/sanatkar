@@ -12,6 +12,47 @@ import { RefreshCw, BookOpen } from 'lucide-react';
 import BlogManager from '@/app/components/blog/BlogManager';
 
 type Section = 'dashboard' | 'sellers' | 'categories' | 'brands' | 'listings' | 'badges' | 'users' | 'blogs';
+type CategoryInput = {
+  name: string;
+  icon_code: string;
+  description: string;
+  image_url: string;
+  is_active: boolean;
+  is_popular: boolean;
+};
+type CategoryRecord = {
+  id: string;
+  name: string;
+  icon_code: number | null;
+  description: string | null;
+  image_url: string | null;
+  is_active: boolean | null;
+  is_popular: boolean;
+  slug?: string;
+};
+type BrandInput = {
+  name: string;
+  logo_url: string;
+  description: string;
+  is_active: boolean;
+};
+type BrandRecord = {
+  id: string;
+  name: string;
+  logo_url: string | null;
+  description: string | null;
+  is_active: boolean | null;
+};
+
+const emptyCategory: CategoryInput = {
+  name: '',
+  icon_code: '58345',
+  description: '',
+  image_url: '',
+  is_active: true,
+  is_popular: false,
+};
+const emptyBrand: BrandInput = { name: '', logo_url: '', description: '', is_active: true };
 
 const sections: { id: Section; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -23,6 +64,13 @@ const sections: { id: Section; label: string; icon: typeof LayoutDashboard }[] =
   { id: 'badges', label: 'Badge Requests', icon: Shield },
   { id: 'users', label: 'User Management', icon: Users },
 ];
+
+async function adminRequest(path: string, init?: RequestInit) {
+  const response = await fetch(path, init);
+  const result = await response.json();
+  if (!response.ok || !result.success) throw new Error(result.message || 'Admin request failed.');
+  return result;
+}
 
 export default function AdminPage() {
   const router = useRouter();
@@ -38,10 +86,12 @@ export default function AdminPage() {
   const [brands, setBrands] = useState<any[]>([]);
   const [sellerRequests, setSellerRequests] = useState<any[]>([]);
   const [badgeRequests, setBadgeRequests] = useState<any[]>([]);
-  const [categoryName, setCategoryName] = useState('');
-  const [brandName, setBrandName] = useState('');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [categoryForm, setCategoryForm] = useState<CategoryInput | null>(null);
+  const [savingCategory, setSavingCategory] = useState(false);
   const [editingBrand, setEditingBrand] = useState<string | null>(null);
+  const [brandForm, setBrandForm] = useState<BrandInput | null>(null);
+  const [savingBrand, setSavingBrand] = useState(false);
 
   const supabase = createClient();
 
@@ -52,51 +102,20 @@ export default function AdminPage() {
 
   const loadData = async () => {
     setLoading(true);
-    const [profilesResult, listingsResult, categoriesResult, brandsResult, sellersResult, badgesResult] = await Promise.all([
-      supabase.from('profiles').select('id, username, full_name, email, phone, role, seller_status, created_at, total_listings_posted').order('created_at', { ascending: false }),
-      supabase.from('listings').select('id, title, brand, category, price, status, is_featured, location, seller_id, created_at').order('created_at', { ascending: false }),
-      supabase.from('categories').select('*').order('name'),
-      supabase.from('brands').select('*').order('name'),
-      supabase.from('profiles').select('id, username, full_name, email, phone, cnic, shop_name, shop_description, shop_address, city, shop_image_url, seller_status, created_at').eq('role', 'regular').eq('seller_status', 'pending').order('created_at'),
-      supabase.from('profiles').select('id, username, full_name, email, phone, shop_name, verification_proof_url, verification_requested_at, verification_status').eq('role', 'seller').eq('verification_status', 'pending').order('verification_requested_at'),
-    ]);
-    setProfiles(profilesResult.data || []);
-    setListings(listingsResult.data || []);
-    setCategories(categoriesResult.data || []);
-    setBrands(brandsResult.data || []);
-    let sellerRequestData = sellersResult.data || [];
-    if (sellersResult.error) {
-      const fallbackSellers = await supabase
-        .from('profiles')
-        .select('id, username, full_name, email, phone, cnic, shop_name, shop_description, shop_image_url, seller_status, created_at')
-        .eq('seller_status', 'pending')
-        .order('created_at');
-      sellerRequestData = (fallbackSellers.data || []).map(seller => ({
-        ...seller,
-        shop_address: null,
-        city: null,
-      }));
-      if (fallbackSellers.error) {
-        const minimalSellers = await supabase
-          .from('profiles')
-          .select('id, username, full_name, email, seller_status, created_at')
-          .eq('seller_status', 'pending')
-          .order('created_at');
-        sellerRequestData = (minimalSellers.data || []).map(seller => ({
-          ...seller,
-          phone: null,
-          cnic: null,
-          shop_name: null,
-          shop_description: null,
-          shop_address: null,
-          city: null,
-          shop_image_url: null,
-        }));
-      }
+    try {
+      const result = await adminRequest('/api/admin/overview', { cache: 'no-store' });
+      setProfiles(result.profiles || []);
+      setListings(result.listings || []);
+      setCategories(result.categories || []);
+      setBrands(result.brands || []);
+      setSellerRequests(result.seller_requests || []);
+      setBadgeRequests(result.badge_requests || []);
+    } catch (error) {
+      console.error('Failed to load admin data:', error);
+      notify(error instanceof Error ? error.message : 'Unable to load admin data.');
+    } finally {
+      setLoading(false);
     }
-    setSellerRequests(sellerRequestData);
-    setBadgeRequests(badgesResult.data || []);
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -120,10 +139,22 @@ export default function AdminPage() {
   }, [isAdmin, user]);
 
   const updateProfile = async (id: string, updates: Record<string, unknown>, success: string) => {
-    const { error } = await supabase.from('profiles').update(updates).eq('id', id);
-    if (error) { notify(error.message); return; }
-    notify(success);
-    await loadData();
+    let payload: Record<string, unknown> = updates;
+    if (updates.role === 'seller' && updates.seller_status === 'approved') payload = { action: 'approve_seller' };
+    else if (updates.seller_status === 'rejected') payload = { action: 'reject_seller' };
+    else if (updates.verification_status === 'approved') payload = { action: 'approve_verification' };
+    else if (updates.verification_status === 'rejected') payload = { action: 'reject_verification' };
+    try {
+      await adminRequest(`/api/admin/profiles/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      notify(success);
+      await loadData();
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Unable to update profile.');
+    }
   };
 
   const [updatingCategory, setUpdatingCategory] = useState<string | null>(null);
@@ -131,33 +162,75 @@ export default function AdminPage() {
     if (updatingCategory) return;
     setUpdatingCategory(id);
     try {
-      const { data, error } = await supabase.from('categories').update({ is_popular: popular }).eq('id', id).select('id').single();
-      if (error || !data) { notify(error?.code === 'PGRST204' || error?.code === '42703' ? 'Popular categories need database setup. Run supabase/migrations/20260930_popular_categories.sql in your Supabase SQL editor, then retry.' : error?.message || 'Could not update category'); return; }
+      await adminRequest(`/api/categories/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_popular: popular }),
+      });
       setCategories(items => items.map(item => item.id === id ? { ...item, is_popular: popular } : item));
       notify(popular ? 'Category marked popular' : 'Category removed from popular');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Could not update category.');
     } finally { setUpdatingCategory(null); }
   };
 
   const deleteRecord = async (table: 'categories' | 'brands' | 'listings' | 'profiles', id: string) => {
     if (!window.confirm('Delete this item?')) return;
-    const { error } = await supabase.from(table).delete().eq('id', id);
-    if (error) { notify(error.message); return; }
-    notify('Deleted successfully');
-    await loadData();
+    if (table === 'profiles') {
+      notify('Profiles are tied to Supabase Auth identities and cannot be deleted here.');
+      return;
+    }
+    const endpoint = table === 'listings' ? `/api/listings/${id}` : `/api/${table}/${id}`;
+    try {
+      await adminRequest(endpoint, { method: 'DELETE' });
+      notify('Deleted successfully');
+      await loadData();
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Unable to delete item.');
+    }
   };
 
-  const saveTaxonomy = async (table: 'categories' | 'brands') => {
-    const isCategory = table === 'categories';
-    const name = (isCategory ? categoryName : brandName).trim();
-    const editId = isCategory ? editingCategory : editingBrand;
-    if (!name) return;
-    const result = editId
-      ? await supabase.from(table).update({ name }).eq('id', editId)
-      : await supabase.from(table).insert({ name });
-    if (result.error) { notify(result.error.message); return; }
-    if (isCategory) { setCategoryName(''); setEditingCategory(null); } else { setBrandName(''); setEditingBrand(null); }
-    notify(`${isCategory ? 'Category' : 'Brand'} saved`);
-    await loadData();
+  const saveBrand = async () => {
+    if (!brandForm || savingBrand) return;
+    setSavingBrand(true);
+    try {
+      await adminRequest(editingBrand ? `/api/brands/${editingBrand}` : '/api/brands', {
+        method: editingBrand ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(brandForm),
+      });
+      setBrandForm(null);
+      setEditingBrand(null);
+      notify('Brand saved');
+      await loadData();
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Unable to save brand.');
+    } finally {
+      setSavingBrand(false);
+    }
+  };
+
+  const saveCategory = async () => {
+    if (!categoryForm || savingCategory) return;
+    setSavingCategory(true);
+    try {
+      await adminRequest(editingCategory ? `/api/categories/${editingCategory}` : '/api/categories', {
+        method: editingCategory ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...categoryForm,
+          icon_code: Number(categoryForm.icon_code),
+        }),
+      });
+      setCategoryForm(null);
+      setEditingCategory(null);
+      notify('Category saved');
+      await loadData();
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Unable to save category.');
+    } finally {
+      setSavingCategory(false);
+    }
   };
 
   const filteredProfiles = profiles.filter(profile => `${profile.full_name || ''} ${profile.username || ''} ${profile.email || ''}`.toLowerCase().includes(search.toLowerCase()));
@@ -188,12 +261,58 @@ export default function AdminPage() {
           {section === 'dashboard' && <DashboardStats profiles={profiles} listings={listings} sellerRequests={sellerRequests} badgeRequests={badgeRequests} onNavigate={setSection} />}
           {section === 'sellers' && <SellerRequests requests={sellerRequests} onApprove={(id: string) => updateProfile(id, { role: 'seller', seller_status: 'approved' }, 'Seller approved')} onReject={(id: string) => updateProfile(id, { seller_status: 'rejected' }, 'Seller rejected')} />}
           {section === 'badges' && <BadgeRequests requests={badgeRequests} onApprove={(id: string) => updateProfile(id, { verification_status: 'approved', verification_reviewed_at: new Date().toISOString() }, 'Badge approved')} onReject={(id: string) => updateProfile(id, { verification_status: 'rejected', verification_reviewed_at: new Date().toISOString() }, 'Badge rejected')} />}
-          {section === 'categories' && <Taxonomy onTogglePopular={togglePopular} updatingCategory={updatingCategory} title="Categories" items={categories} value={categoryName} setValue={setCategoryName} editingId={editingCategory} setEditingId={setEditingCategory} onSave={() => saveTaxonomy('categories')} onDelete={(id: string) => deleteRecord('categories', id)} />}
-          {section === 'brands' && <Taxonomy title="Brands" items={brands} value={brandName} setValue={setBrandName} editingId={editingBrand} setEditingId={setEditingBrand} onSave={() => saveTaxonomy('brands')} onDelete={(id: string) => deleteRecord('brands', id)} />}
+          {section === 'categories' && <CategoryManagement
+            items={categories}
+            onAdd={() => { setEditingCategory(null); setCategoryForm({ ...emptyCategory }); }}
+            onEdit={(item: CategoryRecord) => {
+              setEditingCategory(item.id);
+              setCategoryForm({
+                name: item.name,
+                icon_code: String(item.icon_code || 58345),
+                description: item.description || '',
+                image_url: item.image_url || '',
+                is_active: item.is_active !== false,
+                is_popular: item.is_popular,
+              });
+            }}
+            onTogglePopular={togglePopular}
+            updatingCategory={updatingCategory}
+            onDelete={(id: string) => deleteRecord('categories', id)}
+          />}
+          {section === 'brands' && <BrandManagement
+            items={brands}
+            onAdd={() => { setEditingBrand(null); setBrandForm({ ...emptyBrand }); }}
+            onEdit={(item: BrandRecord) => {
+              setEditingBrand(item.id);
+              setBrandForm({
+                name: item.name,
+                logo_url: item.logo_url || '',
+                description: item.description || '',
+                is_active: item.is_active !== false,
+              });
+            }}
+            onDelete={(id: string) => deleteRecord('brands', id)}
+          />}
           {section === 'users' && <UserManagement profiles={filteredProfiles} onUpdate={(id: string, role: 'regular' | 'seller' | 'admin') => updateProfile(id, { role }, 'User role updated')} onDelete={(id: string) => deleteRecord('profiles', id)} />}
-          {section === 'listings' && <ListingManagement listings={filteredListings} onUpdate={async (id: string, updates: Record<string, unknown>) => { const { error } = await supabase.from('listings').update(updates).eq('id', id); if (error) notify(error.message); else { notify('Listing updated'); await loadData(); } }} onDelete={(id: string) => deleteRecord('listings', id)} />}
+          {section === 'listings' && <ListingManagement listings={filteredListings} onUpdate={async (id: string, updates: Record<string, unknown>) => { try { await adminRequest(`/api/listings/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updates) }); notify('Listing updated'); await loadData(); } catch (error) { notify(error instanceof Error ? error.message : 'Unable to update listing.'); } }} onDelete={(id: string) => deleteRecord('listings', id)} />}
         </div>
       </main>
+      {categoryForm && <CategoryEditor
+        value={categoryForm}
+        editing={Boolean(editingCategory)}
+        saving={savingCategory}
+        onChange={setCategoryForm}
+        onClose={() => { if (!savingCategory) { setCategoryForm(null); setEditingCategory(null); } }}
+        onSave={() => void saveCategory()}
+      />}
+      {brandForm && <BrandEditor
+        value={brandForm}
+        editing={Boolean(editingBrand)}
+        saving={savingBrand}
+        onChange={setBrandForm}
+        onClose={() => { if (!savingBrand) { setBrandForm(null); setEditingBrand(null); } }}
+        onSave={() => void saveBrand()}
+      />}
     </div>
   );
 }
@@ -206,7 +325,171 @@ function DashboardStats({ profiles, listings, sellerRequests, badgeRequests, onN
 function SellerRequests({ requests, onApprove, onReject }: any) { return <ReviewList title="Seller verification requests" requests={requests} onApprove={onApprove} onReject={onReject} renderDetails={(item: any) => <><p className="font-black text-slate-900">{item.shop_name || 'Unnamed shop'}</p><p className="text-sm text-slate-500">{item.full_name || item.username || item.email}</p><p className="mt-2 text-sm text-slate-500">{item.shop_description}</p><p className="mt-2 text-xs font-bold text-slate-400">{item.phone || 'No phone'} {item.city ? ` · ${item.city}` : ''} {item.cnic ? ` · CNIC ${item.cnic}` : ''}</p>{item.shop_image_url && <img src={item.shop_image_url} alt="Shop" className="mt-3 h-24 w-24 rounded-xl object-cover" />}</>} />; }
 function BadgeRequests({ requests, onApprove, onReject }: any) { return <ReviewList title="Paid badge requests" requests={requests} onApprove={onApprove} onReject={onReject} renderDetails={(item: any) => <><p className="font-black text-slate-900">{item.shop_name || item.full_name || item.username}</p><p className="text-sm text-slate-500">{item.email} · {item.phone || 'No phone'}</p>{item.verification_proof_url && <a href={item.verification_proof_url} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-primary">View payment proof</a>}</>} />; }
 function ReviewList({ title, requests, onApprove, onReject, renderDetails }: any) { return <div><div className="mb-6"><h2 className="text-2xl font-black text-slate-900">{title}</h2><p className="mt-1 text-sm text-slate-500">{requests.length} pending request{requests.length === 1 ? '' : 's'}</p></div>{requests.length === 0 ? <Empty text="No pending requests" /> : <div className="space-y-4">{requests.map((item: any) => <div key={item.id} className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-start sm:justify-between"><div>{renderDetails(item)}</div><div className="flex shrink-0 gap-2"><button onClick={() => onApprove(item.id)} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-black text-white hover:bg-emerald-600"><Check size={15} /> Approve</button><button onClick={() => onReject(item.id)} className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-black text-rose-600 hover:bg-rose-100"><XCircle size={15} /> Reject</button></div></div>)}</div>}</div>; }
-function Taxonomy({ title, items, value, setValue, editingId, setEditingId, onSave, onDelete, onTogglePopular, updatingCategory }: any) { return <div><div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><h2 className="text-2xl font-black">Manage {title}</h2><p className="mt-1 text-sm text-slate-500">Create, edit, and delete marketplace {title.toLowerCase()}.</p></div><div className="flex gap-2"><input value={value} onChange={event => setValue(event.target.value)} placeholder={`${title.slice(0, -1)} name`} className="w-56 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-primary" /><button onClick={onSave} className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-white"><Plus size={15} /> {editingId ? 'Save' : 'Add'}</button></div></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{items.map((item: any) => <div key={item.id} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><span className="font-bold text-slate-800">{item.name}</span><div className="flex gap-1">{onTogglePopular && <button disabled={Boolean(updatingCategory)} aria-label={`${item.is_popular ? "Remove" : "Mark"} ${item.name} ${item.is_popular ? "from" : "as"} popular`} aria-pressed={Boolean(item.is_popular)} title="Popular category" onClick={() => onTogglePopular(item.id, !item.is_popular)} className="rounded-lg p-2 text-amber-500 hover:bg-amber-50 disabled:opacity-50"><Star size={17} fill={item.is_popular ? "currentColor" : "none"} /></button>}<button onClick={() => { setEditingId(item.id); setValue(item.name); }} className="rounded-lg p-2 text-slate-400 hover:bg-primary/10 hover:text-primary"><Pencil size={15} /></button><button onClick={() => onDelete(item.id)} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={15} /></button></div></div>)}</div></div>; }
+function BrandManagement({ items, onAdd, onEdit, onDelete }: {
+  items: BrandRecord[];
+  onAdd: () => void;
+  onEdit: (item: BrandRecord) => void;
+  onDelete: (id: string) => void;
+}) {
+  return <div>
+    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div><h2 className="text-2xl font-black">Manage Brands</h2><p className="mt-1 text-sm text-slate-500">Create, edit, and archive marketplace brands.</p></div>
+      <button type="button" onClick={onAdd} className="inline-flex items-center gap-1.5 self-start rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-white"><Plus size={15} /> Add brand</button>
+    </div>
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {items.map(item => <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        {item.logo_url ? <img src={item.logo_url} alt="" className="h-11 w-11 shrink-0 rounded-lg border border-slate-100 object-contain" /> : <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-black text-slate-500">{item.name.slice(0, 2).toUpperCase()}</span>}
+        <div className="min-w-0 flex-1"><p className="truncate font-bold text-slate-800">{item.name}</p><p className="mt-1 text-xs text-slate-500">{item.is_active === false ? 'Inactive' : 'Active'}</p></div>
+        <div className="flex gap-1">
+          <button type="button" onClick={() => onEdit(item)} aria-label={`Edit ${item.name}`} className="rounded-lg p-2 text-slate-400 hover:bg-primary/10 hover:text-primary"><Pencil size={15} /></button>
+          <button type="button" onClick={() => onDelete(item.id)} aria-label={`Archive ${item.name}`} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={15} /></button>
+        </div>
+      </div>)}
+    </div>
+  </div>;
+}
+
+function BrandEditor({ value, editing, saving, onChange, onClose, onSave }: {
+  value: BrandInput;
+  editing: boolean;
+  saving: boolean;
+  onChange: (value: BrandInput) => void;
+  onClose: () => void;
+  onSave: () => void;
+}) {
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const fieldClass = 'mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-primary';
+  const update = <K extends keyof BrandInput>(key: K, next: BrandInput[K]) => onChange({ ...value, [key]: next });
+  const uploadImage = async (file: File | undefined) => {
+    if (!file) return;
+    setUploadError('');
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'brands');
+      const response = await fetch('/api/upload', { method: 'POST', body: formData });
+      const result = await response.json();
+      if (!response.ok || !result.success || !Array.isArray(result.urls) || typeof result.urls[0] !== 'string') {
+        throw new Error(result.message || 'Brand image upload failed.');
+      }
+      update('logo_url', result.urls[0]);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'Brand image upload failed.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+  return <div role="presentation" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+    <section role="dialog" aria-modal="true" aria-labelledby="brand-editor-title" className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="mb-5 flex items-start justify-between"><div><h2 id="brand-editor-title" className="text-xl font-black">{editing ? 'Edit brand' : 'Add brand'}</h2><p className="mt-1 text-sm text-slate-500">Set the brand details and visibility.</p></div><button type="button" onClick={onClose} disabled={saving || uploadingImage} aria-label="Close brand form" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">×</button></div>
+      <div className="space-y-4">
+        <label className="block text-sm font-bold">Brand name<input autoFocus maxLength={100} value={value.name} onChange={event => update('name', event.target.value)} className={fieldClass} placeholder="e.g. Brother" /></label>
+        <div>
+          <label className="block text-sm font-bold">Brand logo</label>
+          <label className="mt-1.5 inline-flex cursor-pointer items-center rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-primary">
+            {uploadingImage ? 'Uploading...' : 'Choose image from device'}
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={uploadingImage || saving} onChange={event => { void uploadImage(event.target.files?.[0]); event.target.value = ''; }} className="sr-only" />
+          </label>
+          <p className="mt-1 text-xs font-normal text-slate-400">Images upload to /uploads/brands/. JPG, PNG, GIF, or WebP, up to 5 MB.</p>
+          {uploadError && <p role="alert" className="mt-2 text-sm font-medium text-rose-600">{uploadError}</p>}
+          <label className="mt-3 block text-sm font-bold">Or enter an image URL<input type="text" maxLength={2048} value={value.logo_url} onChange={event => update('logo_url', event.target.value)} className={fieldClass} placeholder="https://... or /uploads/brands/..." /></label>
+          {value.logo_url && <div className="mt-3"><img src={value.logo_url} alt="Brand logo preview" className="h-20 w-20 rounded-xl border border-slate-200 object-contain" /></div>}
+        </div>
+        <label className="block text-sm font-bold">Description<textarea maxLength={1000} rows={3} value={value.description} onChange={event => update('description', event.target.value)} className={fieldClass} placeholder="Describe this brand" /></label>
+        <label className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" checked={value.is_active} onChange={event => update('is_active', event.target.checked)} /> Active</label>
+      </div>
+      <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={onClose} disabled={saving || uploadingImage} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600">Cancel</button><button type="button" onClick={onSave} disabled={saving || uploadingImage || !value.name.trim()} className="rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-white disabled:opacity-50">{saving ? 'Saving...' : editing ? 'Save changes' : 'Create brand'}</button></div>
+    </section>
+  </div>;
+}
+
+function CategoryManagement({ items, onAdd, onEdit, onTogglePopular, updatingCategory, onDelete }: {
+  items: CategoryRecord[];
+  onAdd: () => void;
+  onEdit: (item: CategoryRecord) => void;
+  onTogglePopular: (id: string, popular: boolean) => void;
+  updatingCategory: string | null;
+  onDelete: (id: string) => void;
+}) {
+  return <div>
+    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div><h2 className="text-2xl font-black">Manage Categories</h2><p className="mt-1 text-sm text-slate-500">Create, edit, and archive marketplace categories.</p></div>
+      <button type="button" onClick={onAdd} className="inline-flex items-center gap-1.5 self-start rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-white"><Plus size={15} /> Add category</button>
+    </div>
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {items.map(item => <div key={item.id} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="min-w-0"><p className="truncate font-bold text-slate-800">{item.name}</p><p className="mt-1 text-xs text-slate-500">{item.is_active === false ? 'Inactive' : 'Active'}{item.is_popular ? ' · Popular' : ''}</p></div>
+        <div className="flex gap-1">
+          <button disabled={Boolean(updatingCategory)} aria-label={`${item.is_popular ? 'Remove' : 'Mark'} ${item.name} ${item.is_popular ? 'from' : 'as'} popular`} aria-pressed={Boolean(item.is_popular)} title="Popular category" onClick={() => onTogglePopular(item.id, !item.is_popular)} className="rounded-lg p-2 text-amber-500 hover:bg-amber-50 disabled:opacity-50"><Star size={17} fill={item.is_popular ? 'currentColor' : 'none'} /></button>
+          <button onClick={() => onEdit(item)} aria-label={`Edit ${item.name}`} className="rounded-lg p-2 text-slate-400 hover:bg-primary/10 hover:text-primary"><Pencil size={15} /></button>
+          <button onClick={() => onDelete(item.id)} aria-label={`Archive ${item.name}`} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={15} /></button>
+        </div>
+      </div>)}
+    </div>
+  </div>;
+}
+
+function CategoryEditor({ value, editing, saving, onChange, onClose, onSave }: {
+  value: CategoryInput;
+  editing: boolean;
+  saving: boolean;
+  onChange: (value: CategoryInput) => void;
+  onClose: () => void;
+  onSave: () => void;
+}) {
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const fieldClass = 'mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-primary';
+  const update = <K extends keyof CategoryInput>(key: K, next: CategoryInput[K]) => onChange({ ...value, [key]: next });
+  const uploadImage = async (file: File | undefined) => {
+    if (!file) return;
+    setUploadError('');
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'categories');
+      const response = await fetch('/api/upload', { method: 'POST', body: formData });
+      const result = await response.json();
+      if (!response.ok || !result.success || !Array.isArray(result.urls) || typeof result.urls[0] !== 'string') {
+        throw new Error(result.message || 'Category image upload failed.');
+      }
+      update('image_url', result.urls[0]);
+    } catch (error) {
+      setUploadError(error instanceof Error ? error.message : 'Category image upload failed.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+  return <div role="presentation" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+    <section role="dialog" aria-modal="true" aria-labelledby="category-editor-title" className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="mb-5 flex items-start justify-between"><div><h2 id="category-editor-title" className="text-xl font-black">{editing ? 'Edit category' : 'Add category'}</h2><p className="mt-1 text-sm text-slate-500">Set the category details and visibility.</p></div><button type="button" onClick={onClose} disabled={saving} aria-label="Close category form" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">×</button></div>
+      <div className="space-y-4">
+        <label className="block text-sm font-bold">Category name<input autoFocus maxLength={100} value={value.name} onChange={event => update('name', event.target.value)} className={fieldClass} placeholder="e.g. Sewing machines" /></label>
+        <label className="block text-sm font-bold">Icon code<input type="number" step="1" value={value.icon_code} onChange={event => update('icon_code', event.target.value)} className={fieldClass} /><span className="mt-1 block text-xs font-normal text-slate-400">Integer icon code used by the category UI.</span></label>
+        <label className="block text-sm font-bold">Description<textarea maxLength={1000} rows={3} value={value.description} onChange={event => update('description', event.target.value)} className={fieldClass} placeholder="Describe what belongs in this category" /></label>
+        <div>
+          <label className="block text-sm font-bold">Category image</label>
+          <label className="mt-1.5 inline-flex cursor-pointer items-center rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-primary">
+            {uploadingImage ? 'Uploading...' : 'Choose image from device'}
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" disabled={uploadingImage || saving} onChange={event => { void uploadImage(event.target.files?.[0]); event.target.value = ''; }} className="sr-only" />
+          </label>
+          <p className="mt-1 text-xs font-normal text-slate-400">Images upload to /uploads/categories/. JPG, PNG, GIF, or WebP, up to 5 MB.</p>
+          {uploadError && <p role="alert" className="mt-2 text-sm font-medium text-rose-600">{uploadError}</p>}
+          <label className="mt-3 block text-sm font-bold">Or enter an image URL<input type="text" maxLength={2048} value={value.image_url} onChange={event => update('image_url', event.target.value)} className={fieldClass} placeholder="https://... or /uploads/categories/..." /></label>
+          {value.image_url && <div className="mt-3"><img src={value.image_url} alt="Category preview" className="h-24 w-24 rounded-xl border border-slate-200 object-cover" /></div>}
+        </div>
+        <div className="flex flex-wrap gap-5 text-sm font-semibold text-slate-700">
+          <label className="inline-flex items-center gap-2"><input type="checkbox" checked={value.is_active} onChange={event => update('is_active', event.target.checked)} /> Active</label>
+          <label className="inline-flex items-center gap-2"><input type="checkbox" checked={value.is_popular} onChange={event => update('is_popular', event.target.checked)} /> Popular</label>
+        </div>
+      </div>
+      <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={onClose} disabled={saving || uploadingImage} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600">Cancel</button><button type="button" onClick={onSave} disabled={saving || uploadingImage || !value.name.trim() || !Number.isInteger(Number(value.icon_code))} className="rounded-xl bg-primary px-5 py-2.5 text-sm font-black text-white disabled:opacity-50">{saving ? 'Saving...' : editing ? 'Save changes' : 'Create category'}</button></div>
+    </section>
+  </div>;
+}
 function UserManagement({ profiles, onUpdate, onDelete }: any) { return <div><div className="mb-6"><h2 className="text-2xl font-black">User management</h2><p className="mt-1 text-sm text-slate-500">Manage regular users, sellers, and administrators.</p></div><div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="divide-y divide-slate-100">{profiles.map((profile: any) => <div key={profile.id} className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-black text-slate-900">{profile.full_name || profile.username || 'Unnamed user'}</p><p className="text-xs text-slate-500">{profile.email || profile.username}</p></div><div className="flex items-center gap-2"><select value={profile.role} onChange={event => onUpdate(profile.id, event.target.value)} className="rounded-lg border border-slate-200 px-2 py-2 text-xs font-bold"><option value="regular">Regular</option><option value="seller">Seller</option><option value="admin">Admin</option></select><button onClick={() => onDelete(profile.id)} className="rounded-lg p-2 text-rose-500 hover:bg-rose-50"><Trash2 size={16} /></button></div></div>)}</div></div></div>; }
 function ListingManagement({ listings, onUpdate, onDelete }: any) { return <div><div className="mb-6"><h2 className="text-2xl font-black">Manage listings</h2><p className="mt-1 text-sm text-slate-500">Change status, feature, or remove marketplace listings.</p></div><div className="space-y-3">{listings.map((listing: any) => <div key={listing.id} className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="truncate font-black text-slate-900">{listing.title || 'Untitled listing'}</p><p className="mt-1 text-xs font-semibold text-slate-500">{listing.brand || 'General'} · {listing.category || 'Other'} · PKR {Number(listing.price || 0).toLocaleString()}</p></div><div className="flex flex-wrap items-center gap-2"><select value={listing.status || 'pending'} onChange={event => onUpdate(listing.id, { status: event.target.value })} className="rounded-lg border border-slate-200 px-2 py-2 text-xs font-bold"><option value="active">Active</option><option value="pending">Pending</option><option value="rejected">Rejected</option><option value="sold">Sold</option></select><button onClick={() => onUpdate(listing.id, { is_featured: !listing.is_featured })} className={`rounded-lg px-3 py-2 text-xs font-black ${listing.is_featured ? 'bg-amber-100 text-amber-700' : 'border border-slate-200 text-slate-500'}`}>{listing.is_featured ? 'Featured' : 'Feature'}</button><button onClick={() => onDelete(listing.id)} className="rounded-lg p-2 text-rose-500 hover:bg-rose-50"><Trash2 size={16} /></button></div></div>)}</div></div>; }
 function Empty({ text }: { text: string }) { return <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center text-sm font-bold text-slate-400">{text}</div>; }

@@ -41,9 +41,9 @@ test('concurrent server requests validate stale-cookie access tokens without rot
     const oldCookie = JSON.stringify({ access_token: 'expired-access', refresh_token: 'already-used', expires_at: 1 });
     const first = client(oldCookie);
     const second = client(oldCookie);
-    const results = await Promise.all([first.auth.getUser(), second.auth.getUser(), first.from('profiles').select('id')]);
+    const results = await Promise.all([first.auth.getUser(), second.auth.getUser()]);
     assert.ok(results.every(result => !result.error));
-    assert.equal(calls.length, 3);
+    assert.equal(calls.length, 2);
     assert.ok(calls.every(call => call.headers.get('authorization') === 'Bearer expired-access'));
   } finally { globalThis.fetch = originalFetch; }
 });

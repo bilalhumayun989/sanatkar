@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
-import { createClient } from '@/lib/auth/supabase/client';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { User, Mail, Phone, CreditCard, Loader2, Save, ArrowLeft, CheckCircle2, AlertCircle, Store } from 'lucide-react';
@@ -51,11 +50,10 @@ export default function ProfilePage() {
 
     const loadProfile = async () => {
       try {
-        const supabase = createClient();
-        const { data, error } = await supabase
-          .from('profiles').select('full_name, username, email, phone, cnic, role, seller_status, total_listings_posted, shop_name, shop_description, shop_image_url, city')
-          .eq('id', user.id).maybeSingle();
-        if (!error && data) {
+        const response = await fetch('/api/profile/me', { cache: 'no-store' });
+        const result = await response.json();
+        if (response.ok && result.success && result.profile) {
+          const data = result.profile;
           setProfile(data);
           setFullName(data.full_name || '');
           setUsername(data.username || '');
@@ -77,12 +75,21 @@ export default function ProfilePage() {
     setSaving(true);
     setMessage(null);
     try {
-      const supabase = createClient();
-      const updates: Partial<ProfileRecord> = { full_name: fullName, username, phone };
+      const updates: Record<string, string | null> = { full_name: fullName, username, phone };
       if (profile?.role === 'seller') updates.cnic = cnic;
-      const { error } = await supabase.from('profiles').update(updates).eq('id', user.id);
-      if (error) throw error;
-      setProfile(prev => prev ? { ...prev, ...updates } : null);
+      const response = await fetch('/api/profile/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: fullName,
+          username,
+          phone,
+          ...(profile?.role === 'seller' ? { cnic } : {}),
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Unable to update profile');
+      setProfile(prev => prev ? { ...prev, full_name: fullName, username, phone, ...(profile?.role === 'seller' ? { cnic } : {}) } : null);
       setMessage({ text: t('profile_updated'), type: 'success' });
     } catch (err) {
       console.error('Failed to save profile', err);

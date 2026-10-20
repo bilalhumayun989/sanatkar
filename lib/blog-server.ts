@@ -1,15 +1,46 @@
 import 'server-only';
-import { createClient } from '@/lib/auth/supabase/server';
+import prisma from '@/lib/dbConn';
 import type { BlogPost } from '@/lib/blog';
 
-export async function getPublishedBlogs() {
-  const { data, error } = await createClient().from('blog_posts').select('*').eq('status', 'published').order('created_at', { ascending: false });
-  if (error) throw new Error('Unable to load blog posts. Please try again shortly.');
-  return (data || []) as BlogPost[];
+function mapBlogPost(row: {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  category: string;
+  authorName: string;
+  coverImageUrl: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}): BlogPost {
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    excerpt: row.excerpt,
+    content: row.content,
+    category: row.category,
+    author_name: row.authorName,
+    cover_image_url: row.coverImageUrl,
+    status: row.status === 'published' ? 'published' : 'draft',
+    created_at: row.createdAt.toISOString(),
+    updated_at: row.updatedAt.toISOString(),
+  };
 }
 
-export async function getPublishedBlog(slug: string) {
-  const { data, error } = await createClient().from('blog_posts').select('*').eq('slug', slug).eq('status', 'published').maybeSingle();
-  if (error) throw new Error('Unable to load this article. Please try again shortly.');
-  return data as BlogPost | null;
+export async function getPublishedBlogs(): Promise<BlogPost[]> {
+  const rows = await prisma.blogPost.findMany({
+    where: { status: 'published' },
+    orderBy: { createdAt: 'desc' },
+  });
+  return rows.map(mapBlogPost);
+}
+
+export async function getPublishedBlog(slug: string): Promise<BlogPost | null> {
+  const row = await prisma.blogPost.findFirst({
+    where: { slug, status: 'published' },
+  });
+  return row ? mapBlogPost(row) : null;
 }

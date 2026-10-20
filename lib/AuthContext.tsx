@@ -63,34 +63,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
         } catch (_) { /* fall through */ }
 
-        // Method 2: Direct Supabase client
-        try {
-            const client = createClient();
-            const { data: profileData, error } = await client
-                .from('profiles')
-                .select('id, username, role, seller_status, verification_status, total_listings_posted')
-                .eq('id', userId)
-                .maybeSingle();
-
-            if (!error && profileData) {
-                if (!shouldApply()) return false;
-                setUser({
-                    id: profileData.id,
-                    email: userEmail,
-                    name: profileData.username ?? undefined,
-                    username: profileData.username ?? undefined,
-                    role: profileData.role ?? 'regular',
-                    seller_status: profileData.seller_status ?? null,
-                    verification_status: profileData.verification_status ?? null,
-                    total_listings_posted: profileData.total_listings_posted ?? 0,
-                });
-                return true;
-            }
-        } catch (_) { /* fall through */ }
-
         if (!shouldApply()) return false;
 
-        // Method 3: Use session data as fallback (better than redirecting to login)
+        // Keep authenticated UI available while the server profile endpoint recovers.
         const displayName = typeof userMetadata?.full_name === 'string'
             ? userMetadata.full_name
             : typeof userMetadata?.name === 'string'

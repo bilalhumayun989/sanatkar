@@ -7,7 +7,6 @@ import { usePathname } from 'next/navigation';
 import { Menu, X, Phone, Package, User, LogOut, Languages, ShieldCheck, ChevronDown, Heart, MessageSquare, Store, BadgeCheck, Clock, Bell } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
-import { createClient } from '@/lib/auth/supabase/client';
 
 interface NavbarProps {
     forceSolid?: boolean;
@@ -68,104 +67,37 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
         return () => document.removeEventListener('mousedown', handleOutsideClick);
     }, []);
 
-    useEffect(() => {
-        if (!authUser?.id) {
-            setMessageUnreadCount(0);
-            return;
-        }
-
-        let isActive = true;
-
-        const fetchUnreadMessageCount = async () => {
-            try {
-                const supabase = createClient();
-                const { data: chatRows } = await supabase
-                    .from('chats')
-                    .select('id')
-                    .or(`buyer_id.eq.${authUser.id},seller_id.eq.${authUser.id}`);
-                const chatIds = (chatRows || []).map(chat => chat.id);
-                if (chatIds.length === 0) {
-                    setMessageUnreadCount(0);
-                    return;
-                }
-                const { count, error } = await supabase
-                    .from('messages')
-                    .select('id', { count: 'exact', head: true })
-                    .in('chat_id', chatIds)
-                    .neq('sender_id', authUser.id)
-                    .eq('is_read', false);
-
-                if (!isActive) return;
-
-                if (!error) {
-                    setMessageUnreadCount(count ?? 0);
-                }
-            } catch (error) {
-                if (isActive) {
-                    setMessageUnreadCount(0);
-                }
-            }
-        };
-
-        fetchUnreadMessageCount();
-
-        return () => {
-            isActive = false;
-        };
-    }, [authUser?.id]);
-
     const loadNotifications = async () => {
         if (!authUser?.id) return;
-        const supabase = createClient();
-        const { data: chats } = await supabase
-            .from('chats')
-            .select('id, buyer_id, seller_id')
-            .or(`buyer_id.eq.${authUser.id},seller_id.eq.${authUser.id}`);
-        const items = await Promise.all((chats || []).map(async (chat) => {
-            const { data: latest } = await supabase
-                .from('messages')
-                .select('content, created_at')
-                .eq('chat_id', chat.id)
-                .neq('sender_id', authUser.id)
-                .eq('is_read', false)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-            if (!latest) return null;
-            const otherId = chat.buyer_id === authUser.id ? chat.seller_id : chat.buyer_id;
-            const { data: profile } = await supabase.from('profiles').select('full_name, username').eq('id', otherId).maybeSingle();
-            const { count } = await supabase.from('messages').select('id', { count: 'exact', head: true }).eq('chat_id', chat.id).neq('sender_id', authUser.id).eq('is_read', false);
-            return { chatId: chat.id, senderName: profile?.full_name || profile?.username || 'New message', content: latest.content || 'Sent a message', createdAt: latest.created_at, unreadCount: count || 0 };
-        }));
-        setNotifications(items.filter(Boolean) as NavbarNotification[]);
+        try {
+            const response = await fetch('/api/chats', { cache: 'no-store' });
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.message || 'Unable to load message notifications.');
+            const items = (result.chats || [])
+                .filter((chat: any) => Number(chat.unreadCount) > 0)
+                .map((chat: any) => ({
+                    chatId: chat.id,
+                    senderName: chat.otherUser?.full_name || chat.otherUser?.username || 'New message',
+                    content: chat.latestMessage?.content || 'Sent a message',
+                    createdAt: chat.latestMessage?.created_at || chat.updated_at || new Date().toISOString(),
+                    unreadCount: Number(chat.unreadCount),
+                }));
+            setNotifications(items);
+            setMessageUnreadCount(items.reduce((count: number, item: NavbarNotification) => count + item.unreadCount, 0));
+        } catch (error) {
+            console.error('Failed to load message notifications:', error);
+        }
     };
 
     useEffect(() => {
-        if (!authUser?.id) return;
-        const supabase = createClient();
-        const channel = supabase
-            .channel(`navbar_notifications_${authUser.id}`)
-            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
-                const message = payload.new as { chat_id?: string; sender_id?: string };
-                if (!message.chat_id || message.sender_id === authUser.id) return;
-                const { data: chat } = await supabase
-                    .from('chats')
-                    .select('id')
-                    .eq('id', message.chat_id)
-                    .or(`buyer_id.eq.${authUser.id},seller_id.eq.${authUser.id}`)
-                    .maybeSingle();
-                if (!chat) return;
-                const { count } = await supabase
-                    .from('messages')
-                    .select('id', { count: 'exact', head: true })
-                    .eq('chat_id', message.chat_id)
-                    .neq('sender_id', authUser.id)
-                    .eq('is_read', false);
-                setMessageUnreadCount(previous => Math.max(previous + 1, count || 0));
-            })
-            .subscribe();
-
-        return () => { void supabase.removeChannel(channel); };
+        if (!authUser?.id) {
+            setMessageUnreadCount(0);
+            setNotifications([]);
+            return;
+        }
+        void loadNotifications();
+        const interval = window.setInterval(() => { void loadNotifications(); }, 10000);
+        return () => window.clearInterval(interval);
     }, [authUser?.id]);
 
     return (
@@ -325,14 +257,14 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                                                 {t('my_shop')}
                                             </Link>
                                         )}
-                                        <Link
+                                        {/* <Link
                                             href="/seller-verification"
                                             onClick={() => setUserMenuOpen(false)}
                                             className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-[#078da5] transition-colors hover:bg-[#09ACC9]/10"
                                         >
                                             <BadgeCheck size={16} className="text-[#09ACC9]" />
                                             {authUser?.verification_status === 'approved' ? 'Verified' : 'Get Verified Seller Badge'}
-                                        </Link>
+                                        </Link> */}
                                         <Link
                                             href="/saved"
                                             onClick={() => setUserMenuOpen(false)}
@@ -478,14 +410,14 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                                                 {t('my_shop')}
                                             </Link>
                                         )}
-                                        <Link
+                                        {/* <Link
                                             href="/seller-verification"
                                             onClick={() => setUserMenuOpen(false)}
                                             className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-[#078da5] transition-colors hover:bg-[#09ACC9]/10"
                                         >
                                             <BadgeCheck size={16} className="text-[#09ACC9]" />
                                             {authUser?.verification_status === 'approved' ? 'Verified' : 'Get Verified Seller Badge'}
-                                        </Link>
+                                        </Link> */}
                                         <Link
                                             href="/saved"
                                             onClick={() => setUserMenuOpen(false)}
@@ -651,11 +583,11 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                                 </Link>
                             )}
 
-                            <Link href="/seller-verification" onClick={() => setMenuOpen(false)}
+                            {/* <Link href="/seller-verification" onClick={() => setMenuOpen(false)}
                                 className="flex items-center gap-3 px-4 py-4 rounded-xl font-semibold text-sm text-[#078da5] hover:bg-[#09ACC9]/10 transition-colors">
                                 <BadgeCheck size={20} className="text-[#09ACC9]" />
                                 {authUser?.verification_status === 'approved' ? 'Verified' : 'Get Verified Seller Badge'}
-                            </Link>
+                            </Link> */}
                             
                             <Link href="/messages" onClick={() => setMenuOpen(false)}
                                 className="flex items-center justify-between gap-3 px-4 py-4 rounded-xl font-semibold text-sm hover:bg-[#09ACC9]/10 hover:text-[#09ACC9] transition-colors">

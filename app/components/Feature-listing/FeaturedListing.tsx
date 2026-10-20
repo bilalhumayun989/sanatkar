@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Bookmark, ChevronLeft, ChevronRight } from 'lucide-react';
-import { createClient } from '@/lib/auth/supabase/client';
 import { useLanguage } from '@/lib/LanguageContext';
 
 interface Listing {
@@ -44,41 +43,21 @@ export default function FeaturedListing() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const supabase = createClient();
-
-        // Check user authentication
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (user) {
-          setUserId(user.id);
-
-          // Fetch user's initial saved favorites
-          const { data: userFavs } = await supabase
-            .from('favorites')
-            .select('listing_id')
-            .eq('user_id', user.id);
-
-          if (userFavs) {
-            setSavedIds(userFavs.map((fav) => fav.listing_id));
-          }
+        const meResponse = await fetch('/api/auth/me', { cache: 'no-store' });
+        const meResult = await meResponse.json();
+        if (meResponse.ok && meResult.success && meResult.user) {
+          setUserId(meResult.user.id);
+          const favResponse = await fetch('/api/favorites', { cache: 'no-store' });
+          const favResult = await favResponse.json();
+          if (favResponse.ok && favResult.success) setSavedIds((favResult.favorites || []).map((fav: any) => fav.listing_id));
         }
 
-        // Fetch active featured listings
-        const { data: listings, error } = await supabase
-          .from('listings')
-          .select('*')
-          .eq('status', 'active')
-          .eq('is_featured', true)
-          .order('created_at', { ascending: false })
-          .limit(6);
-
-        if (error) {
-          console.error('Error fetching featured listings:', error);
-          setFeaturedListings([]);
+        const listingsResponse = await fetch('/api/listings?featured=true&limit=6', { cache: 'no-store' });
+        const listingsResult = await listingsResponse.json();
+        if (listingsResponse.ok && listingsResult.success && Array.isArray(listingsResult.data)) {
+          setFeaturedListings(listingsResult.data);
         } else {
-          setFeaturedListings(listings || []);
+          setFeaturedListings([]);
         }
       } catch (error) {
         console.error('Failed to fetch data:', error);
@@ -101,36 +80,21 @@ export default function FeaturedListing() {
       return;
     }
 
-    const supabase = createClient();
     const isSaved = savedIds.includes(listingId);
-
-    // Optimistic UI update
     setSavedIds((prev) =>
       isSaved ? prev.filter((id) => id !== listingId) : [...prev, listingId]
     );
 
     try {
-      if (isSaved) {
-        // Delete favorite
-        const { error } = await supabase
-          .from('favorites')
-          .delete()
-          .eq('user_id', userId)
-          .eq('listing_id', listingId);
-
-        if (error) throw error;
-      } else {
-        // Insert favorite
-        const { error } = await supabase.from('favorites').insert({
-          user_id: userId,
-          listing_id: listingId,
-        });
-
-        if (error) throw error;
-      }
+      const response = await fetch('/api/favorites', {
+        method: isSaved ? 'DELETE' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listing_id: listingId }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Failed to update favorite');
     } catch (error) {
       console.error('Failed to update favorite:', error);
-      // Revert state if DB operation fails
       setSavedIds((prev) =>
         isSaved ? [...prev, listingId] : prev.filter((id) => id !== listingId)
       );

@@ -1,7 +1,6 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import { createClient } from '@/lib/auth/supabase/client';
 import Link from 'next/link';
 import { 
   MessageSquare, Loader2, User, Search, Circle, 
@@ -85,63 +84,27 @@ function MessagesInboxPage() {
   useEffect(() => {
     const fetchChats = async () => {
       try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
+        const meResponse = await fetch('/api/auth/me', { cache: 'no-store' });
+        const meResult = await meResponse.json();
+        if (!meResponse.ok || !meResult.success || !meResult.user) {
           window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
           return;
         }
+        const user = meResult.user;
         setCurrentUserId(user.id);
 
-        const { data, error } = await supabase
-          .from('chats')
-          .select(`
-            id,
-            created_at,
-            buyer_id,
-            seller_id,
-            listings:listing_id (id, title, brand, image_urls, price)
-          `)
-          .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          console.error('Error fetching chats:', error);
-        } else if (data) {
-          const enhancedChats = await Promise.all(data.map(async (chat) => {
-            const otherUserId = chat.buyer_id === user.id ? chat.seller_id : chat.buyer_id;
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', otherUserId)
-              .maybeSingle();
-
-            const { data: latestMessage } = await supabase
-              .from('messages')
-              .select('content, created_at, is_read, sender_id, type, offer_amount')
-              .eq('chat_id', chat.id)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .maybeSingle();
-
-            const { count: unreadCount } = await supabase
-              .from('messages')
-              .select('id', { count: 'exact', head: true })
-              .eq('chat_id', chat.id)
-              .neq('sender_id', user.id)
-              .eq('is_read', false);
-
-            return {
-              ...chat,
-              otherUser: profile || { username: 'Unknown User' },
-              latestMessage,
-              unreadCount: unreadCount || 0,
-            };
-          }));
-          setChats(enhancedChats);
-          const targetChat = new URLSearchParams(window.location.search).get('chat');
-          setSelectedChatId(targetChat ? enhancedChats.find(chat => chat.id === targetChat)?.id || null : enhancedChats[0]?.id || null);
-        }
+        const response = await fetch('/api/chats', { cache: 'no-store' });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'Unable to load chats');
+        const enhancedChats = (result.chats || []).map((chat: any) => ({
+          ...chat,
+          otherUser: chat.otherUser || { username: 'Unknown User' },
+          unreadCount: Number(chat.unreadCount || 0),
+          latestMessage: chat.latestMessage || null,
+        }));
+        setChats(enhancedChats);
+        const targetChat = new URLSearchParams(window.location.search).get('chat');
+        setSelectedChatId(targetChat ? enhancedChats.find((chat: any) => chat.id === targetChat)?.id || null : enhancedChats[0]?.id || null);
       } catch (err) {
         console.error(err);
       } finally {
@@ -162,66 +125,20 @@ function MessagesInboxPage() {
     setActiveMessages([]);
 
     const loadActiveChat = async () => {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from('messages')
-        .select('id, chat_id, sender_id, content, created_at, is_read, type, offer_amount')
-        .eq('chat_id', selectedChatId)
-        .order('created_at', { ascending: true });
-
-      if (!active) return;
-      const messages = (data || []) as ChatMessage[];
-      setActiveMessages(messages);
-      const unreadIds = messages.filter(message => message.sender_id !== currentUserId && !message.is_read).map(message => message.id);
-      if (unreadIds.length > 0) {
-        await supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
-        setChats(previous => previous.map(chat => chat.id === selectedChatId && chat.latestMessage
-          ? { ...chat, unreadCount: 0, latestMessage: { ...chat.latestMessage, is_read: true } }
-          : chat));
+      try {
+        const response = await fetch(`/api/chats/${selectedChatId}/messages`, { cache: 'no-store' });
+        const result = await response.json();
+        if (!active) return;
+        if (!response.ok || !result.success) throw new Error(result.message || 'Unable to load messages');
+        setActiveMessages((result.messages || []) as ChatMessage[]);
+      } catch (error) {
+        console.error('Active chat load failed:', error);
       }
     };
 
     loadActiveChat().catch(error => console.error('Active chat load failed:', error));
     return () => { active = false; };
   }, [selectedChatId, currentUserId]);
-
-  useEffect(() => {
-    if (!currentUserId) return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`inbox_${currentUserId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-        const incoming = payload.new as ChatMessage;
-        const isMine = incoming.sender_id === currentUserId;
-        const isActiveChat = incoming.chat_id === selectedChatId;
-
-        setChats(previous => previous.map(chat => chat.id === incoming.chat_id
-          ? {
-              ...chat,
-              unreadCount: isMine || isActiveChat ? 0 : (chat.unreadCount || 0) + 1,
-              latestMessage: {
-                ...chat.latestMessage,
-                content: incoming.content || '',
-                created_at: incoming.created_at,
-                sender_id: incoming.sender_id,
-                is_read: isMine || isActiveChat,
-                type: incoming.type,
-                offer_amount: incoming.offer_amount,
-              },
-            }
-          : chat));
-
-        if (isActiveChat) {
-          setActiveMessages(previous => previous.some(message => message.id === incoming.id) ? previous : [...previous, incoming]);
-          if (!isMine) {
-            void supabase.from('messages').update({ is_read: true }).eq('id', incoming.id);
-          }
-        }
-      })
-      .subscribe();
-
-    return () => { void supabase.removeChannel(channel); };
-  }, [currentUserId, selectedChatId]);
 
   const handleSendMessage = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -231,15 +148,15 @@ function MessagesInboxPage() {
     const content = newMessage.trim();
     setNewMessage('');
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase.from('messages').insert({
-        chat_id: selectedChatId,
-        sender_id: currentUserId,
-        content,
-        type: 'text',
-      }).select().single();
-      if (error) throw error;
-      setActiveMessages(previous => [...previous, data as ChatMessage]);
+      const response = await fetch(`/api/chats/${selectedChatId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, type: 'text' }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Unable to send message');
+      const data = result.message as ChatMessage;
+      setActiveMessages(previous => [...previous, data]);
       setChats(previous => previous.map(chat => chat.id === selectedChatId
         ? { ...chat, unreadCount: 0, latestMessage: { content, created_at: data.created_at, sender_id: currentUserId, is_read: true, type: 'text' } }
         : chat));

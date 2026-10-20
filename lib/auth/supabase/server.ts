@@ -1,7 +1,8 @@
 import { createServerClient, isSupabaseConfigured } from './ssr';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseClient, type User } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
+import prisma from '@/lib/dbConn';
 
 function config() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -67,36 +68,37 @@ export async function getCurrentUser(request: NextRequest) {
   return { user, error };
 }
 
+export async function syncSupabaseProfile(user: User) {
+  const email = user.email ?? `${user.id}@unknown.invalid`;
+  const username = `${(user.email?.split('@')[0] || 'user').slice(0, 40)}-${user.id.slice(0, 8)}`;
+  const authName = user.user_metadata?.full_name;
+  return prisma.profile.upsert({
+    where: { id: user.id },
+    create: {
+      id: user.id,
+      username,
+      email,
+      role: 'regular',
+      emailVerified: Boolean(user.email_confirmed_at),
+      ...(typeof authName === 'string' && authName.trim() ? { fullName: authName.trim().slice(0, 120) } : {}),
+    },
+    update: { email, emailVerified: Boolean(user.email_confirmed_at) },
+  });
+}
+
 export async function getCurrentProfile(request: NextRequest) {
   const { user, error } = await getCurrentUser(request);
   if (!user || error) return { user: null, profile: null };
-
-  const admin = createAdminClient();
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('id, username, role, seller_status, verification_status, total_listings_posted, onboarding_complete')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  if (profile) {
-    return { user, profile };
-  }
-
-  const username = user.email ? user.email.split('@')[0] : 'user';
-  const { data: newProfile } = await admin
-    .from('profiles')
-    .insert({
-      id: user.id,
-      username,
-      email: user.email ?? 'unknown@example.com',
-      role: 'regular',
-      onboarding_complete: false,
-    })
-    .select('id, username, role, seller_status, verification_status, total_listings_posted, onboarding_complete')
-    .single();
+  const profile = await syncSupabaseProfile(user);
 
   return {
     user,
-    profile: newProfile ?? { id: user.id, username, role: 'regular', seller_status: null, verification_status: null, total_listings_posted: 0, onboarding_complete: false },
+    profile: {
+      ...profile,
+      seller_status: profile.sellerStatus,
+      verification_status: profile.verificationStatus,
+      total_listings_posted: profile.totalListingsPosted,
+      onboarding_complete: profile.onboardingComplete,
+    },
   };
 }

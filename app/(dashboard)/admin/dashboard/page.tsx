@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { FileText, Package, Users, LayoutDashboard, Settings, Menu, Search, Filter, Shield, Bell, CheckCircle2, Clock, XCircle, ArrowUpRight, LogOut, Loader2, Save, Megaphone, Store, ShieldCheck } from 'lucide-react';
-import { createClient } from '@/lib/auth/supabase/client';
 import AdConfigForm from '@/app/components/forms/AdConfigForm';
 import BlogManager from '@/app/components/blog/BlogManager';
 import { useAuth } from '@/lib/AuthContext';
@@ -121,38 +120,17 @@ function AdminDashboardContent() {
                     fetchJson('/api/admin/users'),
                     fetchJson('/api/admin/cars'),
                     fetchJson('/api/ad'),
-                ]).then(([uData, cData, aData]) => {
+                    fetchJson('/api/admin/overview'),
+                ]).then(([uData, cData, aData, overviewData]) => {
                     if (uData.data?.success) setLiveUsers((uData.data.users as Array<Record<string, unknown>>) || []);
                     if (cData.data?.success) setLiveCars((cData.data.cars as Array<Record<string, unknown>>) || []);
                     if (aData.data?.success && aData.data.ad) setAdConfig(aData.data.ad);
+                    if (overviewData.data?.success) {
+                        setPendingShops([]);
+                        setPendingSellerRequests((overviewData.data.seller_requests as Array<Record<string, unknown>>) || []);
+                        setPendingVerificationRequests((overviewData.data.badge_requests as Array<Record<string, unknown>>) || []);
+                    }
                 }).catch(console.error).finally(() => setDataLoading(false));
-
-                // Load pending shop verifications
-                const supabase = createClient();
-                supabase
-                    .from('pending_shop_verifications')
-                    .select('*')
-                    .then(({ data }) => {
-                        setPendingShops(data || []);
-                    });
-                supabase
-                    .from('profiles')
-                    .select('id, username, full_name, email, phone, cnic, shop_name, shop_description, shop_address, city, shop_image_url, seller_status, created_at')
-                    .eq('role', 'regular')
-                    .eq('seller_status', 'pending')
-                    .order('created_at', { ascending: true })
-                    .then(({ data }) => {
-                        setPendingSellerRequests(data || []);
-                    });
-                supabase
-                    .from('profiles')
-                    .select('id, username, full_name, email, phone, shop_name, verification_proof_url, verification_requested_at, verification_status')
-                    .eq('role', 'seller')
-                    .eq('verification_status', 'pending')
-                    .order('verification_requested_at', { ascending: true })
-                    .then(({ data }) => {
-                        setPendingVerificationRequests(data || []);
-                    });
             }
         }
     }, [authLoading, user, isAdmin]);
@@ -163,15 +141,19 @@ function AdminDashboardContent() {
     };
 
     const handleDeleteUser = async (id: string) => {
-        if (!confirm('Delete this user permanently?')) return;
-        await fetch('/api/admin/users', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-        setLiveUsers(prev => prev.filter(u => u._id !== id));
+        void id;
+        alert('Supabase Auth users are preserved and cannot be deleted from the admin dashboard.');
     };
 
     const handleDeleteCar = async (id: string) => {
         if (!confirm('Delete this listing permanently?')) return;
-        await fetch('/api/admin/cars', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-        setLiveCars(prev => prev.filter(c => c._id !== id));
+        const response = await fetch('/api/admin/cars', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            alert(result.message || 'Unable to archive listing.');
+            return;
+        }
+        setLiveCars(prev => prev.filter(c => c.id !== id));
     };
 
     const handleSaveAdConfig = async () => {
@@ -197,73 +179,49 @@ function AdminDashboardContent() {
         }
     };
 
-    const handleApproveShop = async (shopId: string) => {
-        const supabase = createClient();
-        const { error } = await supabase
-            .from('shops')
-            .update({ verification_status: 'verified', verified_at: new Date().toISOString() })
-            .eq('id', shopId);
-        if (!error) {
-            setPendingShops(prev => prev.filter(s => s.id !== shopId));
+    const updateAdminProfile = async (id: string, action: string) => {
+        const response = await fetch(`/api/admin/profiles/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action }),
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            alert(result.message || 'Unable to update request.');
+            return false;
         }
+        setPendingShops(previous => previous.filter(item => item.id !== id));
+        setPendingSellerRequests(previous => previous.filter(item => item.id !== id));
+        setPendingVerificationRequests(previous => previous.filter(item => item.id !== id));
+        return true;
+    };
+
+    const handleApproveShop = async (shopId: string) => {
+        await updateAdminProfile(shopId, 'approve_verification');
     };
 
     const handleRejectShop = async () => {
         if (!rejectingShopId) return;
-        const supabase = createClient();
-        const { error } = await supabase
-            .from('shops')
-            .update({ verification_status: 'rejected', rejection_reason: rejectionReason.trim() || 'Does not meet requirements.' })
-            .eq('id', rejectingShopId);
-        if (!error) {
-            setPendingShops(prev => prev.filter(s => s.id !== rejectingShopId));
+        if (await updateAdminProfile(rejectingShopId, 'reject_verification')) {
             setRejectingShopId(null);
             setRejectionReason('');
         }
     };
 
     const handleApproveSeller = async (userId: string) => {
-        const supabase = createClient();
-        const { error } = await supabase
-            .from('profiles')
-            .update({ role: 'seller', seller_status: 'approved' })
-            .eq('id', userId)
-            .eq('role', 'regular');
-        if (!error) {
-            setPendingSellerRequests(prev => prev.filter(request => request.id !== userId));
-        }
+        await updateAdminProfile(userId, 'approve_seller');
     };
 
     const handleRejectSeller = async (userId: string) => {
-        const supabase = createClient();
-        const { error } = await supabase
-            .from('profiles')
-            .update({ seller_status: 'rejected' })
-            .eq('id', userId)
-            .eq('role', 'regular');
-        if (!error) {
-            setPendingSellerRequests(prev => prev.filter(request => request.id !== userId));
-        }
+        await updateAdminProfile(userId, 'reject_seller');
     };
 
     const handleApproveVerification = async (userId: string) => {
-        const supabase = createClient();
-        const { error } = await supabase
-            .from('profiles')
-            .update({ verification_status: 'approved', verification_reviewed_at: new Date().toISOString() })
-            .eq('id', userId)
-            .eq('role', 'seller');
-        if (!error) setPendingVerificationRequests(prev => prev.filter(request => request.id !== userId));
+        await updateAdminProfile(userId, 'approve_verification');
     };
 
     const handleRejectVerification = async (userId: string) => {
-        const supabase = createClient();
-        const { error } = await supabase
-            .from('profiles')
-            .update({ verification_status: 'rejected', verification_reviewed_at: new Date().toISOString() })
-            .eq('id', userId)
-            .eq('role', 'seller');
-        if (!error) setPendingVerificationRequests(prev => prev.filter(request => request.id !== userId));
+        await updateAdminProfile(userId, 'reject_verification');
     };
 
 

@@ -1,4 +1,5 @@
-import { createServerSupabaseClient } from '@/lib/auth/supabase/server';
+import prisma from '@/lib/dbConn';
+import { serializeListing } from '@/lib/listings';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
 import StoreCatalog from '@/app/components/features/StoreCatalog';
@@ -12,35 +13,37 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const supabase = await createServerSupabaseClient();
-  const { data: shop } = await supabase
-    .from('profiles')
-    .select('shop_name, shop_description, verification_status')
-    .eq('id', id)
-    .eq('role', 'seller')
-    .eq('seller_status', 'approved')
-    .maybeSingle();
+  const shop = await prisma.profile.findFirst({
+    where: { id, role: 'seller', sellerStatus: 'approved' },
+    select: { shopName: true, shopDescription: true },
+  });
 
   if (!shop) return { title: 'Shop Not Found | SanatKaar' };
   return {
-    title: `${shop.shop_name || 'Shop'} | SanatKaar`,
-    description: shop.shop_description || `Browse listings from ${shop.shop_name || 'this shop'} on SanatKaar.`,
+    title: `${shop.shopName || 'Shop'} | SanatKaar`,
+    description: shop.shopDescription || `Browse listings from ${shop.shopName || 'this shop'} on SanatKaar.`,
   };
 }
 
 export default async function PublicShopPage({ params }: PageProps) {
   const { id } = await params;
-  const supabase = await createServerSupabaseClient();
 
-  const { data: shop, error: shopError } = await supabase
-    .from('profiles')
-    .select('shop_name, shop_description, shop_image_url, seller_status, verification_status')
-    .eq('id', id)
-    .eq('role', 'seller')
-    .eq('seller_status', 'approved')
-    .maybeSingle();
+  const shop = await prisma.profile.findFirst({
+    where: { id, role: 'seller', sellerStatus: 'approved' },
+    select: {
+      id: true,
+      shopName: true,
+      shopDescription: true,
+      shopImageUrl: true,
+      sellerStatus: true,
+      verificationStatus: true,
+      fullName: true,
+      username: true,
+      city: true,
+    },
+  });
 
-  if (shopError || !shop) {
+  if (!shop) {
     return (
       <div className="min-h-screen flex flex-col bg-[var(--background)]">
         <Navbar forceSolid />
@@ -64,36 +67,36 @@ export default async function PublicShopPage({ params }: PageProps) {
     );
   }
 
-  const { data: listings } = await supabase
-    .from('listings')
-    .select('*')
-    .eq('seller_id', id)
-    .eq('status', 'active')
-    .order('created_at', { ascending: false });
+  const listings = await prisma.listing.findMany({
+    where: { sellerId: id, status: 'active' },
+    orderBy: { createdAt: 'desc' },
+    include: { seller: { select: { id: true, username: true, fullName: true, role: true, city: true, shopName: true } } },
+  });
 
-  const isVerified = shop.verification_status === 'approved';
-  const bannerImage = shop.shop_image_url || null;
-  const logoImage = shop.shop_image_url || null;
+  const isVerified = shop.verificationStatus === 'approved';
+  const bannerImage = shop.shopImageUrl || null;
+  const logoImage = shop.shopImageUrl || null;
 
-  const parts = (listings || []).map((item: any) => ({
-    id: item.id,
-    brand: item.brand || item.make || 'General',
-    partName: item.title || `${item.make || ''} ${item.model || ''}`.trim() || 'Listing',
-    price: Number(item.price) || 0,
-    location: item.location || item.city || 'Pakistan',
-    image: Array.isArray(item.image_urls) && item.image_urls[0]
-      ? item.image_urls[0]
-      : '/placeholder.png',
-    compatibility: item.mileage || 'Universal',
-    condition: item.condition || 'New',
-    stockStatus: item.stock_status || 'Not specified',
-    isFeatured: false,
-    sellerRole: undefined,
-    sellerId: id,
-    sellerName: undefined,
-    category: item.category || 'General',
-    createdAt: item.created_at || new Date().toISOString(),
-  }));
+  const parts = listings.map((item) => {
+    const serialized = serializeListing(item as any);
+    return {
+      id: serialized.id,
+      brand: serialized.brand || 'General',
+      partName: serialized.title || 'Listing',
+      price: Number(serialized.price) || 0,
+      location: serialized.location || serialized.seller?.city || 'Pakistan',
+      image: Array.isArray(serialized.image_urls) && serialized.image_urls[0] ? serialized.image_urls[0] : '/placeholder.png',
+      compatibility: serialized.hours || 'Universal',
+      condition: serialized.condition || 'New',
+      stockStatus: serialized.stock_status || 'Not specified',
+      isFeatured: Boolean(serialized.is_featured),
+      sellerRole: serialized.seller?.role,
+      sellerId: id,
+      sellerName: serialized.seller?.full_name || serialized.seller?.username,
+      category: serialized.category || 'General',
+      createdAt: serialized.created_at || new Date().toISOString(),
+    };
+  });
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC] text-slate-800 font-sans">
@@ -105,7 +108,7 @@ export default async function PublicShopPage({ params }: PageProps) {
           {bannerImage ? (
             <img 
               src={bannerImage} 
-              alt={`${shop.shop_name || 'Shop'} Banner`} 
+              alt={`${shop.shopName || shop.fullName || 'Shop'} Banner`} 
               className="w-full h-full object-cover opacity-75" 
             />
           ) : (
@@ -124,7 +127,7 @@ export default async function PublicShopPage({ params }: PageProps) {
                 {logoImage ? (
                   <img 
                     src={logoImage} 
-                    alt={shop.shop_name || 'Shop'} 
+                    alt={shop.shopName || shop.fullName || 'Shop'}
                     className="w-full h-full object-cover rounded-xl" 
                   />
                 ) : (
@@ -136,7 +139,7 @@ export default async function PublicShopPage({ params }: PageProps) {
               <div className="min-w-0">
                 <div className="flex items-center gap-3 flex-wrap">
                   <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-                    {shop.shop_name || 'Unnamed Shop'}
+                    {shop.shopName || shop.fullName || shop.username || 'Unnamed Shop'}
                   </h1>
                   {isVerified && (
                     <span className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full">
@@ -166,13 +169,13 @@ export default async function PublicShopPage({ params }: PageProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
           
           {/* Shop Description */}
-          {shop.shop_description && (
+          {shop.shopDescription && (
             <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 mb-10 shadow-sm">
               <h2 className="text-xs font-bold text-primary uppercase tracking-widest mb-2 flex items-center gap-2">
                 <Store size={14} /> About Store
               </h2>
               <p className="whitespace-pre-wrap text-slate-600 text-sm leading-7">
-                {shop.shop_description}
+                {shop.shopDescription}
               </p>
             </div>
           )}

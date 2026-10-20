@@ -53,82 +53,50 @@ function BuyerPageContent() {
 
     useEffect(() => {
         const fetchParts = async () => {
-            try {
-                // Call Supabase directly instead of going through internal API to avoid deadlock
-                const { createClient } = await import('@/lib/auth/supabase/client');
-                const supabase = createClient();
-
-                const list = [];
-                for (let offset = 0; ; offset += 1000) {
-                    const { data, error } = await supabase.from('listings').select('*')
-                        .eq('status', 'active').order('created_at', { ascending: false }).order('id')
-                        .range(offset, offset + 999);
-                    if (error) throw error;
-                    list.push(...(data || []));
-                    if (!data || data.length < 1000) break;
+                try {
+                    const response = await fetch('/api/listings?limit=100', { cache: 'no-store' });
+                    const result = await response.json();
+                    if (!response.ok || !result.success || !Array.isArray(result.data)) throw new Error(result.message || 'Unable to load listings.');
+                    setParts(result.data.map((item: any) => ({
+                        id: item.id,
+                        brand: item.brand || item.make || 'Unknown',
+                        partName: item.title || `${item.make || ''} ${item.model || ''}`.trim() || 'Listing',
+                        price: Number(item.price) || 0,
+                        location: item.location || item.city || 'Pakistan',
+                        image: Array.isArray(item.image_urls) && item.image_urls[0] ? item.image_urls[0] : '/hero.jpg',
+                        compatibility: item.mileage || 'Universal',
+                        condition: item.condition || 'New',
+                        stockStatus: 'In Stock',
+                        isFeatured: Boolean(item.is_featured || item.status === 'active'),
+                        sellerRole: item.seller?.role || undefined,
+                        sellerId: item.seller_id || item.seller?.id || undefined,
+                        sellerName: item.seller?.full_name || item.seller?.username || undefined,
+                        category: item.category || 'General',
+                        categoryId: item.category_id,
+                        year: Number(item.year) || undefined,
+                        createdAt: item.created_at || new Date().toISOString()
+                    })));
+                } catch (err: any) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
                 }
-                setParts(list.map((item: any) => ({
-                    id: item.id,
-                    brand: item.brand || item.make || 'Unknown',
-                    partName: item.title || `${item.make || ''} ${item.model || ''}`.trim() || 'Listing',
-                    price: Number(item.price) || 0,
-                    location: item.location || item.city || 'Pakistan',
-                    image: Array.isArray(item.image_urls) && item.image_urls[0]
-                        ? item.image_urls[0]
-                        : '/hero.jpg',
-                    compatibility: item.mileage || 'Universal',
-                    condition: item.condition || 'New',
-                    stockStatus: 'In Stock',
-                    isFeatured: item.status === 'active',
-                    sellerRole: item.sellerRole || undefined,
-                    sellerId: item.sellerId || undefined,
-                    sellerName: item.sellerName || undefined,
-                    category: item.category || 'General',
-                    categoryId: item.category_id,
-                    year: Number(item.year) || undefined,
-                    createdAt: item.created_at || new Date().toISOString()
-                })));
-            } catch (err: any) {
-                setError(err.message);
-            } finally {
-                setLoading(false);
-            }
-        };
+            };
 
-        const fetchBrands = async () => {
-            try {
-                const { createClient } = await import('@/lib/auth/supabase/client');
-                const supabase = createClient();
-                const { data: brandsData, error } = await supabase
-                    .from('brands')
-                    .select('id, name')
-                    .eq('is_active', true)
-                    .order('name');
-
-                if (!error && Array.isArray(brandsData)) {
-                    setBrands(brandsData);
-                } else {
-                    // Fallback to static brands if table doesn't exist or is empty
-                    setBrands([
-                        { id: '1', name: 'Tajima' },
-                        { id: '2', name: 'Barudan' },
-                        { id: '3', name: 'Janome' },
-                        { id: '4', name: 'Groz-Beckert' },
-                        { id: '5', name: 'Brother' }
-                    ]);
+            const fetchBrands = async () => {
+                try {
+                    const response = await fetch('/api/brands', { cache: 'no-store' });
+                    const result = await response.json();
+                    if (response.ok && result.success && Array.isArray(result.brands)) {
+                        setBrands(result.brands);
+                    } else {
+                        setBrands([]);
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch brands:', err);
+                    setBrands([]);
                 }
-            } catch (err) {
-                console.error('Failed to fetch brands:', err);
-                // Fallback to static brands
-                setBrands([
-                    { id: '1', name: 'Tajima' },
-                    { id: '2', name: 'Barudan' },
-                    { id: '3', name: 'Janome' },
-                    { id: '4', name: 'Groz-Beckert' },
-                    { id: '5', name: 'Brother' }
-                ]);
-            }
-        };
+            };
 
         const fetchAd = async () => {
             try {

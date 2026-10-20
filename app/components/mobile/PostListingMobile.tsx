@@ -5,9 +5,6 @@ import Link from 'next/link';
 import { ChevronLeft, MessageSquare, Upload, Info, ChevronDown, X, Loader } from 'lucide-react';
 import BrandSelect from '@/app/components/BrandSelect';
 import { FIXED_CATEGORY_OPTIONS } from '@/lib/categoryConstants';
-import { createClient } from '@/lib/auth/supabase/client'; // یا آپ کا اپنا supabase client import path
-
-const supabase = createClient();
 
 export default function PostListingMobile() {
   const [selectedCategory, setSelectedCategory] = useState<string>('parts');
@@ -63,32 +60,21 @@ export default function PostListingMobile() {
       };
       reader.readAsDataURL(file);
 
-      // Upload to Supabase Storage
-      const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${file.name}`;
-      const { data, error } = await supabase.storage
-        .from('listings')
-        .upload(`listings/${fileName}`, file, {
-          cacheControl: '3600',
-          upsert: false,
-        });
-
-      if (error) throw error;
-
-      if (data) {
-        const { data: publicUrlData } = supabase.storage
-          .from('listings')
-          .getPublicUrl(`listings/${fileName}`);
-
-        const imageUrl = publicUrlData.publicUrl;
-
-        setUploadedImages((prev) => {
-          const newImages = [...prev];
-          newImages[index] = imageUrl;
-          return newImages;
-        });
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch('/api/upload', { method: 'POST', body: formData });
+      const result = await response.json();
+      if (!response.ok || !result.success || !result.urls?.[0]) {
+        throw new Error(result.message || 'Image upload failed.');
       }
-    } catch (error: any) {
-      setUploadError(`Image upload failed: ${error.message}`);
+      const imageUrl = result.urls[0] as string;
+      setUploadedImages((prev) => {
+        const newImages = [...prev];
+        newImages[index] = imageUrl;
+        return newImages;
+      });
+    } catch (error: unknown) {
+      setUploadError(`Image upload failed: ${error instanceof Error ? error.message : 'Please try again.'}`);
       console.error('Upload error:', error);
     } finally {
       setUploading(false);
@@ -158,15 +144,6 @@ export default function PostListingMobile() {
         return;
       }
 
-      // Get Current User
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-      if (authError || !user) {
-        setSubmitError('User not authenticated');
-        setSubmitting(false);
-        return;
-      }
-
       // Prepare Listing Data
       const listingData = {
         title: formData.title,
@@ -184,18 +161,15 @@ export default function PostListingMobile() {
         category: selectedCategory,
         description: formData.description || null,
         image_urls: uploadedImages.filter((img) => img),
-        seller_id: user.id,
-        status: 'active',
-        is_featured: false,
       };
 
-      // Insert into Database
-      const { data: insertedListing, error: insertError } = await supabase
-        .from('listings')
-        .insert([listingData])
-        .select();
-
-      if (insertError) throw insertError;
+      const response = await fetch('/api/listings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(listingData),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Could not create listing.');
 
       setSubmitSuccess(true);
       // Reset Form
@@ -221,8 +195,8 @@ export default function PostListingMobile() {
       setTimeout(() => {
         window.location.href = '/my-listings';
       }, 1500);
-    } catch (error: any) {
-      setSubmitError(`Submission failed: ${error.message}`);
+    } catch (error: unknown) {
+      setSubmitError(`Submission failed: ${error instanceof Error ? error.message : 'Please try again.'}`);
       console.error('Submit error:', error);
     } finally {
       setSubmitting(false);

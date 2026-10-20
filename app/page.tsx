@@ -5,7 +5,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { BadgeCheck, Search, SlidersHorizontal, Store } from 'lucide-react';
-import { createClient } from '@/lib/auth/supabase/client';
 import { FIXED_CATEGORY_OPTIONS } from '@/lib/categoryConstants';
 import PriceSlider, { type PriceRange } from './components/PriceSlider';
 import CategoriesSection from './api/categories/Category';
@@ -121,29 +120,15 @@ export default function Home() {
     let active = true;
 
     const loadStorefront = async () => {
-      const supabase = createClient();
-      const [brandResult, shopResult, listingResult] = await Promise.all([
-        supabase
-          .from('brands')
-          .select('id, name, logo_url')
-          .eq('is_active', true)
-          .order('name'),
-        supabase
-          .from('shops')
-          .select('id, seller_id, title, image_urls, verification_status')
-          .order('created_at', { ascending: false })
-          .limit(12),
-        supabase
-          .from('listings')
-          .select('id, title, price, location, image_urls, brand, category, condition')
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(8),
+      const responses = await Promise.all([
+        fetch('/api/brands', { cache: 'no-store' }),
+        fetch('/api/shops?limit=12', { cache: 'no-store' }),
+        fetch('/api/listings?limit=8', { cache: 'no-store' }),
       ]);
-
+      const [brandResult, shopResult, listingResult] = await Promise.all(responses.map(response => response.json()));
       if (!active) return;
-      setBrands(brandResult.data || []);
-      setShops(shopResult.data || []);
+      setBrands(brandResult.brands || []);
+      setShops(shopResult.shops || []);
       setRecentListings(listingResult.data || []);
 
       try {
@@ -372,7 +357,7 @@ export default function Home() {
         <CategoriesSection categories={categories} />
         {categories.some(category => category.is_popular) && <CategoriesSection categories={categories.filter(category => category.is_popular)} title="Popular categories" />}
 
-        <section aria-labelledby="verified-sellers-heading">
+        {/* <section aria-labelledby="verified-sellers-heading">
           <SectionHeading title="Verified sellers" href="/shops" linkLabel="Meet our sellers" />
           {sellersError && <div role="alert" className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
             <span>Could not refresh verified sellers.</span>
@@ -407,7 +392,7 @@ export default function Home() {
               {sellersLoading ? 'Loading verified sellers...' : sellersError ? 'Seller information is temporarily unavailable.' : 'No verified sellers yet.'}
             </p>
           )}
-        </section>
+        </section> */}
 
         <div className="lg:hidden">
           <FeaturedListingsMobile />

@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
-import { createClient } from '@/lib/auth/supabase/client';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { FIXED_CATEGORY_OPTIONS, normalizeCategoryValue } from '@/lib/categoryConstants';
@@ -77,58 +76,15 @@ function createEmptyForm(): ListingFormState {
   };
 }
 
-function getStoragePathFromUrl(url: string) {
-  try {
-    const parsedUrl = new URL(url);
-    const parts = parsedUrl.pathname.split('/').filter(Boolean);
-    const publicIndex = parts.indexOf('public');
-    if (publicIndex === -1 || publicIndex + 2 >= parts.length) return null;
-    return {
-      bucketName: decodeURIComponent(parts[publicIndex + 1]),
-      path: parts.slice(publicIndex + 2).join('/') ? decodeURIComponent(parts.slice(publicIndex + 2).join('/')) : null,
-    };
-  } catch { return null; }
-}
-
-async function getStorageBucketCandidates(supabase: ReturnType<typeof createClient>) {
-  const preferred = ['listing-images', 'listings', 'images', 'public', 'uploads'];
-  try {
-    const { data, error } = await supabase.storage.listBuckets();
-    if (!error) {
-      const available = (data || []).map((b: { name?: string }) => b.name).filter(Boolean) as string[];
-      return Array.from(new Set([...preferred, ...available]));
-    }
-  } catch { /* ignore */ }
-  return preferred;
-}
-
-async function uploadImageToStorage(supabase: ReturnType<typeof createClient>, image: File, userId: string, listingId: string) {
-  const bucketCandidates = await getStorageBucketCandidates(supabase);
-  let lastError: Error | null = null;
-  for (const bucketName of bucketCandidates) {
-    const fileName = `${Date.now()}-${image.name.replace(/\s+/g, '-').slice(0, 80)}`;
-    const path = `${userId}/${listingId}-${fileName}`;
-    const { error } = await supabase.storage.from(bucketName).upload(path, image, { upsert: true });
-    if (!error) {
-      const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(path);
-      return { bucketName, publicUrl: publicUrlData.publicUrl };
-    }
-    const msg = error.message?.toLowerCase() || '';
-    if (!msg.includes('bucket') && !msg.includes('not found')) break;
-    lastError = new Error(error.message);
+async function uploadImages(images: File[]) {
+  const formData = new FormData();
+  images.forEach(image => formData.append('files', image));
+  const response = await fetch('/api/upload', { method: 'POST', body: formData });
+  const result = await response.json();
+  if (!response.ok || !result.success || !Array.isArray(result.urls)) {
+    throw new Error(result.message || 'Image upload failed.');
   }
-  throw lastError || new Error('Image upload failed');
-}
-
-async function removeImageFromStorage(supabase: ReturnType<typeof createClient>, bucketName: string, storagePath: string) {
-  if (!bucketName || !storagePath) return;
-  const candidates = Array.from(new Set([bucketName, 'listing-images', 'listings', 'images', 'public', 'uploads']));
-  for (const name of candidates) {
-    try {
-      const { error } = await supabase.storage.from(name).remove([storagePath]);
-      if (!error) return;
-    } catch { /* ignore */ }
-  }
+  return result.urls as string[];
 }
 
 export default function MyAdsPage() {
@@ -154,13 +110,13 @@ export default function MyAdsPage() {
   const loadListings = async () => {
     if (!user) return;
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('listings').select('*').eq('seller_id', user.id)
-        .order('created_at', { ascending: false });
-      if (!error) setListings((data || []) as ListingItem[]);
+      const response = await fetch('/api/listings?includeOwn=true&limit=60', { cache: 'no-store' });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Could not load listings.');
+      setListings((result.data || []).filter((listing: ListingItem) => listing.seller_id === user.id));
     } catch (err) {
       console.error('Failed to load listings', err);
+      setErrorMessage(err instanceof Error ? err.message : 'Could not load listings.');
     } finally {
       setLoading(false);
     }
@@ -187,10 +143,13 @@ export default function MyAdsPage() {
     if (!user) return;
     setErrorMessage(''); setSuccessMessage(''); setSaving(false);
     try {
-      const supabase = createClient();
-      const { data, error } = await supabase.from('listings').select('*')
-        .eq('id', listing.id).eq('seller_id', user.id).maybeSingle();
-      if (error || !data) { setErrorMessage(t('this_listing_not_loaded')); return; }
+      const response = await fetch(`/api/listings/${listing.id}`, { cache: 'no-store' });
+      const result = await response.json();
+      const data = result.listing;
+      if (!response.ok || !result.success || !data || data.seller_id !== user.id) {
+        setErrorMessage(t('this_listing_not_loaded'));
+        return;
+      }
 
       const nextForm: ListingFormState = {
         title: data.title || `${data.brand || data.make || ''} ${data.model || ''}`.trim(),
@@ -226,10 +185,14 @@ export default function MyAdsPage() {
     if (!user) return;
     setDeletingId(id);
     try {
-      const supabase = createClient();
-      const { error } = await supabase.from('listings').delete().eq('id', id).eq('seller_id', user.id);
-      if (!error) setListings(prev => prev.filter(l => l.id !== id));
-    } catch (err) { console.error('Failed to delete listing', err); }
+      const response = await fetch(`/api/listings/${id}`, { method: 'DELETE' });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Could not delete listing.');
+      setListings(prev => prev.filter(l => l.id !== id));
+    } catch (err) {
+      console.error('Failed to delete listing', err);
+      setErrorMessage(err instanceof Error ? err.message : 'Could not delete listing.');
+    }
     finally { setDeletingId(null); }
   };
 
@@ -238,13 +201,16 @@ export default function MyAdsPage() {
     const newStatus = 'sold';
     setMarkingSoldId(id);
     try {
-      const supabase = createClient();
-      const { error } = await supabase.from('listings').update({ status: newStatus }).eq('id', id).eq('seller_id', user.id);
-      if (!error) {
-        setListings(prev => prev.map(l => l.id === id ? { ...l, status: newStatus } : l));
-        setSuccessMessage(newStatus === 'sold' ? t('listing_marked_sold') : t('listing_reactivated'));
-        setTimeout(() => setSuccessMessage(''), 3000);
-      }
+      const response = await fetch(`/api/listings/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Could not update listing.');
+      setListings(prev => prev.map(l => l.id === id ? { ...l, status: newStatus } : l));
+      setSuccessMessage(t('listing_marked_sold'));
+      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) { console.error('Failed to update listing status', err); }
     finally { setMarkingSoldId(null); }
   };
@@ -281,21 +247,8 @@ export default function MyAdsPage() {
     if (!editingListing || !user) return;
     setSaving(true); setErrorMessage(''); setSuccessMessage('');
     try {
-      const supabase = createClient();
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
-      if (authError || !authUser) throw new Error(t('log_in_again'));
-
       const remaining = existingImages.filter(u => !removedExistingImages.includes(u));
-      for (const url of removedExistingImages) {
-        const pathInfo = getStoragePathFromUrl(url);
-        if (pathInfo?.path) await removeImageFromStorage(supabase, pathInfo.bucketName, pathInfo.path);
-      }
-
-      const uploadedUrls: string[] = [];
-      for (const image of newImages) {
-        const { publicUrl } = await uploadImageToStorage(supabase, image, authUser.id, editingListing.id);
-        uploadedUrls.push(publicUrl);
-      }
+      const uploadedUrls = await uploadImages(newImages);
 
       const payload = {
         title: form.title || `${form.brand} ${form.model}`.trim(),
@@ -310,13 +263,15 @@ export default function MyAdsPage() {
         image_urls: [...remaining, ...uploadedUrls],
         status: editingListing.status || 'active',
         phone_number: form.phone,
-        secondary_phone: form.secondaryPhone,
-        allow_whatsapp: form.allowWhatsapp,
       };
 
-      const { error: updateError } = await supabase.from('listings').update(payload)
-        .eq('id', editingListing.id).eq('seller_id', authUser.id);
-      if (updateError) throw updateError;
+      const response = await fetch(`/api/listings/${editingListing.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Could not update listing.');
 
       setSuccessMessage(t('listing_updated'));
       await loadListings();

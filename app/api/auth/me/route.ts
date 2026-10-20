@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
     user: {
       id: user.id,
       email: user.email,
-      name: profile.username,
+      name: profile.fullName || profile.username,
+      username: profile.username,
       role: profile.role,
       seller_status: profile.seller_status ?? null,
       verification_status: profile.verification_status ?? null,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/auth/supabase/server';
-import { createServerClient } from '@/lib/auth/supabase/ssr';
+import { syncSupabaseProfile } from '@/lib/auth/supabase/server';
 import { AUTH_COOKIE_NAME, authCookieOptions, authCookieValue } from '@/lib/auth/supabase/auth-cookie';
 
 export async function POST(request: NextRequest) {
@@ -13,13 +13,7 @@ export async function POST(request: NextRequest) {
     if (error || !user) {
       return NextResponse.json({ success: false, message: 'Session expired. Please sign in again.' }, { status: 401 });
     }
-    if (body.emailVerified && user.email_confirmed_at) {
-      const client = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-        cookies: { getAll: () => [{ name: AUTH_COOKIE_NAME, value: authCookieValue(body) }], setAll: () => {} },
-      });
-      const { error: profileError } = await client.from('profiles').update({ email_verified: true }).eq('id', user.id).eq('email_verified', false);
-      if (profileError) console.error('Unable to update email verification:', profileError.code);
-    }
+    await syncSupabaseProfile(user);
     const response = NextResponse.json({ success: true, message: 'Session synced successfully' });
     response.cookies.set(AUTH_COOKIE_NAME, authCookieValue(body), authCookieOptions());
     return response;

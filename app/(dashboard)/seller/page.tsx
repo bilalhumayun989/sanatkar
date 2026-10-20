@@ -12,7 +12,6 @@ import {
 import Link from 'next/link';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
-import { createClient } from '@/lib/auth/supabase/client';
 import { FIXED_CATEGORY_OPTIONS, normalizeCategoryValue } from '@/lib/categoryConstants';
 
 import BrandSelect from '@/app/components/BrandSelect';
@@ -124,34 +123,31 @@ function SellerPageContent() {
         const loadListingForEdit = async () => {
             if (!editListingId || !authUser) return;
             try {
-                const supabase = createClient();
-                const { data, error } = await supabase
-                    .from('listings')
-                    .select('*')
-                    .eq('id', editListingId)
-                    .eq('seller_id', authUser.id)
-                    .maybeSingle();
+                const response = await fetch(`/api/listings/${editListingId}`, { credentials: 'include' });
+                const payload = await response.json();
+                if (!response.ok || !payload.success || !payload.listing) {
+                    throw new Error(payload.message || t('unable_open_editor'));
+                }
 
-                if (error || !data) { setError(t('unable_open_editor')); return; }
-
+                const listing = payload.listing;
                 setEditingListing(true);
-                setExistingImages(data.image_urls || []);
+                setExistingImages(listing.image_urls || []);
                 setForm(prev => ({
                     ...prev,
-                    title: data.title || '',
-                    origin: data.origin || '',
-                    stock_status: data.stock_status || '',
-                    city: data.location || prev.city,
-                    make: data.brand || data.make || prev.make,
-                    model: data.model || prev.model,
-                    year: String(data.year ?? ''),
-                    condition: (CONDITIONS.includes(data.condition?.toLowerCase() as Condition) ? data.condition.toLowerCase() : prev.condition) as Condition,
-                    category: normalizeCategoryValue(data.category),
-                    mileage: String(data.hours ?? ''),
-                    price: String(data.price ?? ''),
-                    description: data.description || prev.description,
-                    phone: data.phone_number || prev.phone,
-                    allowWhatsapp: data.contact_option?.toLowerCase() === 'whatsapp',
+                    title: listing.title || '',
+                    origin: listing.origin || '',
+                    stock_status: listing.stock_status || '',
+                    city: listing.location || prev.city,
+                    make: listing.brand || prev.make,
+                    model: listing.model || prev.model,
+                    year: String(listing.year ?? ''),
+                    condition: (CONDITIONS.includes(String(listing.condition || '').toLowerCase() as Condition) ? String(listing.condition || '').toLowerCase() : prev.condition) as Condition,
+                    category: normalizeCategoryValue(listing.category),
+                    mileage: String(listing.hours ?? ''),
+                    price: String(listing.price ?? ''),
+                    description: listing.description || prev.description,
+                    phone: listing.phone_number || prev.phone,
+                    allowWhatsapp: String(listing.contact_option || '').toLowerCase() === 'whatsapp',
                 }));
             } catch {
                 setError(t('unable_open_editor'));
@@ -223,11 +219,9 @@ function SellerPageContent() {
 
         try {
             setSubmitting(true);
-            const supabase = createClient();
-            const { data: { user }, error: authError } = await supabase.auth.getUser();
-            if (authError || !user) { setError(t('login_required')); return; }
+            if (!authUser) { setError(t('login_required')); return; }
 
-            const basePayload: Record<string, unknown> = {
+            const payload = {
                 title: form.title.trim(),
                 brand: form.make.trim(),
                 model: form.model,
@@ -240,68 +234,74 @@ function SellerPageContent() {
                 location: form.city,
                 description: form.description,
                 image_urls: existingImages,
-                seller_id: user.id,
                 condition: form.condition,
                 status: 'active',
                 phone_number: form.phone,
                 contact_option: form.allowWhatsapp ? 'WhatsApp' : 'Call',
             };
 
-            let listing: { id: string } | null = null;
-            let insertError: { message?: string; details?: string; hint?: string } | null = null;
-
+            let listingId = editListingId;
             if (editListingId) {
-                const result = await supabase.from('listings').update(basePayload).eq('id', editListingId).eq('seller_id', user.id).select('id').single();
-                listing = result.data as { id: string } | null;
-                insertError = result.error;
-            } else {
-                const result = await supabase.from('listings').insert(basePayload).select('id').single();
-                listing = result.data as { id: string } | null;
-                insertError = result.error;
-            }
-
-            if (insertError) {
-                if (insertError.message?.includes('AD_LIMIT_REACHED')) {
-                    setError(t('ad_limit_reached'));
-                } else {
-                    const details = [insertError.message, insertError.details, insertError.hint].filter(Boolean).join(' ');
-                    setError(details || (editListingId ? t('failed_update_listing') : t('failed_post_listing')));
+                const response = await fetch(`/api/listings/${editListingId}`, {
+                    method: 'PATCH',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || t('failed_update_listing'));
                 }
-                return;
+                listingId = data.listing?.id || editListingId;
+            } else {
+                const response = await fetch('/api/listings', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    const message = data.message || t('failed_post_listing');
+                    if (message.includes('AD_LIMIT_REACHED')) {
+                        throw new Error(t('ad_limit_reached'));
+                    }
+                    throw new Error(message);
+                }
+                listingId = data.listing?.id;
             }
 
-            if (!listing?.id) { setError(editListingId ? t('failed_update_listing') : t('failed_create_listing')); return; }
+            if (!listingId) {
+                throw new Error(editListingId ? t('failed_update_listing') : t('failed_create_listing'));
+            }
 
             let uploadedUrls: string[] = [];
             if (images.length > 0) {
                 setUploading(true);
-                uploadedUrls = await Promise.all(images.map(async (image) => {
-                    const preferredBuckets = ['listing-images', 'listings', 'images', 'public', 'uploads'];
-                    let availableBuckets: string[] = [];
-                    try {
-                        const { data, error } = await supabase.storage.listBuckets();
-                        if (!error) availableBuckets = (data || []).map((b: { name?: string }) => b.name).filter(Boolean) as string[];
-                    } catch { /* ignore */ }
-                    const bucketCandidates = Array.from(new Set([...preferredBuckets, ...availableBuckets]));
-                    const fileName = `${Date.now()}-${image.name.replace(/\s+/g, '-').slice(0, 80)}`;
-                    const path = `${user.id}/${listing!.id}-${fileName}`;
-                    let lastError: Error | null = null;
-                    for (const bucketName of bucketCandidates) {
-                        const { error: uploadError } = await supabase.storage.from(bucketName).upload(path, image, { upsert: true });
-                        if (!uploadError) {
-                            const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(path);
-                            return publicUrlData.publicUrl;
-                        }
-                        const msg = uploadError.message?.toLowerCase() || '';
-                        if (!msg.includes('bucket') && !msg.includes('not found')) break;
-                        lastError = new Error(uploadError.message);
-                    }
-                    throw lastError || new Error('Image upload failed');
-                }));
+                const formData = new FormData();
+                images.forEach((image) => formData.append('files', image));
+                const uploadResponse = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'include',
+                });
+                const uploadJson = await uploadResponse.json();
+                if (!uploadResponse.ok || !uploadJson.success || !Array.isArray(uploadJson.urls)) {
+                    throw new Error(uploadJson.message || 'Image upload failed');
+                }
+                uploadedUrls = uploadJson.urls;
+                const mergePayload = { image_urls: [...existingImages, ...uploadedUrls] };
+                const updateResponse = await fetch(`/api/listings/${listingId}`, {
+                    method: 'PATCH',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(mergePayload),
+                });
+                const updateJson = await updateResponse.json();
+                if (!updateResponse.ok || !updateJson.success) {
+                    throw new Error(updateJson.message || 'Unable to attach listing images.');
+                }
             }
-
-            const { error: imageError } = await supabase.from('listings').update({ image_urls: [...existingImages, ...uploadedUrls] }).eq('id', listing.id).eq('seller_id', user.id);
-            if (imageError) throw imageError;
             setSuccess(true);
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : t('failed_post_listing');

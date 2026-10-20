@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/auth/supabase/client';
 import { 
   ArrowLeft, 
   Plus, 
@@ -27,6 +26,7 @@ import {
 
 interface Listing {
   id: string;
+  seller_id: string | null;
   title: string;
   price: number;
   location: string;
@@ -45,7 +45,6 @@ interface Listing {
 }
 
 export default function MyListingsPage() {
-  const supabase = createClient();
   const router = useRouter();
 
   const [listings, setListings] = useState<Listing[]>([]);
@@ -62,31 +61,26 @@ export default function MyListingsPage() {
   const fetchActiveListings = useCallback(async () => {
     try {
       setLoading(true);
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-      if (authError || !user) {
+      const response = await fetch('/api/listings?includeOwn=true&limit=60', { cache: 'no-store' });
+      const result = await response.json();
+      if (response.status === 401) {
         router.push('/login');
         return;
       }
-
-      const { data, error } = await supabase
-        .from('listings')
-        .select('*')
-        .eq('seller_id', user.id)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching active listings:', error);
-      } else {
-        setListings(data || []);
+      if (!response.ok || !result.success) throw new Error(result.message || 'Unable to load your listings.');
+      const meResponse = await fetch('/api/auth/me', { cache: 'no-store' });
+      const meResult = await meResponse.json();
+      if (!meResponse.ok || !meResult.success || !meResult.user) {
+        router.push('/login');
+        return;
       }
+      setListings((result.data || []).filter((item: Listing) => item.seller_id === meResult.user.id && item.status === 'active'));
     } catch (err) {
       console.error('Unexpected error:', err);
     } finally {
       setLoading(false);
     }
-  }, [router, supabase]);
+  }, [router]);
 
   useEffect(() => {
     fetchActiveListings();
@@ -109,23 +103,14 @@ export default function MyListingsPage() {
 
     try {
       setUploadingImage(true);
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}-${Date.now()}.${fileExt}`;
-      const filePath = `listings/${fileName}`;
-
-      // Upload image to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('listing-images') // Apne Supabase Storage Bucket ka naam confirm kar lein
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      // Get Public URL
-      const { data: publicUrlData } = supabase.storage
-        .from('listing-images')
-        .getPublicUrl(filePath);
-
-      const newImageUrl = publicUrlData.publicUrl;
+      const formData = new FormData();
+      formData.append('file', file);
+      const response = await fetch('/api/upload', { method: 'POST', body: formData });
+      const result = await response.json();
+      if (!response.ok || !result.success || !result.urls?.[0]) {
+        throw new Error(result.message || 'Image upload failed.');
+      }
+      const newImageUrl = result.urls[0] as string;
 
       // Append new image URL to image_urls array
       const updatedImageUrls = [...(selectedListing.image_urls || []), newImageUrl];
@@ -162,9 +147,10 @@ export default function MyListingsPage() {
     setMessage(null);
 
     try {
-      const { error } = await supabase
-        .from('listings')
-        .update({
+      const response = await fetch(`/api/listings/${selectedListing.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           title: selectedListing.title,
           price: selectedListing.price,
           location: selectedListing.location,
@@ -178,10 +164,10 @@ export default function MyListingsPage() {
           description: selectedListing.description,
           status: selectedListing.status,
           image_urls: selectedListing.image_urls,
-        })
-        .eq('id', selectedListing.id);
-
-      if (error) throw error;
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Listing update failed.');
 
       setMessage({ type: 'success', text: 'Listing updated successfully!' });
       
@@ -209,9 +195,9 @@ export default function MyListingsPage() {
     setIsDeleting(true);
 
     try {
-      const { error } = await supabase.from('listings').delete().eq('id', id);
-
-      if (error) throw error;
+      const response = await fetch(`/api/listings/${id}`, { method: 'DELETE' });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Listing deletion failed.');
 
       setListings((prev) => prev.filter((item) => item.id !== id));
       setSelectedListing(null);
@@ -234,12 +220,13 @@ export default function MyListingsPage() {
 
     try {
       // Update status to "sold" in database
-      const { error } = await supabase
-        .from('listings')
-        .update({ status: 'sold' })
-        .eq('id', selectedListing.id);
-
-      if (error) throw error;
+      const response = await fetch(`/api/listings/${selectedListing.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'sold' }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Could not update listing.');
 
       setMessage({ type: 'success', text: 'Listing marked as sold!' });
 

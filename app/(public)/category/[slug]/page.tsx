@@ -7,7 +7,6 @@ import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
 import PartCard from '@/app/components/features/PartCard';
 import { Search, SlidersHorizontal, Check, Loader2, X, Package } from 'lucide-react';
-import { createClient } from '@/lib/auth/supabase/client';
 import { useLanguage } from '@/lib/LanguageContext';
 import { FIXED_CATEGORY_OPTIONS, normalizeCategoryValue } from '@/lib/categoryConstants';
 
@@ -65,7 +64,6 @@ function CategoryPageContent() {
     const loadCategoryData = async () => {
       setLoading(true);
       try {
-        const supabase = createClient();
         const normalizedSlug = normalizeCategoryValue(slug);
         const fallbackCategory = FIXED_CATEGORY_OPTIONS.find((option) => option.value === normalizedSlug);
         setCategory({
@@ -74,15 +72,10 @@ function CategoryPageContent() {
           slug: normalizedSlug,
         });
 
-        const { data: listingsData, error: listingsError } = await supabase
-          .from('listings')
-          .select('id, title, brand, make, model, price, location, city, image_urls, condition, category, created_at, status')
-          .eq('category', normalizedSlug)
-          .eq('status', 'active')
-          .order('created_at', { ascending: false });
-
-        if (!listingsError) {
-          setListings((listingsData || []) as ListingRecord[]);
+        const response = await fetch(`/api/listings?category=${encodeURIComponent(normalizedSlug)}&limit=200`, { cache: 'no-store' });
+        const result = await response.json();
+        if (response.ok && result.success && Array.isArray(result.data)) {
+          setListings(result.data as ListingRecord[]);
         } else {
           setListings([]);
         }

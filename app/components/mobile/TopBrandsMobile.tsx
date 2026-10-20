@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { createClient } from '@/lib/auth/supabase/client';
 import { useLanguage } from '@/lib/LanguageContext';
 
 interface Brand {
@@ -20,17 +19,17 @@ export default function TopBrandsMobile() {
 
   useEffect(() => {
     async function fetchBrands() {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from('brands')
-        .select('id, name, logo_url')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        setBrands(data);
+      try {
+        const response = await fetch('/api/brands', { cache: 'no-store' });
+        const result = await response.json();
+        if (response.ok && result.success && Array.isArray(result.brands)) {
+          setBrands(result.brands.filter((brand: any) => brand.is_active !== false));
+        }
+      } catch (error) {
+        console.error('Failed to fetch top brands:', error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
 
     fetchBrands();

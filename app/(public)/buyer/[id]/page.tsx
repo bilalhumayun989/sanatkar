@@ -10,52 +10,18 @@ import {
 } from 'lucide-react';
 import MakeOfferButton from '@/app/components/features/MakeOfferButton';
 import type { Metadata } from 'next';
-import { createServerSupabaseClient } from '@/lib/auth/supabase/server';
+import { listingSellerSelect, serializeListing } from '@/lib/listings';
 
 async function loadListingOrCar(id: string) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data: listing, error: listingError } = await supabase
-      .from('listings')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-
-    if (listing) {
-      let sellerProfile: any = null;
-      if (listing.seller_id) {
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('id, username, phone, role')
-          .eq('id', listing.seller_id)
-          .maybeSingle();
-
-        if (!profileError && profile) {
-          sellerProfile = profile;
-        }
-      }
-
-      return {
-        ...listing,
-        seller: sellerProfile,
-        isSupabaseListing: true,
-      };
-    }
-
-    if (listingError) {
-      console.warn('Supabase listing lookup failed:', listingError.message || listingError);
-    }
-  } catch (err) {
-    console.warn('Supabase listing fetch failed:', err);
-  }
-
-  try {
-    return await prisma.car.findUnique({
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+    const listing = await prisma.listing.findUnique({
       where: { id },
-      include: { seller: { select: { id: true, name: true, role: true } } },
+      include: { seller: { select: listingSellerSelect } },
     });
+    return listing ? serializeListing(listing) : null;
   } catch (err) {
-    console.error('Prisma car fetch failed:', err);
+    console.error('Prisma listing fetch failed:', err);
     return null;
   }
 }

@@ -1,48 +1,22 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/dbConn';
 
+const defaultAd = {
+  isActive: false,
+  title: '',
+  description: '',
+  buttonText: '',
+  buttonLink: '',
+  imageUrl: '',
+  badgeText: '',
+};
+
 export async function GET() {
-    try {
-        // Check if prisma is properly configured
-        if (!process.env.DATABASE_URL) {
-            console.warn('DATABASE_URL not configured, returning empty ad config');
-            return NextResponse.json({ 
-                success: true, 
-                ad: {
-                    isActive: false,
-                    title: '',
-                    description: '',
-                    buttonText: '',
-                    buttonLink: '',
-                    imageUrl: '',
-                    badgeText: ''
-                }
-            });
-        }
-
-        // We only maintain one primary Ad configuration in the database for now
-        let adContent = await prisma.ad.findFirst();
-
-        // If no ad exists, trigger creation with default values
-        if (!adContent) {
-            adContent = await prisma.ad.create({ data: {} });
-        }
-
-        return NextResponse.json({ success: true, ad: adContent });
-    } catch (error: any) {
-        console.warn('Ad API error:', error.message);
-        // Return safe fallback instead of failing
-        return NextResponse.json({ 
-            success: true, 
-            ad: {
-                isActive: false,
-                title: '',
-                description: '',
-                buttonText: '',
-                buttonLink: '',
-                imageUrl: '',
-                badgeText: ''
-            }
-        });
-    }
+  try {
+    const ad = await prisma.ad.findFirst({ where: { isActive: true }, orderBy: { createdAt: 'desc' } });
+    return NextResponse.json({ success: true, ad: ad ?? defaultAd });
+  } catch (error) {
+    console.error('Ad configuration query failed:', error);
+    return NextResponse.json({ success: false, ad: defaultAd, message: 'Unable to load ad configuration.' }, { status: 500 });
+  }
 }

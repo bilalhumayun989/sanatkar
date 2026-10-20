@@ -6,20 +6,1616 @@ ON CONFLICT (id) DO UPDATE SET public = true, file_size_limit = EXCLUDED.file_si
 
 DROP POLICY IF EXISTS "Admins upload blog images" ON storage.objects;
 CREATE POLICY "Admins upload blog images" ON storage.objects FOR INSERT TO authenticated
-WITH CHECK (bucket_id = 'blog-images' AND EXISTS (
-  SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'
-));
 
-DROP POLICY IF EXISTS "Admins manage blog images" ON storage.objects;
-CREATE POLICY "Admins manage blog images" ON storage.objects FOR SELECT TO authenticated
-USING (bucket_id = 'blog-images' AND EXISTS (
-  SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'
-));
 
-DROP POLICY IF EXISTS "Admins delete blog images" ON storage.objects;
-CREATE POLICY "Admins delete blog images" ON storage.objects FOR DELETE TO authenticated
-USING (bucket_id = 'blog-images' AND EXISTS (
-  SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'
-));
 
-COMMIT;
+
+
+-- [
+--   {
+--     "table_name": "badge_requests",
+--     "constraint_name": "2200_19472_7_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "badge_requests",
+--     "constraint_name": "2200_19472_6_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "badge_requests",
+--     "constraint_name": "2200_19472_5_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "badge_requests",
+--     "constraint_name": "2200_19472_4_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "badge_requests",
+--     "constraint_name": "2200_19472_2_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "badge_requests",
+--     "constraint_name": "2200_19472_8_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "badge_requests",
+--     "constraint_name": "2200_19472_3_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "badge_requests",
+--     "constraint_name": "2200_19472_1_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "badge_requests",
+--     "constraint_name": "badge_requests_user_id_fkey",
+--     "constraint_type": "FOREIGN KEY",
+--     "column_name": "user_id",
+--     "referenced_table": "profiles",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "badge_requests",
+--     "constraint_name": "badge_requests_pkey",
+--     "constraint_type": "PRIMARY KEY",
+--     "column_name": "id",
+--     "referenced_table": "badge_requests",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "2200_20416_5_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "2200_20416_4_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "2200_20416_3_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "2200_20416_2_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "2200_20416_1_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "blog_posts_author_name_check",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": "blog_posts",
+--     "referenced_column": "author_name"
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "blog_posts_category_check",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": "blog_posts",
+--     "referenced_column": "category"
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "blog_posts_content_check",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": "blog_posts",
+--     "referenced_column": "content"
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "blog_posts_excerpt_check",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": "blog_posts",
+--     "referenced_column": "excerpt"
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "blog_posts_cover_image_url_check",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": "blog_posts",
+--     "referenced_column": "cover_image_url"
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "blog_posts_title_check",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": "blog_posts",
+--     "referenced_column": "title"
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "blog_posts_status_check",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": "blog_posts",
+--     "referenced_column": "status"
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "blog_posts_slug_check",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": "blog_posts",
+--     "referenced_column": "slug"
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "2200_20416_11_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "2200_20416_10_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "2200_20416_9_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "2200_20416_8_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "2200_20416_7_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "2200_20416_6_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "blog_posts_pkey",
+--     "constraint_type": "PRIMARY KEY",
+--     "column_name": "id",
+--     "referenced_table": "blog_posts",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "constraint_name": "blog_posts_slug_key",
+--     "constraint_type": "UNIQUE",
+--     "column_name": "slug",
+--     "referenced_table": "blog_posts",
+--     "referenced_column": "slug"
+--   },
+--   {
+--     "table_name": "brands",
+--     "constraint_name": "2200_17842_2_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "brands",
+--     "constraint_name": "2200_17842_1_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "brands",
+--     "constraint_name": "brands_pkey",
+--     "constraint_type": "PRIMARY KEY",
+--     "column_name": "id",
+--     "referenced_table": "brands",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "categories",
+--     "constraint_name": "2200_17854_8_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "categories",
+--     "constraint_name": "2200_17854_1_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "categories",
+--     "constraint_name": "2200_17854_2_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "categories",
+--     "constraint_name": "categories_pkey",
+--     "constraint_type": "PRIMARY KEY",
+--     "column_name": "id",
+--     "referenced_table": "categories",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "chat_hidden_for",
+--     "constraint_name": "2200_20545_3_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "chat_hidden_for",
+--     "constraint_name": "2200_20545_2_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "chat_hidden_for",
+--     "constraint_name": "2200_20545_1_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "chat_hidden_for",
+--     "constraint_name": "chat_hidden_for_chat_id_fkey",
+--     "constraint_type": "FOREIGN KEY",
+--     "column_name": "chat_id",
+--     "referenced_table": "chats",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "chat_hidden_for",
+--     "constraint_name": "chat_hidden_for_user_id_fkey",
+--     "constraint_type": "FOREIGN KEY",
+--     "column_name": "user_id",
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "chat_hidden_for",
+--     "constraint_name": "chat_hidden_for_pkey",
+--     "constraint_type": "PRIMARY KEY",
+--     "column_name": "chat_id",
+--     "referenced_table": "chat_hidden_for",
+--     "referenced_column": "user_id"
+--   },
+--   {
+--     "table_name": "chat_hidden_for",
+--     "constraint_name": "chat_hidden_for_pkey",
+--     "constraint_type": "PRIMARY KEY",
+--     "column_name": "chat_id",
+--     "referenced_table": "chat_hidden_for",
+--     "referenced_column": "chat_id"
+--   },
+--   {
+--     "table_name": "chat_hidden_for",
+--     "constraint_name": "chat_hidden_for_pkey",
+--     "constraint_type": "PRIMARY KEY",
+--     "column_name": "user_id",
+--     "referenced_table": "chat_hidden_for",
+--     "referenced_column": "user_id"
+--   },
+--   {
+--     "table_name": "chat_hidden_for",
+--     "constraint_name": "chat_hidden_for_pkey",
+--     "constraint_type": "PRIMARY KEY",
+--     "column_name": "user_id",
+--     "referenced_table": "chat_hidden_for",
+--     "referenced_column": "chat_id"
+--   },
+--   {
+--     "table_name": "chats",
+--     "constraint_name": "2200_17521_1_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "chats",
+--     "constraint_name": "chats_seller_id_fkey",
+--     "constraint_type": "FOREIGN KEY",
+--     "column_name": "seller_id",
+--     "referenced_table": "profiles",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "chats",
+--     "constraint_name": "chats_listing_id_fkey",
+--     "constraint_type": "FOREIGN KEY",
+--     "column_name": "listing_id",
+--     "referenced_table": "listings",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "chats",
+--     "constraint_name": "chats_buyer_id_fkey",
+--     "constraint_type": "FOREIGN KEY",
+--     "column_name": "buyer_id",
+--     "referenced_table": "profiles",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "chats",
+--     "constraint_name": "chats_pkey",
+--     "constraint_type": "PRIMARY KEY",
+--     "column_name": "id",
+--     "referenced_table": "chats",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "favorites",
+--     "constraint_name": "2200_18091_3_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "favorites",
+--     "constraint_name": "2200_18091_4_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "favorites",
+--     "constraint_name": "2200_18091_2_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "favorites",
+--     "constraint_name": "2200_18091_1_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "favorites",
+--     "constraint_name": "favorites_listing_id_fkey",
+--     "constraint_type": "FOREIGN KEY",
+--     "column_name": "listing_id",
+--     "referenced_table": "listings",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "favorites",
+--     "constraint_name": "favorites_user_id_fkey",
+--     "constraint_type": "FOREIGN KEY",
+--     "column_name": "user_id",
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "favorites",
+--     "constraint_name": "favorites_pkey",
+--     "constraint_type": "PRIMARY KEY",
+--     "column_name": "id",
+--     "referenced_table": "favorites",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "favorites",
+--     "constraint_name": "favorites_user_id_listing_id_key",
+--     "constraint_type": "UNIQUE",
+--     "column_name": "listing_id",
+--     "referenced_table": "favorites",
+--     "referenced_column": "listing_id"
+--   },
+--   {
+--     "table_name": "favorites",
+--     "constraint_name": "favorites_user_id_listing_id_key",
+--     "constraint_type": "UNIQUE",
+--     "column_name": "user_id",
+--     "referenced_table": "favorites",
+--     "referenced_column": "user_id"
+--   },
+--   {
+--     "table_name": "favorites",
+--     "constraint_name": "favorites_user_id_listing_id_key",
+--     "constraint_type": "UNIQUE",
+--     "column_name": "user_id",
+--     "referenced_table": "favorites",
+--     "referenced_column": "listing_id"
+--   },
+--   {
+--     "table_name": "favorites",
+--     "constraint_name": "favorites_user_id_listing_id_key",
+--     "constraint_type": "UNIQUE",
+--     "column_name": "listing_id",
+--     "referenced_table": "favorites",
+--     "referenced_column": "user_id"
+--   },
+--   {
+--     "table_name": "listing_shares",
+--     "constraint_name": "2200_20495_1_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "listing_shares",
+--     "constraint_name": "2200_20495_2_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "listing_shares",
+--     "constraint_name": "2200_20495_3_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "listing_shares",
+--     "constraint_name": "listing_shares_event_id_check",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": "listing_shares",
+--     "referenced_column": "event_id"
+--   },
+--   {
+--     "table_name": "listing_shares",
+--     "constraint_name": "2200_20495_4_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "listing_shares",
+--     "constraint_name": "listing_shares_listing_id_fkey",
+--     "constraint_type": "FOREIGN KEY",
+--     "column_name": "listing_id",
+--     "referenced_table": "listings",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "listing_shares",
+--     "constraint_name": "listing_shares_pkey",
+--     "constraint_type": "PRIMARY KEY",
+--     "column_name": "event_id",
+--     "referenced_table": "listing_shares",
+--     "referenced_column": "event_id"
+--   },
+--   {
+--     "table_name": "listing_views",
+--     "constraint_name": "2200_20484_1_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "listing_views",
+--     "constraint_name": "2200_20484_2_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "listing_views",
+--     "constraint_name": "2200_20484_3_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "listing_views",
+--     "constraint_name": "listing_views_listing_id_fkey",
+--     "constraint_type": "FOREIGN KEY",
+--     "column_name": "listing_id",
+--     "referenced_table": "listings",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "listing_views",
+--     "constraint_name": "listing_views_pkey",
+--     "constraint_type": "PRIMARY KEY",
+--     "column_name": "listing_id",
+--     "referenced_table": "listing_views",
+--     "referenced_column": "viewer_id"
+--   },
+--   {
+--     "table_name": "listing_views",
+--     "constraint_name": "listing_views_pkey",
+--     "constraint_type": "PRIMARY KEY",
+--     "column_name": "listing_id",
+--     "referenced_table": "listing_views",
+--     "referenced_column": "listing_id"
+--   },
+--   {
+--     "table_name": "listing_views",
+--     "constraint_name": "listing_views_pkey",
+--     "constraint_type": "PRIMARY KEY",
+--     "column_name": "viewer_id",
+--     "referenced_table": "listing_views",
+--     "referenced_column": "listing_id"
+--   },
+--   {
+--     "table_name": "listing_views",
+--     "constraint_name": "listing_views_pkey",
+--     "constraint_type": "PRIMARY KEY",
+--     "column_name": "viewer_id",
+--     "referenced_table": "listing_views",
+--     "referenced_column": "viewer_id"
+--   },
+--   {
+--     "table_name": "listings",
+--     "constraint_name": "2200_17502_4_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "listings",
+--     "constraint_name": "2200_17502_1_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "listings",
+--     "constraint_name": "2200_17502_2_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "listings",
+--     "constraint_name": "2200_17502_3_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "listings",
+--     "constraint_name": "listings_seller_id_fkey",
+--     "constraint_type": "FOREIGN KEY",
+--     "column_name": "seller_id",
+--     "referenced_table": "profiles",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "listings",
+--     "constraint_name": "listings_pkey",
+--     "constraint_type": "PRIMARY KEY",
+--     "column_name": "id",
+--     "referenced_table": "listings",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "messages",
+--     "constraint_name": "2200_17544_1_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "messages",
+--     "constraint_name": "2200_17544_4_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "messages",
+--     "constraint_name": "messages_sender_id_fkey",
+--     "constraint_type": "FOREIGN KEY",
+--     "column_name": "sender_id",
+--     "referenced_table": "profiles",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "messages",
+--     "constraint_name": "messages_chat_id_fkey",
+--     "constraint_type": "FOREIGN KEY",
+--     "column_name": "chat_id",
+--     "referenced_table": "chats",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "messages",
+--     "constraint_name": "messages_pkey",
+--     "constraint_type": "PRIMARY KEY",
+--     "column_name": "id",
+--     "referenced_table": "messages",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "notifications",
+--     "constraint_name": "2200_17590_1_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "notifications",
+--     "constraint_name": "2200_17590_4_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "notifications",
+--     "constraint_name": "2200_17590_3_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "notifications",
+--     "constraint_name": "notifications_user_id_fkey",
+--     "constraint_type": "FOREIGN KEY",
+--     "column_name": "user_id",
+--     "referenced_table": "profiles",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "notifications",
+--     "constraint_name": "notifications_pkey",
+--     "constraint_type": "PRIMARY KEY",
+--     "column_name": "id",
+--     "referenced_table": "notifications",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "offers",
+--     "constraint_name": "2200_17565_5_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "offers",
+--     "constraint_name": "2200_17565_1_not_null",
+--     "constraint_type": "CHECK",
+--     "column_name": null,
+--     "referenced_table": null,
+--     "referenced_column": null
+--   },
+--   {
+--     "table_name": "offers",
+--     "constraint_name": "offers_buyer_id_fkey",
+--     "constraint_type": "FOREIGN KEY",
+--     "column_name": "buyer_id",
+--     "referenced_table": "profiles",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "offers",
+--     "constraint_name": "offers_seller_id_fkey",
+--     "constraint_type": "FOREIGN KEY",
+--     "column_name": "seller_id",
+--     "referenced_table": "profiles",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "offers",
+--     "constraint_name": "offers_listing_id_fkey",
+--     "constraint_type": "FOREIGN KEY",
+--     "column_name": "listing_id",
+--     "referenced_table": "listings",
+--     "referenced_column": "id"
+--   },
+--   {
+--     "table_name": "offers",
+--     "constraint_name": "offers_pkey",
+--     "constraint_type": "PRIMARY KEY",
+--     "column_name": "id",
+--     "referenced_table": "offers",
+--     "referenced_column": "id"
+--   }
+-- ]
+
+
+
+
+-- [
+--   {
+--     "table_name": "badge_requests",
+--     "column_name": "id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": "gen_random_uuid()"
+--   },
+--   {
+--     "table_name": "badge_requests",
+--     "column_name": "user_id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "badge_requests",
+--     "column_name": "full_name",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": "''::text"
+--   },
+--   {
+--     "table_name": "badge_requests",
+--     "column_name": "phone_number",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": "''::text"
+--   },
+--   {
+--     "table_name": "badge_requests",
+--     "column_name": "payment_ref",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": "''::text"
+--   },
+--   {
+--     "table_name": "badge_requests",
+--     "column_name": "status",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": "'pending'::text"
+--   },
+--   {
+--     "table_name": "badge_requests",
+--     "column_name": "created_at",
+--     "data_type": "timestamp with time zone",
+--     "udt_name": "timestamptz",
+--     "is_nullable": "NO",
+--     "column_default": "now()"
+--   },
+--   {
+--     "table_name": "badge_requests",
+--     "column_name": "updated_at",
+--     "data_type": "timestamp with time zone",
+--     "udt_name": "timestamptz",
+--     "is_nullable": "NO",
+--     "column_default": "now()"
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "column_name": "id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": "gen_random_uuid()"
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "column_name": "slug",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "column_name": "title",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "column_name": "excerpt",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "column_name": "content",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "column_name": "category",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "column_name": "author_name",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "column_name": "cover_image_url",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": "''::text"
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "column_name": "status",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": "'draft'::text"
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "column_name": "created_at",
+--     "data_type": "timestamp with time zone",
+--     "udt_name": "timestamptz",
+--     "is_nullable": "NO",
+--     "column_default": "now()"
+--   },
+--   {
+--     "table_name": "blog_posts",
+--     "column_name": "updated_at",
+--     "data_type": "timestamp with time zone",
+--     "udt_name": "timestamptz",
+--     "is_nullable": "NO",
+--     "column_default": "now()"
+--   },
+--   {
+--     "table_name": "brands",
+--     "column_name": "id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": "uuid_generate_v4()"
+--   },
+--   {
+--     "table_name": "brands",
+--     "column_name": "name",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "brands",
+--     "column_name": "logo_url",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": "''::text"
+--   },
+--   {
+--     "table_name": "brands",
+--     "column_name": "description",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": "''::text"
+--   },
+--   {
+--     "table_name": "brands",
+--     "column_name": "is_active",
+--     "data_type": "boolean",
+--     "udt_name": "bool",
+--     "is_nullable": "YES",
+--     "column_default": "true"
+--   },
+--   {
+--     "table_name": "brands",
+--     "column_name": "created_at",
+--     "data_type": "timestamp with time zone",
+--     "udt_name": "timestamptz",
+--     "is_nullable": "YES",
+--     "column_default": "now()"
+--   },
+--   {
+--     "table_name": "categories",
+--     "column_name": "id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": "uuid_generate_v4()"
+--   },
+--   {
+--     "table_name": "categories",
+--     "column_name": "name",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "categories",
+--     "column_name": "icon_code",
+--     "data_type": "integer",
+--     "udt_name": "int4",
+--     "is_nullable": "YES",
+--     "column_default": "58345"
+--   },
+--   {
+--     "table_name": "categories",
+--     "column_name": "description",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": "''::text"
+--   },
+--   {
+--     "table_name": "categories",
+--     "column_name": "is_active",
+--     "data_type": "boolean",
+--     "udt_name": "bool",
+--     "is_nullable": "YES",
+--     "column_default": "true"
+--   },
+--   {
+--     "table_name": "categories",
+--     "column_name": "created_at",
+--     "data_type": "timestamp with time zone",
+--     "udt_name": "timestamptz",
+--     "is_nullable": "YES",
+--     "column_default": "now()"
+--   },
+--   {
+--     "table_name": "categories",
+--     "column_name": "image_url",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": "''::text"
+--   },
+--   {
+--     "table_name": "categories",
+--     "column_name": "is_popular",
+--     "data_type": "boolean",
+--     "udt_name": "bool",
+--     "is_nullable": "NO",
+--     "column_default": "false"
+--   },
+--   {
+--     "table_name": "chat_hidden_for",
+--     "column_name": "chat_id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "chat_hidden_for",
+--     "column_name": "user_id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "chat_hidden_for",
+--     "column_name": "hidden_at",
+--     "data_type": "timestamp with time zone",
+--     "udt_name": "timestamptz",
+--     "is_nullable": "NO",
+--     "column_default": "now()"
+--   },
+--   {
+--     "table_name": "chats",
+--     "column_name": "id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": "uuid_generate_v4()"
+--   },
+--   {
+--     "table_name": "chats",
+--     "column_name": "listing_id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "chats",
+--     "column_name": "buyer_id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "chats",
+--     "column_name": "seller_id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "chats",
+--     "column_name": "created_at",
+--     "data_type": "timestamp with time zone",
+--     "udt_name": "timestamptz",
+--     "is_nullable": "YES",
+--     "column_default": "now()"
+--   },
+--   {
+--     "table_name": "chats",
+--     "column_name": "updated_at",
+--     "data_type": "timestamp with time zone",
+--     "udt_name": "timestamptz",
+--     "is_nullable": "YES",
+--     "column_default": "now()"
+--   },
+--   {
+--     "table_name": "favorites",
+--     "column_name": "id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": "gen_random_uuid()"
+--   },
+--   {
+--     "table_name": "favorites",
+--     "column_name": "user_id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "favorites",
+--     "column_name": "listing_id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "favorites",
+--     "column_name": "created_at",
+--     "data_type": "timestamp with time zone",
+--     "udt_name": "timestamptz",
+--     "is_nullable": "NO",
+--     "column_default": "now()"
+--   },
+--   {
+--     "table_name": "listing_shares",
+--     "column_name": "listing_id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "listing_shares",
+--     "column_name": "sharer_id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "listing_shares",
+--     "column_name": "event_id",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "listing_shares",
+--     "column_name": "shared_at",
+--     "data_type": "timestamp with time zone",
+--     "udt_name": "timestamptz",
+--     "is_nullable": "NO",
+--     "column_default": "now()"
+--   },
+--   {
+--     "table_name": "listing_views",
+--     "column_name": "listing_id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "listing_views",
+--     "column_name": "viewer_id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "listing_views",
+--     "column_name": "first_viewed_at",
+--     "data_type": "timestamp with time zone",
+--     "udt_name": "timestamptz",
+--     "is_nullable": "NO",
+--     "column_default": "now()"
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": "uuid_generate_v4()"
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "title",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "price",
+--     "data_type": "numeric",
+--     "udt_name": "numeric",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "location",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "image_urls",
+--     "data_type": "ARRAY",
+--     "udt_name": "_text",
+--     "is_nullable": "YES",
+--     "column_default": "'{}'::text[]"
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "year",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "brand",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "category",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": "'Machine'::text"
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "description",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "hours",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "condition",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": "'Used'::text"
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "seller_id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "status",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": "'active'::text"
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "model",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "origin",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "stock_status",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "phone_number",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "contact_option",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "is_featured",
+--     "data_type": "boolean",
+--     "udt_name": "bool",
+--     "is_nullable": "YES",
+--     "column_default": "false"
+--   },
+--   {
+--     "table_name": "listings",
+--     "column_name": "created_at",
+--     "data_type": "timestamp with time zone",
+--     "udt_name": "timestamptz",
+--     "is_nullable": "YES",
+--     "column_default": "now()"
+--   },
+--   {
+--     "table_name": "messages",
+--     "column_name": "id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": "uuid_generate_v4()"
+--   },
+--   {
+--     "table_name": "messages",
+--     "column_name": "chat_id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "messages",
+--     "column_name": "sender_id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "messages",
+--     "column_name": "content",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "messages",
+--     "column_name": "type",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": "'text'::text"
+--   },
+--   {
+--     "table_name": "messages",
+--     "column_name": "offer_amount",
+--     "data_type": "numeric",
+--     "udt_name": "numeric",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "messages",
+--     "column_name": "is_read",
+--     "data_type": "boolean",
+--     "udt_name": "bool",
+--     "is_nullable": "YES",
+--     "column_default": "false"
+--   },
+--   {
+--     "table_name": "messages",
+--     "column_name": "created_at",
+--     "data_type": "timestamp with time zone",
+--     "udt_name": "timestamptz",
+--     "is_nullable": "YES",
+--     "column_default": "now()"
+--   },
+--   {
+--     "table_name": "notifications",
+--     "column_name": "id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": "uuid_generate_v4()"
+--   },
+--   {
+--     "table_name": "notifications",
+--     "column_name": "user_id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "notifications",
+--     "column_name": "title",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "notifications",
+--     "column_name": "message",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "notifications",
+--     "column_name": "type",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": "'general'::text"
+--   },
+--   {
+--     "table_name": "notifications",
+--     "column_name": "is_read",
+--     "data_type": "boolean",
+--     "udt_name": "bool",
+--     "is_nullable": "YES",
+--     "column_default": "false"
+--   },
+--   {
+--     "table_name": "notifications",
+--     "column_name": "created_at",
+--     "data_type": "timestamp with time zone",
+--     "udt_name": "timestamptz",
+--     "is_nullable": "YES",
+--     "column_default": "now()"
+--   },
+--   {
+--     "table_name": "offers",
+--     "column_name": "id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": "uuid_generate_v4()"
+--   },
+--   {
+--     "table_name": "offers",
+--     "column_name": "listing_id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "offers",
+--     "column_name": "buyer_id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "offers",
+--     "column_name": "seller_id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "offers",
+--     "column_name": "offer_price",
+--     "data_type": "numeric",
+--     "udt_name": "numeric",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "offers",
+--     "column_name": "status",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": "'pending'::text"
+--   },
+--   {
+--     "table_name": "offers",
+--     "column_name": "created_at",
+--     "data_type": "timestamp with time zone",
+--     "udt_name": "timestamptz",
+--     "is_nullable": "YES",
+--     "column_default": "now()"
+--   },
+--   {
+--     "table_name": "profiles",
+--     "column_name": "id",
+--     "data_type": "uuid",
+--     "udt_name": "uuid",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "profiles",
+--     "column_name": "username",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": "'Unknown'::text"
+--   },
+--   {
+--     "table_name": "profiles",
+--     "column_name": "email",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": null
+--   },
+--   {
+--     "table_name": "profiles",
+--     "column_name": "role",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "NO",
+--     "column_default": "'regular'::text"
+--   },
+--   {
+--     "table_name": "profiles",
+--     "column_name": "phone",
+--     "data_type": "text",
+--     "udt_name": "text",
+--     "is_nullable": "YES",
+--     "column_default": null
+--   }
+-- ]

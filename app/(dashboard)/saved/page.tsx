@@ -7,7 +7,6 @@ import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { createClient } from '@/lib/auth/supabase/client';
 
 interface SavedListing {
   id: string;
@@ -50,21 +49,21 @@ export default function SavedPage() {
       setError('');
       setListings([]);
       try {
-        const supabase = createClient();
-        const { data: favorites, error: favoriteError } = await supabase.from('favorites')
-          .select('id, listing_id').eq('user_id', user.id).order('created_at', { ascending: false });
-        if (favoriteError) throw favoriteError;
-        if (!favorites?.length) return;
-        const { data: products, error: productError } = await supabase.from('listings')
-          .select('id, title, brand, category, price, location, image_urls, condition, status')
-          .in('id', favorites.map(favorite => favorite.listing_id));
-        if (productError) throw productError;
-        const byId = new Map((products || []).map(product => [product.id, product]));
-        const saved: SavedListing[] = [];
-        for (const favorite of favorites) {
-          const product = byId.get(favorite.listing_id);
-          if (product) saved.push({ ...product, id: favorite.id, listing_id: favorite.listing_id });
-        }
+        const response = await fetch('/api/favorites', { cache: 'no-store' });
+        const result = await response.json();
+        if (!response.ok || !result.success) throw new Error(result.message || 'Favorites lookup failed');
+        const saved: SavedListing[] = (result.favorites || []).map((favorite: any) => ({
+          id: favorite.id,
+          listing_id: favorite.listing_id,
+          title: favorite.listing?.title || '',
+          brand: favorite.listing?.brand || null,
+          category: favorite.listing?.category || null,
+          price: favorite.listing?.price ?? null,
+          location: favorite.listing?.location || null,
+          image_urls: favorite.listing?.image_urls || [],
+          condition: favorite.listing?.condition || null,
+          status: favorite.listing?.status || null,
+        }));
         if (active) setListings(saved);
       } catch {
         if (active) setError('We could not load your saved listings. Please try again.');
@@ -89,8 +88,13 @@ export default function SavedPage() {
     setRemoving(current => [...current, item.id]);
     setActionError('');
     try {
-      const { error: removeError } = await createClient().from('favorites').delete().eq('id', item.id).eq('user_id', user.id);
-      if (removeError) throw removeError;
+      const response = await fetch('/api/favorites', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ listing_id: item.listing_id }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Delete failed');
       setListings(current => current.filter(listing => listing.id !== item.id));
     } catch {
       setActionError('Could not remove this listing. Please try again.');

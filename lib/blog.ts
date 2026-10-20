@@ -35,10 +35,14 @@ export function validateBlog(post: BlogInput): string | null {
   if (blogSlug(post.slug) !== post.slug) return 'Use letters, numbers, and hyphens for the URL slug.';
   if (!['draft', 'published'].includes(post.status)) return 'Choose draft or published.';
   if (post.cover_image_url) {
-    try {
-      const url = new URL(post.cover_image_url);
-      if (url.protocol !== 'https:') return 'Use an HTTPS cover image URL.';
-    } catch { return 'Enter a valid cover image URL.'; }
+    const isLocalUpload = /^\/uploads\/[A-Za-z0-9._/-]+$/.test(post.cover_image_url)
+      && !post.cover_image_url.split('/').includes('..');
+    if (!isLocalUpload) {
+      try {
+        const url = new URL(post.cover_image_url);
+        if (url.protocol !== 'https:') return 'Use an HTTPS cover image URL or a local /uploads/ path.';
+      } catch { return 'Enter a valid HTTPS image URL or a local /uploads/ path.'; }
+    }
   }
   return null;
 }

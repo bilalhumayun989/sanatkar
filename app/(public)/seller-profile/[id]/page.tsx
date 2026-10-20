@@ -6,7 +6,6 @@ import Footer from '@/app/components/layout/Footer';
 import PartCard from '@/app/components/features/PartCard';
 import Link from 'next/link';
 import { ArrowLeft, Store, BadgeCheck, Package, Layers, Search, X, Loader2 } from 'lucide-react';
-import { createClient } from '@/lib/auth/supabase/client';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -28,25 +27,12 @@ export default function SellerProfilePage({ params }: PageProps) {
 
     const fetchShopData = async () => {
       try {
-        const supabase = createClient();
+        const response = await fetch(`/api/shops/${shopId}`, { cache: 'no-store' });
+        const result = await response.json();
 
-        const { data: shopData } = await supabase
-          .from('shops')
-          .select('*')
-          .eq('seller_id', shopId)
-          .maybeSingle();
-
-        if (shopData) {
-          setShop(shopData);
-
-          const { data: listings } = await supabase
-            .from('listings')
-            .select('*')
-            .eq('seller_id', shopId)
-            .eq('status', 'active')
-            .order('created_at', { ascending: false });
-
-          const mappedParts = (listings || []).map((item: any) => ({
+        if (response.ok && result.success && result.shop) {
+          setShop(result.shop);
+          const mappedParts = (result.listings || []).map((item: any) => ({
             id: item.id,
             brand: item.brand || item.make || 'General',
             partName: item.title || `${item.make || ''} ${item.model || ''}`.trim() || 'Listing',
@@ -58,7 +44,7 @@ export default function SellerProfilePage({ params }: PageProps) {
             compatibility: item.mileage || 'Universal',
             condition: item.condition || 'New',
             stockStatus: 'In Stock',
-            isFeatured: false,
+            isFeatured: Boolean(item.is_featured),
             sellerRole: null,
             sellerId: shopId,
             sellerName: null,

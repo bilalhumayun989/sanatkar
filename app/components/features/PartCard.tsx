@@ -6,32 +6,12 @@ import { useRouter } from 'next/navigation';
 import { Part } from '../../../lib/database/mockData';
 import { Heart, MapPin, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
-import { createClient } from '@/lib/auth/supabase/client';
 import { useLanguage } from '@/lib/LanguageContext';
 
 interface PartCardProps {
     part: Part & { favoriteId?: string };
     onUnsave?: () => void;
     compact?: boolean;
-}
-
-// Key used in localStorage to remember that the favorites table is missing
-const FAVORITES_DISABLED_KEY = 'sanatkar_favorites_disabled';
-
-function isFavoritesDisabled(): boolean {
-    try {
-        return localStorage.getItem(FAVORITES_DISABLED_KEY) === '1';
-    } catch {
-        return false;
-    }
-}
-
-function disableFavorites(): void {
-    try {
-        localStorage.setItem(FAVORITES_DISABLED_KEY, '1');
-    } catch {
-        // ignore
-    }
 }
 
 export default function PartCard({ part, onUnsave, compact = false }: PartCardProps) {
@@ -56,49 +36,20 @@ export default function PartCard({ part, onUnsave, compact = false }: PartCardPr
             return;
         }
 
-        // Skip if we already know the table is missing
-        if (isFavoritesDisabled()) {
-            setIsLiked(false);
-            return;
-        }
-
         const loadFavorite = async () => {
             try {
-                const supabase = createClient();
-                const { data, error } = await supabase
-                    .from('favorites')
-                    .select('id')
-                    .eq('user_id', user.id)
-                    .eq('listing_id', part.id)
-                    .maybeSingle();
-
-                // Any error (404, 42P01, PGRST106, etc.) means table is likely missing
-                if (error) {
-                    // Only disable if it looks like a table/schema issue
-                    const msg = (error.message || '').toLowerCase();
-                    const code = error.code || '';
-                    if (
-                        code === 'PGRST106' ||
-                        code === '42P01' ||
-                        msg.includes('does not exist') ||
-                        msg.includes('not found') ||
-                        msg.includes('relation')
-                    ) {
-                        console.warn('Favorites table not available. Feature disabled.');
-                        disableFavorites();
-                    }
-                    setIsLiked(false);
-                    return;
-                }
-
-                if (data?.id) {
+                const response = await fetch('/api/favorites', { cache: 'no-store' });
+                const result = await response.json();
+                if (!response.ok || !result.success) throw new Error(result.message || 'Favorites lookup failed.');
+                const favorite = (result.favorites || []).find((item: { listing_id: string }) => item.listing_id === part.id);
+                if (favorite) {
                     setIsLiked(true);
-                    setFavoriteId(data.id);
+                    setFavoriteId(favorite.id);
                 } else {
                     setIsLiked(false);
                 }
             } catch (err) {
-                // Silently ignore — don't spam console
+                console.error('Failed to load favorite state:', err);
                 setIsLiked(false);
             }
         };
@@ -125,52 +76,19 @@ export default function PartCard({ part, onUnsave, compact = false }: PartCardPr
         setIsLiked(nextValue);
 
         try {
-            const supabase = createClient();
-
-            if (nextValue) {
-                const { data, error } = await supabase
-                    .from('favorites')
-                    .insert({ user_id: user.id, listing_id: part.id })
-                    .select('id')
-                    .single();
-
-                if (error) {
-                    if (error.code === 'PGRST106') {
-                        showError('Favorites feature not available. Please contact support.');
-                    } else {
-                        showError('Unable to save listing.');
-                    }
-                    setIsLiked(false);
-                } else if (data?.id) {
-                    setFavoriteId(data.id);
-                } else {
-                    setIsLiked(false);
-                    showError('Unable to save listing.');
-                }
-            } else {
-                const { error } = await supabase
-                    .from('favorites')
-                    .delete()
-                    .eq('id', favoriteId)
-                    .eq('user_id', user.id)
-                    .eq('listing_id', part.id);
-
-                if (error) {
-                    if (error.code === 'PGRST106') {
-                        showError('Favorites feature not available.');
-                    } else {
-                        showError('Unable to remove saved listing.');
-                    }
-                    setIsLiked(true);
-                } else {
-                    setFavoriteId(null);
-                    onUnsave?.();
-                }
-            }
+            const response = await fetch('/api/favorites', {
+                method: nextValue ? 'POST' : 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ listing_id: part.id }),
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.message || 'Unable to update saved listing.');
+            setFavoriteId(nextValue ? result.favorite?.id || null : null);
+            if (!nextValue) onUnsave?.();
         } catch (err) {
             console.error('Favorite toggle failed', err);
             setIsLiked(!nextValue);
-            showError('Something went wrong.');
+            showError(err instanceof Error ? err.message : 'Something went wrong.');
         } finally {
             setLoadingFavorite(false);
         }

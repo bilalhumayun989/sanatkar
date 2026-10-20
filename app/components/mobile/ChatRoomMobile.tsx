@@ -4,7 +4,6 @@ import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowLeft, Send, ChevronRight, User, Check } from 'lucide-react';
-import { createClient } from '@/lib/auth/supabase/client';
 
 interface Message {
   id: string;
@@ -50,93 +49,48 @@ export default function ChatRoomMobile({ chatId }: ChatRoomProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    async function initChat() {
-      const supabase = createClient();
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setCurrentUserId(user.id);
-
-      const { data: chatData } = await supabase
-        .from('chats')
-        .select(`
-          id,
-          buyer_id,
-          seller_id,
-          listing:listings (
-            id,
-            title,
-            price,
-            image_urls
-          )
-        `)
-        .eq('id', chatId)
-        .single();
-
-      if (chatData) {
-        const otherUserId = chatData.buyer_id === user.id ? chatData.seller_id : chatData.buyer_id;
-        
-        let profile = null;
-        if (otherUserId) {
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('full_name, avatar_url')
-            .eq('id', otherUserId)
-            .single();
-          profile = profileData;
+    let active = true;
+    const loadChat = async (initial: boolean) => {
+      try {
+        const [meResponse, chatsResponse, messagesResponse] = await Promise.all([
+          fetch('/api/auth/me', { cache: 'no-store' }),
+          fetch('/api/chats', { cache: 'no-store' }),
+          fetch(`/api/chats/${chatId}/messages`, { cache: 'no-store' }),
+        ]);
+        const [me, chatsResult, messagesResult] = await Promise.all([
+          meResponse.json(), chatsResponse.json(), messagesResponse.json(),
+        ]);
+        if (!meResponse.ok || !me.success || !me.user) {
+          if (active) window.location.href = `/login?next=${encodeURIComponent(`/messages?chat=${chatId}`)}`;
+          return;
         }
-
+        if (!chatsResponse.ok || !chatsResult.success || !messagesResponse.ok || !messagesResult.success) {
+          throw new Error(messagesResult.message || chatsResult.message || 'Unable to load this conversation.');
+        }
+        if (!active) return;
+        setCurrentUserId(me.user.id);
+        const chat = (chatsResult.chats || []).find((item: any) => item.id === chatId);
+        if (!chat) {
+          throw new Error('This conversation is not available to your account.');
+        }
         setChatDetails({
-          id: chatData.id,
-          listing: Array.isArray(chatData.listing) ? chatData.listing[0] : chatData.listing,
-          otherUser: profile || { full_name: 'Machine Seller' },
+          id: chat.id,
+          listing: chat.listing,
+          otherUser: chat.otherUser || { full_name: 'Conversation participant' },
         });
+        setMessages(messagesResult.messages || []);
+      } catch (error) {
+        console.error('Chat load failed:', error);
+      } finally {
+        if (initial && active) setLoading(false);
       }
+    };
 
-      const { data: msgData } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('chat_id', chatId)
-        .order('created_at', { ascending: true });
-
-      if (msgData) {
-        setMessages(msgData);
-        const unreadIds = msgData
-          .filter((message: Message) => message.sender_id !== user.id && !message.is_read)
-          .map((message: Message) => message.id);
-        if (unreadIds.length > 0) {
-          await supabase.from('messages').update({ is_read: true }).in('id', unreadIds);
-        }
-      }
-
-      setLoading(false);
-    }
-
-    initChat();
-
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`room_${chatId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `chat_id=eq.${chatId}`,
-        },
-        (payload) => {
-          const newMessage = payload.new as Message;
-          setMessages((prev) => prev.some(message => message.id === newMessage.id) ? prev : [...prev, newMessage]);
-          if (newMessage.sender_id !== currentUserId) {
-            void supabase.from('messages').update({ is_read: true }).eq('id', newMessage.id);
-          }
-        }
-      )
-      .subscribe();
-
+    void loadChat(true);
+    const interval = window.setInterval(() => { void loadChat(false); }, 5000);
     return () => {
-      supabase.removeChannel(channel);
+      active = false;
+      window.clearInterval(interval);
     };
   }, [chatId]);
 
@@ -147,16 +101,22 @@ export default function ChatRoomMobile({ chatId }: ChatRoomProps) {
   const sendMessage = async (textToSend: string) => {
     if (!textToSend.trim() || !currentUserId) return;
 
-    const supabase = createClient();
     setNewMessage('');
-
-    await supabase.from('messages').insert({
-      chat_id: chatId,
-      sender_id: currentUserId,
-      content: textToSend,
-      type: 'text',
-      is_read: false,
-    });
+    try {
+      const response = await fetch(`/api/chats/${chatId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: textToSend, type: 'text' }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Unable to send message.');
+      setMessages(previous => previous.some(message => message.id === result.message.id)
+        ? previous
+        : [...previous, result.message]);
+    } catch (error) {
+      console.error('Message send failed:', error);
+      setNewMessage(textToSend);
+    }
   };
 
   const handleSend = (e: React.FormEvent) => {

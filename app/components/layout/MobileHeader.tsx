@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { User, Bell, Heart, Search, SlidersHorizontal, ChevronLeft } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
-import { createClient } from '@/lib/auth/supabase/client';
 
 import PriceSlider, { type PriceRange } from '@/app/components/PriceSlider';
 
@@ -60,34 +59,28 @@ export default function MobileHeader() {
 
   useEffect(() => {
     async function fetchData() {
-      const supabase = createClient();
-
-      if (user) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('username, full_name')
-          .eq('id', user.id)
-          .single();
-        if (profileData) setProfile(profileData);
-
-        const { count } = await supabase
-          .from('offers')
-          .select('id', { count: 'exact', head: true })
-          .eq('seller_id', user.id)
-          .eq('status', 'pending');
-
-        if (count !== null) setUnreadOffersCount(count);
+      try {
+        const [profileResponse, categoryResponse, brandResponse] = await Promise.all([
+          user ? fetch('/api/profile/me', { cache: 'no-store' }) : Promise.resolve(null),
+          fetch('/api/categories', { cache: 'no-store' }),
+          fetch('/api/brands', { cache: 'no-store' }),
+        ]);
+        const [profileResult, categoryResult, brandResult] = await Promise.all([
+          profileResponse?.json() ?? Promise.resolve(null),
+          categoryResponse.json(),
+          brandResponse.json(),
+        ]);
+        if (profileResponse?.ok && profileResult?.success) {
+          setProfile({ username: profileResult.profile.username, full_name: profileResult.profile.full_name });
+          setUnreadOffersCount(Number(profileResult.profile.offers_count) || 0);
+        }
+        if (categoryResponse.ok && categoryResult.success) setCategories(categoryResult.categories || []);
+        if (brandResponse.ok && brandResult.success) setBrands(brandResult.brands || []);
+      } catch (error) {
+        console.error('Failed to load mobile header data:', error);
+      } finally {
+        setLoading(false);
       }
-
-      const { data: catData } = await supabase
-        .from('categories')
-        .select('id, name')
-        .eq('is_active', true);
-
-      if (catData) setCategories(catData);
-      const { data: brandData } = await supabase.from('brands').select('id, name').eq('is_active', true).order('name');
-      setBrands(brandData || []);
-      setLoading(false);
     }
 
     fetchData();

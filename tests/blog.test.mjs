@@ -18,6 +18,7 @@ test('slugs support English and Urdu while removing URL punctuation', () => {
 test('valid drafts and published articles pass validation', () => {
   assert.equal(validateBlog(valid), null);
   assert.equal(validateBlog({ ...valid, status: 'published', cover_image_url: 'https://example.com/cover.jpg' }), null);
+  assert.equal(validateBlog({ ...valid, cover_image_url: '/uploads/blogs/cover-image.png' }), null);
 });
 
 test('rejects missing required content and excessive lengths', () => {
@@ -29,7 +30,7 @@ test('rejects missing required content and excessive lengths', () => {
 });
 
 test('rejects unsafe image URLs, invalid slugs, and invalid visibility', () => {
-  for (const cover_image_url of ['javascript:alert(1)', 'data:image/svg+xml,test', 'http://example.com/a.jpg', 'not-a-url']) {
+  for (const cover_image_url of ['javascript:alert(1)', 'data:image/svg+xml,test', 'http://example.com/a.jpg', 'not-a-url', '/uploads/../private.jpg']) {
     assert.ok(validateBlog({ ...valid, cover_image_url }));
   }
   assert.ok(validateBlog({ ...valid, slug: '../private' }));

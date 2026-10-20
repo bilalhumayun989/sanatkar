@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { Eye, FileText, Plus, Save, Trash2, Upload, X } from 'lucide-react';
-import { createClient } from '@/lib/auth/supabase/client';
 import { blogDate, blogSlug, validateBlog, type BlogInput, type BlogPost } from '@/lib/blog';
 import BlogContent from './BlogContent';
 import BlogCover from './BlogCover';
@@ -27,17 +26,14 @@ export default function BlogManager() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error: loadError } = await createClient().from('blog_posts').select('*').order('created_at', { ascending: false });
-      if (loadError) {
+      const response = await fetch('/api/blogs?drafts=true', { cache: 'no-store' });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
         setPosts([]);
-        setError(loadError.code === 'PGRST205' || loadError.code === '42P01'
-          ? 'Blog database setup is incomplete. Your administrator needs to apply the blog database setup before articles can be created or loaded.'
-          : loadError.code === '42501' || loadError.code === 'PGRST301'
-            ? 'Your session or permissions could not be verified. Sign in with an administrator account and try again.'
-            : 'Could not load blogs. Check your connection and try again.');
+        setError(result.message || 'Could not load blogs. Check your connection and try again.');
         return;
       }
-      setPosts((data || []) as BlogPost[]);
+      setPosts((result.posts || []) as BlogPost[]);
       setError('');
     } catch { setError('Could not load blogs. Check your connection and try again.'); }
     finally { setLoading(false); }
@@ -78,34 +74,39 @@ export default function BlogManager() {
     setUploading(true);
     setError('');
     try {
-      const supabase = createClient();
-      const extension = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }[file.type];
-      const path = crypto.randomUUID() + '.' + extension;
-      const { error: uploadError } = await supabase.storage.from('blog-images').upload(path, file, { contentType: file.type, upsert: false });
-      if (uploadError) throw uploadError;
-      const { data } = supabase.storage.from('blog-images').getPublicUrl(path);
-      update('cover_image_url', data.publicUrl);
+      const formData = new FormData();
+      formData.append('files', file);
+      formData.append('folder', 'blogs');
+      const response = await fetch('/api/upload', { method: 'POST', body: formData });
+      const result = await response.json();
+      if (!response.ok || !result.success || !Array.isArray(result.urls) || !result.urls.length) {
+        throw new Error(result.message || 'Upload failed');
+      }
+      update('cover_image_url', result.urls[0]);
       setNotice('Cover uploaded. Save the article to use this image.');
     } catch {
-      setError('Could not upload the cover. Check your admin access and that blog image storage is configured, then try again.');
+      setError('Could not upload the cover. Check your admin access and try again.');
     } finally { setUploading(false); }
   }
 
   async function save(event: FormEvent) {
     event.preventDefault();
     if (!form || saving || uploading) return;
-    const input = Object.fromEntries(Object.entries(form).map(([key, value]) => [key, value.trim()])) as BlogInput;
+    const input = Object.fromEntries(Object.entries(form).map(([key, value]) => [key, typeof value === 'string' ? value.trim() : value])) as BlogInput;
     const validation = validateBlog(input);
     if (validation) { setError(validation); return; }
     setSaving(true);
     setError('');
     try {
-      const supabase = createClient();
-      const result = editing
-        ? await supabase.from('blog_posts').update(input).eq('id', editing).select('id').single()
-        : await supabase.from('blog_posts').insert(input).select('id').single();
-      if (result.error) {
-        setError(result.error.code === '23505' ? 'That URL slug is already in use. Choose a different one.' : 'Could not save the article. Check your admin access and try again.');
+      const endpoint = editing ? `/api/blogs/${editing}` : '/api/blogs';
+      const response = await fetch(endpoint, {
+        method: editing ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...input, ...(editing ? { id: editing } : {}) }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        setError(result.message || 'Could not save the article. Check your admin access and try again.');
         return;
       }
       setForm(null);
@@ -120,8 +121,9 @@ export default function BlogManager() {
     setDeleting(post.id);
     setError('');
     try {
-      const { data, error: deleteError } = await createClient().from('blog_posts').delete().eq('id', post.id).select('id');
-      if (deleteError || !data?.length) throw new Error('Delete failed');
+      const response = await fetch(`/api/blogs/${post.id}`, { method: 'DELETE' });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message || 'Delete failed');
       setPosts(current => current.filter(item => item.id !== post.id));
       setNotice('Article deleted.');
     } catch { setError('Could not delete the article. Please try again.'); }
@@ -146,9 +148,9 @@ export default function BlogManager() {
             <span className="mt-2 flex items-center gap-2 text-xs font-normal text-slate-500"><Upload size={16} /> {uploading ? 'Uploading cover...' : 'Upload a JPEG, PNG, or WebP image, up to 5 MB.'}</span>
             <input type="file" accept="image/jpeg,image/png,image/webp" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void uploadCover(file); }} className={fieldClass} />
           </label>
-          <label className="block text-sm font-bold" htmlFor="blog-cover-url">Or use an image URL</label>
-          <input id="blog-cover-url" type="url" value={form.cover_image_url} onChange={event => update('cover_image_url', event.target.value)} className={fieldClass} placeholder="https://example.com/image.jpg" />
-          <p className="text-xs text-slate-400">Use a public HTTPS image. A branded cover appears when no image is provided.</p>
+          <label className="block text-sm font-bold" htmlFor="blog-cover-url">Or use an image URL or local uploads path</label>
+          <input id="blog-cover-url" type="text" value={form.cover_image_url} onChange={event => update('cover_image_url', event.target.value)} className={fieldClass} placeholder="https://example.com/image.jpg or /uploads/blogs/image.jpg" />
+          <p className="text-xs text-slate-400">Use a public HTTPS image URL or a local /uploads/ path. A branded cover appears when no image is provided.</p>
           {form.cover_image_url && <div className="max-w-sm"><BlogCover src={form.cover_image_url} title={form.title} className="aspect-[16/9] rounded-xl" /><button type="button" onClick={() => update('cover_image_url', '')} className="mt-2 text-xs font-bold text-red-500">Remove cover from article</button></div>}
         </div>
         <div><div className="flex items-center justify-between"><label htmlFor="blog-content" className="text-sm font-bold">Article content</label><button type="button" onClick={() => setPreview(current => !current)} className="inline-flex items-center gap-1 text-sm font-bold text-teal-700"><Eye size={16} /> {preview ? 'Hide preview' : 'Preview article'}</button></div><p id="blog-content-help" className="mt-2 text-xs leading-5 text-slate-500">Separate paragraphs with a blank line. Use ## for section headings, ### for subheadings, and - for bullet points. Put a blank line before and after headings and lists.</p><textarea id="blog-content" aria-describedby="blog-content-help" required maxLength={60000} rows={16} value={form.content} onChange={event => update('content', event.target.value)} className={`${fieldClass} leading-7`} placeholder={'Start your story here…\n\n## A useful heading\n\nShare your advice.'} /></div>

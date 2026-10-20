@@ -4,7 +4,6 @@ import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowLeft, Search, Loader2 } from 'lucide-react';
-import { createClient } from '@/lib/auth/supabase/client';
 
 interface ChatItem {
   id: string;
@@ -26,149 +25,59 @@ interface ChatItem {
 
 export default function ChatListMobile() {
   const [chats, setChats] = useState<ChatItem[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchUserChats() {
-      const supabase = createClient();
-
-      // Current User Check
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      setCurrentUserId(user.id);
-
-      // 1. Fetch chats with relational listings
-      const { data: chatsData, error: chatsError } = await supabase
-        .from('chats')
-        .select(`
-          id,
-          created_at,
-          updated_at,
-          buyer_id,
-          seller_id,
-          listing:listings (
-            id,
-            title,
-            brand,
-            image_urls
-          )
-        `)
-        .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
-        .order('updated_at', { ascending: false });
-
-      if (chatsError || !chatsData) {
-        console.error('Error fetching chats:', chatsError);
-        setLoading(false);
-        return;
-      }
-
-      // 2. Fetch last message & unread count for each chat
-      type ChatRow = {
-        id: string;
-        created_at: string;
-        updated_at: string;
-        buyer_id: string;
-        seller_id: string;
-        listing: {
-          id: string;
-          title: string;
-          brand: string | null;
-          image_urls: string[];
-        } | null | Array<{
-          id: string;
-          title: string;
-          brand: string | null;
-          image_urls: string[];
-        }>;
-      };
-
-      const formattedChats: ChatItem[] = await Promise.all(
-        chatsData.map(async (chat: ChatRow) => {
-          const otherUserId = chat.buyer_id === user.id ? chat.seller_id : chat.buyer_id;
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('username, full_name')
-            .eq('id', otherUserId)
-            .maybeSingle();
-
-          const { data: msgData } = await supabase
-            .from('messages')
-            .select('content, created_at, sender_id')
-            .eq('chat_id', chat.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          const { count: unread } = await supabase
-            .from('messages')
-            .select('id', { count: 'exact', head: true })
-            .eq('chat_id', chat.id)
-            .eq('is_read', false)
-            .neq('sender_id', user.id);
-
-          const formattedDate = msgData?.created_at
-            ? new Date(msgData.created_at).toLocaleDateString('en-GB', {
-                day: 'numeric',
-                month: 'numeric',
-                year: '2-digit',
-              })
-            : new Date(chat.created_at).toLocaleDateString('en-GB', {
-                day: 'numeric',
-                month: 'numeric',
-                year: '2-digit',
-              });
-
-          const senderName = msgData?.sender_id === user.id
-            ? 'You'
-            : profile?.username || profile?.full_name || 'User';
-
+    let active = true;
+    const loadChats = async () => {
+      try {
+        const [meResponse, chatsResponse] = await Promise.all([
+          fetch('/api/auth/me', { cache: 'no-store' }),
+          fetch('/api/chats', { cache: 'no-store' }),
+        ]);
+        const [me, result] = await Promise.all([meResponse.json(), chatsResponse.json()]);
+        if (!meResponse.ok || !me.success || !me.user) {
+          if (active) setLoading(false);
+          return;
+        }
+        if (!chatsResponse.ok || !result.success || !Array.isArray(result.chats)) {
+          throw new Error(result.message || 'Unable to load conversations.');
+        }
+        if (!active) return;
+        setChats(result.chats.map((chat: any) => {
+          const latest = chat.latestMessage;
           return {
             id: chat.id,
-            created_at: chat.created_at,
-            updated_at: chat.updated_at,
+            created_at: chat.created_at || new Date().toISOString(),
+            updated_at: chat.updated_at || chat.created_at || new Date().toISOString(),
             buyer_id: chat.buyer_id,
             seller_id: chat.seller_id,
-            listing: Array.isArray(chat.listing) ? chat.listing[0] : chat.listing,
-            lastMessage: msgData?.content || 'No messages yet',
-            lastMessageDate: formattedDate,
-            unreadCount: unread || 0,
-            senderName,
+            listing: chat.listing,
+            lastMessage: latest?.content || 'No messages yet',
+            lastMessageDate: new Date(latest?.created_at || chat.updated_at || chat.created_at || Date.now()).toLocaleDateString('en-GB', {
+              day: 'numeric', month: 'numeric', year: '2-digit',
+            }),
+            unreadCount: Number(chat.unreadCount) || 0,
+            senderName: latest?.sender_id === me.user.id
+              ? 'You'
+              : chat.otherUser?.username || chat.otherUser?.full_name || 'User',
           };
-        })
-      );
+        }));
+      } catch (error) {
+        console.error('Error fetching chats:', error);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
 
-      setChats(formattedChats);
-      setLoading(false);
-    }
-
-    fetchUserChats();
+    void loadChats();
+    const interval = window.setInterval(() => { void loadChats(); }, 10000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, []);
-
-  useEffect(() => {
-    if (!currentUserId) return;
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`mobile_inbox_${currentUserId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-        const message = payload.new as { chat_id: string; sender_id: string; content?: string; created_at: string };
-        setChats(previous => previous.map(chat => chat.id === message.chat_id
-          ? {
-              ...chat,
-              lastMessage: message.content || 'New message',
-              lastMessageDate: new Date(message.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'numeric', year: '2-digit' }),
-              unreadCount: message.sender_id === currentUserId ? chat.unreadCount : chat.unreadCount + 1,
-            }
-          : chat));
-      })
-      .subscribe();
-
-    return () => { void supabase.removeChannel(channel); };
-  }, [currentUserId]);
 
   const filteredChats = chats.filter((chat) => {
     const title = chat.listing?.title?.toLowerCase() || '';

@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
-import { createClient } from '@/lib/auth/supabase/client';
 import { useAuth } from '@/lib/AuthContext';
 import {
     Store, Loader2, ImagePlus, X, CheckCircle2, Clock,
@@ -71,8 +70,6 @@ export default function MyShopPage() {
     const [success, setSuccess] = useState('');
     const [upgrading, setUpgrading] = useState(false);
 
-    const supabase = createClient();
-
     useEffect(() => {
         if (authLoading) return;
         if (!authUser) {
@@ -89,26 +86,10 @@ export default function MyShopPage() {
     const loadShop = async () => {
         setLoading(true);
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-
-            let { data, error } = await supabase
-                .from('profiles')
-                .select('shop_name, shop_description, shop_image_url, seller_status, verification_status')
-                .eq('id', user.id)
-                .maybeSingle();
-
-            if (error?.message?.toLowerCase().includes('verification_status')) {
-                const fallback = await supabase
-                    .from('profiles')
-                    .select('shop_name, shop_description, shop_image_url, seller_status')
-                    .eq('id', user.id)
-                    .maybeSingle();
-                data = fallback.data ? { ...fallback.data, verification_status: null } : null;
-                error = fallback.error;
-            }
-
-            if (error) throw error;
+            const response = await fetch('/api/profile/me', { cache: 'no-store' });
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.message || 'Failed to load shop.');
+            const data = result.profile;
 
             if (data) {
                 setShop(data);
@@ -116,8 +97,8 @@ export default function MyShopPage() {
                 setDescription(data.shop_description || '');
                 setExistingImages(data.shop_image_url ? [data.shop_image_url] : []);
             }
-        } catch (err: any) {
-            setError(err.message || 'Failed to load shop.');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Failed to load shop.');
         } finally {
             setLoading(false);
         }
@@ -159,39 +140,32 @@ export default function MyShopPage() {
         setSuccess('');
 
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('Not authenticated');
-
             let newImageUrl = existingImages[0] || null;
 
             if (newFiles.length > 0) {
                 const file = newFiles[0];
-                const ext = file.name.split('.').pop();
-                const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-                const { error: uploadError } = await supabase.storage
-                    .from('shop-images')
-                    .upload(path, file, { upsert: false });
-
-                if (uploadError) throw new Error(`Image upload failed: ${uploadError.message}`);
-
-                const { data: urlData } = supabase.storage
-                    .from('shop-images')
-                    .getPublicUrl(path);
-                newImageUrl = urlData.publicUrl;
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('folder', 'shops');
+                const uploadResponse = await fetch('/api/upload', { method: 'POST', body: formData });
+                const uploadResult = await uploadResponse.json();
+                if (!uploadResponse.ok || !uploadResult.success || !uploadResult.urls?.[0]) {
+                    throw new Error(uploadResult.message || 'Image upload failed.');
+                }
+                newImageUrl = uploadResult.urls[0] as string;
             }
 
-            const shopPayload = {
-                shop_name: title.trim(),
-                shop_description: description.trim() || null,
-                shop_image_url: newImageUrl,
-            };
-
-            const { error: updateError } = await supabase
-                .from('profiles')
-                .update(shopPayload)
-                .eq('id', user.id);
-                
-            if (updateError) throw updateError;
+            const response = await fetch('/api/profile/me', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    shop_name: title.trim(),
+                    shop_description: description.trim(),
+                    shop_image_url: newImageUrl,
+                }),
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.message || 'Failed to save shop.');
 
             setNewFiles([]);
             setNewFilePreviews([]);
@@ -202,8 +176,8 @@ export default function MyShopPage() {
             }
             setSuccess('Shop details saved successfully!');
             await loadShop();
-        } catch (err: any) {
-            setError(err.message || 'Failed to save shop.');
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Failed to save shop.');
         } finally {
             setSaving(false);
         }

@@ -1,48 +1,37 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/dbConn';
-import { verifyToken } from '@/lib/auth';
+import { getCurrentProfile } from '@/lib/auth/supabase/server';
 
-export async function PUT(request: Request) {
-    try {
-        const authCookie = request.headers.get('cookie')?.split('; ').find(row => row.startsWith('auth_token='))?.split('=')[1];
-        if (!authCookie) {
-            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-        }
-
-        const payload = await verifyToken(authCookie);
-        if (!payload) {
-            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 });
-        }
-
-        // await dbConnect();
-        
-        const body = await request.json();
-        const { title, description, buttonText, buttonLink, imageUrl, badgeText, isActive } = body;
-
-        // Try to find the existing config, else create a new one
-        let adContent = await prisma.ad.findFirst();
-
-        if (adContent) {
-            adContent = await prisma.ad.update({
-                where: { id: adContent.id },
-                data: {
-                    title: title ?? adContent.title,
-                    description: description ?? adContent.description,
-                    buttonText: buttonText ?? adContent.buttonText,
-                    buttonLink: buttonLink ?? adContent.buttonLink,
-                    imageUrl: imageUrl ?? adContent.imageUrl,
-                    badgeText: badgeText ?? adContent.badgeText,
-                    isActive: isActive !== undefined ? isActive : adContent.isActive
-                }
-            });
-        } else {
-             adContent = await prisma.ad.create({
-                 data: { title, description, buttonText, buttonLink, imageUrl, badgeText, isActive }
-             });
-        }
-
-        return NextResponse.json({ success: true, ad: adContent });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, message: error.message || 'Server error' }, { status: 500 });
-    }
+export async function PUT(request: NextRequest) {
+  const { user, profile } = await getCurrentProfile(request);
+  if (!user || profile?.role !== 'admin') return NextResponse.json({ success: false, message: 'Admin access required.' }, { status: 403 });
+  const body: unknown = await request.json();
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ success: false, message: 'Invalid ad data.' }, { status: 400 });
+  const input = body as Record<string, unknown>;
+  const data: {
+    title?: string; description?: string; buttonText?: string; buttonLink?: string;
+    imageUrl?: string; badgeText?: string; isActive?: boolean;
+  } = {};
+  const fields = [
+    ['title', 'title', 180],
+    ['description', 'description', 1200],
+    ['buttonText', 'buttonText', 80],
+    ['buttonLink', 'buttonLink', 500],
+    ['imageUrl', 'imageUrl', 2048],
+    ['badgeText', 'badgeText', 60],
+  ] as const;
+  for (const [source, target, max] of fields) {
+    if (typeof input[source] === 'string') data[target] = input[source].trim().slice(0, max);
+  }
+  if (typeof input.isActive === 'boolean') data.isActive = input.isActive;
+  try {
+    const current = await prisma.ad.findFirst({ orderBy: { createdAt: 'asc' } });
+    const ad = current
+      ? await prisma.ad.update({ where: { id: current.id }, data })
+      : await prisma.ad.create({ data });
+    return NextResponse.json({ success: true, ad });
+  } catch (error) {
+    console.error('Ad configuration update failed:', error);
+    return NextResponse.json({ success: false, message: 'Unable to save ad configuration.' }, { status: 500 });
+  }
 }
