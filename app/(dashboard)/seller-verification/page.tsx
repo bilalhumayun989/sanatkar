@@ -7,7 +7,6 @@ import { AlertCircle, ArrowLeft, BadgeCheck, CheckCircle2, Loader2, Upload } fro
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
 import { useAuth } from '@/lib/AuthContext';
-import { createClient } from '@/lib/auth/supabase/client';
 import { fetchJson } from '@/lib/utils/fetchJson';
 
 // Replace these values with the platform's real receiving account.
@@ -47,17 +46,22 @@ export default function SellerVerificationPage() {
     setSubmitting(true);
     setMessage(null);
     try {
-      const supabase = createClient();
-      const extension = proofFile.name.split('.').pop() || 'jpg';
-      const path = `${user.id}/verification-${Date.now()}.${extension}`;
-      const { error: uploadError } = await supabase.storage.from('shop-images').upload(path, proofFile, { upsert: false });
-      if (uploadError) throw new Error(`Proof upload failed: ${uploadError.message}`);
-      const { data: urlData } = supabase.storage.from('shop-images').getPublicUrl(path);
+      const uploadFormData = new FormData();
+      uploadFormData.append('files', proofFile);
+      const uploadResponse = await fetch('/api/upload', {
+        method: 'POST',
+        body: uploadFormData,
+        credentials: 'include',
+      });
+      const uploadJson = await uploadResponse.json();
+      if (!uploadResponse.ok || !uploadJson.success || !Array.isArray(uploadJson.urls) || uploadJson.urls.length === 0) {
+        throw new Error(uploadJson.message || 'Proof upload failed.');
+      }
 
       const { data } = await fetchJson('/api/profile/seller-verification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proofUrl: urlData.publicUrl }),
+        body: JSON.stringify({ proofUrl: uploadJson.urls[0] }),
       });
       if (!data.success) {
         setMessage({ type: 'error', text: data.message || 'Could not submit verification.' });
