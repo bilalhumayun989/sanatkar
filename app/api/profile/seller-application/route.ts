@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/dbConn';
 import { getCurrentProfile } from '@/lib/auth/supabase/server';
+import { hasCompleteShop } from '@/lib/seller-activation';
 
 export async function POST(request: NextRequest) {
   const { user, profile } = await getCurrentProfile(request);
   if (!user || !profile) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-  if (profile.role === 'seller' || profile.role === 'admin') return NextResponse.json({ message: 'This account already has seller access.' }, { status: 409 });
+  if (profile.role === 'admin' || (profile.sellerActivationStatus === 'approved' && hasCompleteShop(profile)) || profile.sellerActivationStatus === 'pending') return NextResponse.json({ message: 'Your seller account is already active or awaiting payment review.' }, { status: 409 });
 
   const body: unknown = await request.json();
   if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ message: 'Invalid seller application.' }, { status: 400 });
@@ -26,11 +27,10 @@ export async function POST(request: NextRequest) {
   if (!shopImageUrl.startsWith('/') && !/^https:\/\//i.test(shopImageUrl)) {
     return NextResponse.json({ message: 'Shop image must be a local path or HTTPS URL.' }, { status: 400 });
   }
-  if (profile.sellerStatus === 'pending') return NextResponse.json({ message: 'Your seller application is already under review.' }, { status: 409 });
 
   try {
     const result = await prisma.profile.updateMany({
-      where: { id: user.id, role: 'regular', OR: [{ sellerStatus: null }, { sellerStatus: { not: 'pending' } }] },
+      where: { id: user.id, role: { in: ['regular', 'seller', 'professional'] }, sellerActivationStatus: { in: ['unpaid', 'rejected', 'approved'] } },
       data: {
         shopName: String(fields.shopName).trim().slice(0, 120),
         shopDescription: String(fields.shopDescription).trim().slice(0, 1500),
@@ -39,11 +39,14 @@ export async function POST(request: NextRequest) {
         shopImageUrl: shopImageUrl.slice(0, 2048),
         cnic: String(fields.cnic).trim().slice(0, 40),
         phone: String(fields.phone).trim().slice(0, 40),
-        sellerStatus: 'pending',
+        role: 'seller',
+        sellerStatus: profile.sellerActivationStatus === 'approved' ? 'approved' : 'payment_required',
+        sellerActivationStatus: profile.sellerActivationStatus === 'approved' ? 'approved' : 'unpaid',
+        onboardingComplete: true,
       },
     });
     if (!result.count) return NextResponse.json({ message: 'Your account is not eligible for a seller application.' }, { status: 409 });
-    return NextResponse.json({ success: true, status: 'pending' });
+    return NextResponse.json({ success: true, status: 'payment_required', next: '/seller-activation' });
   } catch (error) {
     console.error('Seller application save failed:', error);
     return NextResponse.json({ message: 'Could not submit seller application.' }, { status: 500 });

@@ -1,5 +1,7 @@
 'use client';
 
+import { refreshOnRealtime } from '@/lib/realtime/client';
+
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Heart, Search, MapPin, X, Loader2, AlertCircle, Package, Bookmark } from 'lucide-react';
@@ -72,7 +74,8 @@ export default function SavedPage() {
       }
     };
     void load();
-    return () => { active = false; };
+    const unsubscribe = refreshOnRealtime(['favorites', 'listings'], load);
+    return () => { active = false; unsubscribe(); };
   }, [authLoading, user, retry]);
 
   const filtered = useMemo(() => {

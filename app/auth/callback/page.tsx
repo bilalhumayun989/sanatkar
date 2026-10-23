@@ -17,6 +17,8 @@ export default function AuthCallbackPage() {
     const processOAuthRedirect = async () => {
       const supabase = createClient();
       const url = new URL(window.location.href);
+      const requestedNext = url.searchParams.get('next') || '/';
+      const next = requestedNext.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : '/';
       const hashParams = new URLSearchParams(url.hash.startsWith('#') ? url.hash.slice(1) : url.hash);
       const errorDescription = url.searchParams.get('error_description') || hashParams.get('error_description');
       const oauthError = url.searchParams.get('error') || hashParams.get('error');
@@ -71,7 +73,6 @@ export default function AuthCallbackPage() {
           setMessage('Authentication successful! Redirecting...');
           await refreshAuth();
           window.history.replaceState({}, document.title, window.location.pathname);
-          const next = new URL(window.location.href).searchParams.get('next') || '/';
           router.replace(next);
           return;
         }
@@ -101,7 +102,6 @@ export default function AuthCallbackPage() {
           setMessage('Authentication successful! Redirecting...');
           await refreshAuth();
           window.history.replaceState({}, document.title, window.location.pathname);
-          const next = new URL(window.location.href).searchParams.get('next') || '/';
           router.replace(next);
           return;
         }

@@ -1,4 +1,6 @@
 'use client';
+import DeleteAccount from '@/app/components/profile/DeleteAccount';
+import { PAID_BADGES_ENABLED } from '@/lib/features';
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -29,6 +31,7 @@ interface UserProfile {
   role: string;
   email_verified: boolean;
   has_shop?: boolean;
+  seller_activation_status?: string;
 }
 
 export default function ProfilePage() {
@@ -139,6 +142,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Verification Banner */}
+        {PAID_BADGES_ENABLED && <>
         <Link 
           href="/verify"
           className="flex items-center justify-between bg-white p-3.5 rounded-2xl border border-slate-100 shadow-2xs active:scale-[0.99] transition-transform"
@@ -154,6 +158,7 @@ export default function ProfilePage() {
           </div>
           <ChevronRight className="w-4 h-4 text-slate-400" />
         </Link>
+        </>}
 
         {/* Post New Listing Banner */}
         <Link 
@@ -221,6 +226,7 @@ export default function ProfilePage() {
               </div>
             </Link>
 
+            {PAID_BADGES_ENABLED && <>
             <Link href="/verification" className="flex items-center justify-between p-3.5 hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-3">
                 <ShieldCheck className="w-4 h-4 text-slate-600" />
@@ -233,6 +239,7 @@ export default function ProfilePage() {
                 <ChevronRight className="w-4 h-4 text-slate-400" />
               </div>
             </Link>
+            </>}
           </div>
         </div>
 
@@ -315,6 +322,8 @@ export default function ProfilePage() {
           </div>
         )}
 
+        {profile?.role === 'seller' && profile.seller_activation_status !== 'approved' && <Link href="/seller-activation" className="block rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-900">Activate seller account — Rs 5,000, then admin approval</Link>}
+        <DeleteAccount />
         {/* LOGOUT BUTTON */}
         <div className="pt-2">
           <button 

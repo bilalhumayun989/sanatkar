@@ -15,6 +15,7 @@ import Footer from '@/app/components/layout/Footer';
 import { FIXED_CATEGORY_OPTIONS, normalizeCategoryValue } from '@/lib/categoryConstants';
 
 import BrandSelect from '@/app/components/BrandSelect';
+import SellerListingGate from '@/app/components/profile/SellerListingGate';
 
 const CONDITIONS = ['new', 'used', 'refurbished'] as const;
 type Condition = typeof CONDITIONS[number];
@@ -59,9 +60,9 @@ function SectionHeader({ step, title, icon: Icon }: { step: number; title: strin
 
 export default function SellerPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-[#F3F4F6]" />}>
+        <SellerListingGate><Suspense fallback={<div className="min-h-screen bg-[#F3F4F6]" />}>
             <SellerPageContent />
-        </Suspense>
+        </Suspense></SellerListingGate>
     );
 }
 

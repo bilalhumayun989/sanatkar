@@ -1,5 +1,7 @@
 'use client';
 
+import { refreshOnRealtime } from '@/lib/realtime/client';
+
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -72,10 +74,10 @@ export default function ChatListMobile() {
     };
 
     void loadChats();
-    const interval = window.setInterval(() => { void loadChats(); }, 10000);
+    const unsubscribe = refreshOnRealtime(['chats'], loadChats);
     return () => {
       active = false;
-      window.clearInterval(interval);
+      unsubscribe();
     };
   }, []);
 

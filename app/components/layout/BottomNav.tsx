@@ -1,5 +1,7 @@
 'use client';
 
+import { refreshOnRealtime } from '@/lib/realtime/client';
+
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -33,11 +35,11 @@ export default function BottomNav() {
     };
 
     void fetchUnreadCount();
-    const interval = window.setInterval(() => { void fetchUnreadCount(); }, 10000);
+    const unsubscribe = refreshOnRealtime(['chats'], fetchUnreadCount);
 
     return () => {
       active = false;
-      window.clearInterval(interval);
+      unsubscribe();
     };
   }, [authUser?.id]);
 

@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     if (!cnic) return NextResponse.json({ success: false, message: 'Professional seller accounts require CNIC number.' }, { status: 400 });
   }
   
-  const response = NextResponse.json({ success: true, message: 'Check your email to confirm your account.' }, { status: 201 });
+  const response = NextResponse.json({ success: true, message: 'Verification request accepted. Check your inbox and spam folder. If no email arrives, use Resend on the login screen or contact support.' }, { status: 201 });
   const client = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     cookies: { getAll: () => request.cookies.getAll(), setAll: (items) => items.forEach(({ name, value, options }) => response.cookies.set(name, value, options)) },
   });
@@ -36,8 +36,6 @@ export async function POST(request: NextRequest) {
   };
 
   const redirectUrl = `${new URL(request.url).origin}/auth/callback?type=signup&next=/login`;
-  console.log('Signup attempt:', { email, accountType, userMetadata, redirectUrl });
-
   const { data, error } = await client.auth.signUp({ 
     email, 
     password, 
@@ -47,15 +45,8 @@ export async function POST(request: NextRequest) {
     } 
   });
   
-  console.log('Supabase signup result:', { 
-    userId: data?.user?.id, 
-    email: data?.user?.email,
-    emailConfirmedAt: data?.user?.email_confirmed_at,
-    error: error?.message 
-  });
-  
   if (error) {
-    console.error('Signup error:', error);
+    console.error('Signup request failed:', error.message);
     return NextResponse.json({ success: false, message: error.message }, { status: 400 });
   }
 

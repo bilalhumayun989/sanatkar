@@ -1,5 +1,7 @@
 'use client';
 
+import { refreshOnRealtime } from '@/lib/realtime/client';
+
 import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -87,10 +89,10 @@ export default function ChatRoomMobile({ chatId }: ChatRoomProps) {
     };
 
     void loadChat(true);
-    const interval = window.setInterval(() => { void loadChat(false); }, 5000);
+    const unsubscribe = refreshOnRealtime(['chats'], () => loadChat(false));
     return () => {
       active = false;
-      window.clearInterval(interval);
+      unsubscribe();
     };
   }, [chatId]);
 

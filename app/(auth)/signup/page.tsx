@@ -87,7 +87,7 @@ export default function SignupPage() {
       if (!response.ok) {
         setError(data.message || 'Unable to create account.');
       } else {
-        setMessage(data.message || 'Check your email to confirm your account.');
+        setMessage(data.message || 'Verification request accepted. Check your inbox and spam folder. If no email arrives, use Resend on the login screen or contact support.');
       }
     } catch {
       setError('Failed to connect to the server.');
@@ -104,7 +104,7 @@ export default function SignupPage() {
     try {
       const supabase = createClient();
       const origin = window.location.origin;
-      const next = new URL(window.location.href).searchParams.get('next');
+      const next = accountType === 'seller' ? '/become-seller' : new URL(window.location.href).searchParams.get('next');
       const redirectTo = next ? `${origin}/auth/callback?next=${encodeURIComponent(next)}` : `${origin}/auth/callback`;
 
       const { data, error } = await supabase.auth.signInWithOAuth({

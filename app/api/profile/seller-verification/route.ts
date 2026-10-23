@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/dbConn';
 import { getCurrentProfile } from '@/lib/auth/supabase/server';
+import { PAID_BADGES_ENABLED } from '@/lib/features';
 
 export async function POST(request: NextRequest) {
+  if (!PAID_BADGES_ENABLED) return NextResponse.json({ success: false, message: 'Badge purchases and verification requests are currently disabled.' }, { status: 410 });
   const { user, profile } = await getCurrentProfile(request);
   if (!user || !profile) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   if (profile.role !== 'seller') return NextResponse.json({ message: 'You must become a seller before requesting verification.' }, { status: 403 });

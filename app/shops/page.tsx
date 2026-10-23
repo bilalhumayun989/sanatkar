@@ -1,5 +1,7 @@
 'use client';
 
+import { refreshOnRealtime } from '@/lib/realtime/client';
+
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -37,7 +39,8 @@ export default function AllShopsPage() {
       }
     };
 
-    fetchShops();
+    void fetchShops();
+    return refreshOnRealtime(['catalog', 'listings'], fetchShops);
   }, []);
 
   // Filter shops based on search query

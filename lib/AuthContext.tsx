@@ -1,4 +1,5 @@
 'use client';
+import { refreshOnRealtime } from '@/lib/realtime/client';
 
 import { createContext, useCallback, useContext, useState, useEffect } from 'react';
 import { fetchJson } from '@/lib/utils/fetchJson';
@@ -11,6 +12,9 @@ interface User {
     username?: string;
     role: string;
     seller_status?: string | null;
+    seller_activation_status?: string;
+    shop_name?: string | null;
+    shop_complete?: boolean;
     verification_status?: string | null;
     total_listings_posted?: number;
 }
@@ -56,10 +60,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     username: u.username,
                     role: u.role === 'user' ? 'regular' : (u.role ?? 'regular'),
                     seller_status: u.seller_status ?? null,
+                    seller_activation_status: u.seller_activation_status,
+                    shop_name: u.shop_name,
+                    shop_complete: u.shop_complete,
                     verification_status: u.verification_status ?? null,
                     total_listings_posted: u.total_listings_posted ?? 0,
                 });
                 return true;
+            }
+            if (data?.success && data?.user === null) {
+                if (shouldApply()) setUser(null);
+                return false;
             }
         } catch (_) { /* fall through */ }
 
@@ -150,6 +161,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     }, [fetchProfile]);
+
+    useEffect(() => {
+        if (!user?.id) return;
+        return refreshOnRealtime(['profile'], refreshAuth);
+    }, [user?.id, refreshAuth]);
 
     const isAdmin = user?.role === 'admin';
     const isSeller = user?.role === 'seller' || user?.role === 'admin';

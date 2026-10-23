@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
+import DeleteAccount from '@/app/components/profile/DeleteAccount';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { User, Mail, Phone, CreditCard, Loader2, Save, ArrowLeft, CheckCircle2, AlertCircle, Store } from 'lucide-react';
@@ -259,6 +260,8 @@ export default function ProfilePage() {
           )}
         </div>
         
+        {user?.role === 'seller' && user.seller_activation_status !== 'approved' && <Link href={user.shop_complete ? '/seller-activation' : '/become-seller'} className="mt-6 block rounded-2xl border border-amber-200 bg-amber-50 p-5 font-bold text-amber-900">{user.shop_complete ? 'Activate seller account — Rs 5,000, then admin approval' : 'Create your shop to start selling'}</Link>}
+        {user && <DeleteAccount />}
       </main>
       <Footer />
     </div>

@@ -1,4 +1,5 @@
 'use client';
+import DeleteAccount from '@/app/components/profile/DeleteAccount';
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -233,6 +234,7 @@ export default function EditProfilePage() {
             </button>
           </div>
         </form>
+        <DeleteAccount />
       </div>
     </div>
   );

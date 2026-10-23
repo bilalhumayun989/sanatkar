@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
+import { useRouter } from 'next/navigation';
 import { X, Upload, Loader2, Store } from 'lucide-react';
 
 interface BecomeSellerModalProps {
@@ -11,7 +12,11 @@ interface BecomeSellerModalProps {
 }
 
 export default function BecomeSellerModal({ isOpen, onClose, onSuccess }: BecomeSellerModalProps) {
-  const { user } = useAuth();
+  const { user, refreshAuth } = useAuth();
+  const router = useRouter();
+  const [shopAddress, setShopAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [phone, setPhone] = useState('');
   const [shopName, setShopName] = useState('');
   const [shopDescription, setShopDescription] = useState('');
   const [cnic, setCnic] = useState('');
@@ -25,7 +30,7 @@ export default function BecomeSellerModal({ isOpen, onClose, onSuccess }: Become
     e.preventDefault();
     if (!user) return;
 
-    if (!shopName || !shopDescription || !cnic || !imageFile) {
+    if (!shopName || !shopDescription || !cnic || !imageFile || !shopAddress.trim() || !city.trim() || !phone.trim()) {
       setError('All fields are required.');
       return;
     }
@@ -54,11 +59,11 @@ export default function BecomeSellerModal({ isOpen, onClose, onSuccess }: Become
         body: JSON.stringify({
           shopName,
           shopDescription,
-          shopAddress: 'Business address pending',
-          city: 'Not specified',
+          shopAddress,
+          city,
           shopImageUrl: uploadJson.urls[0],
           cnic,
-          phone: user.email || 'Not provided',
+          phone,
         }),
       });
       const profileJson = await profileResponse.json();
@@ -66,7 +71,7 @@ export default function BecomeSellerModal({ isOpen, onClose, onSuccess }: Become
         throw new Error(profileJson.message || 'Unable to submit seller request.');
       }
 
-      onSuccess();
+      await refreshAuth(); onSuccess(); onClose(); router.push('/seller-activation');
     } catch (err: unknown) {
       console.error('Failed to submit seller request', err);
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
@@ -98,6 +103,9 @@ export default function BecomeSellerModal({ isOpen, onClose, onSuccess }: Become
           )}
 
           <form id="seller-form" onSubmit={handleSubmit} className="space-y-5">
+            <label className="block text-sm font-bold">Shop address<input required value={shopAddress} onChange={event => setShopAddress(event.target.value)} className="mt-2 w-full rounded-xl border px-4 py-3" /></label>
+            <label className="block text-sm font-bold">City<input required value={city} onChange={event => setCity(event.target.value)} className="mt-2 w-full rounded-xl border px-4 py-3" /></label>
+            <label className="block text-sm font-bold">Phone<input required type="tel" value={phone} onChange={event => setPhone(event.target.value)} className="mt-2 w-full rounded-xl border px-4 py-3" /></label>
             <div className="space-y-2">
               <label className="text-sm font-bold text-slate-700">Shop Name</label>
               <input type="text" value={shopName} onChange={e => setShopName(e.target.value)} placeholder="Enter your shop name" className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none" />
@@ -132,7 +140,7 @@ export default function BecomeSellerModal({ isOpen, onClose, onSuccess }: Become
           </button>
           <button type="submit" form="seller-form" disabled={loading} className="flex items-center gap-2 px-8 py-2.5 rounded-xl font-bold text-white bg-primary hover:bg-primary-dark transition-all disabled:opacity-70">
             {loading && <Loader2 size={18} className="animate-spin" />}
-            Submit Request
+            Create shop and continue
           </button>
         </div>
       </div>

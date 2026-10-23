@@ -3,9 +3,9 @@ import prisma from '@/lib/dbConn';
 import { getCurrentProfile } from '@/lib/auth/supabase/server';
 
 export async function GET(request: NextRequest) {
-  const { user, profile } = await getCurrentProfile(request);
-  if (!user || !profile) return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
   try {
+    const { user, profile } = await getCurrentProfile(request);
+    if (!user || !profile) return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     const [totalListings, activeListings, offersCount, listingIds] = await Promise.all([
       prisma.listing.count({ where: { sellerId: user.id } }),
       prisma.listing.count({ where: { sellerId: user.id, status: 'active' } }),
@@ -25,6 +25,8 @@ export async function GET(request: NextRequest) {
       role: profile.role,
       email_verified: profile.emailVerified,
       seller_status: profile.sellerStatus,
+      seller_activation_status: profile.sellerActivationStatus,
+      seller_payment_proof_url: profile.sellerPaymentProofPath ? '/api/profile/seller-activation/proof' : null,
       verification_status: profile.verificationStatus,
       verification_proof_url: profile.verificationProofUrl,
       verification_requested_at: profile.verificationRequestedAt,
@@ -42,7 +44,7 @@ export async function GET(request: NextRequest) {
     } });
   } catch (error) {
     console.error('Profile query failed:', error);
-    return NextResponse.json({ success: false, message: 'Unable to load profile.' }, { status: 500 });
+    return NextResponse.json({ success: false, message: 'Unable to load profile. Please retry.' }, { status: 503 });
   }
 }
 

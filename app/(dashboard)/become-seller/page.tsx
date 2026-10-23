@@ -14,7 +14,7 @@ const CITIES = ['Lahore', 'Karachi', 'Islamabad', 'Faisalabad', 'Rawalpindi', 'M
 
 export default function BecomeSellerPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, refreshAuth } = useAuth();
   const [shopName, setShopName] = useState('');
   const [shopDescription, setShopDescription] = useState('');
   const [shopAddress, setShopAddress] = useState('');
@@ -102,7 +102,8 @@ export default function BecomeSellerPage() {
         return;
       }
 
-      setMessage({ text: 'Application submitted. An admin will review your seller account.', type: 'success' });
+      await refreshAuth();
+      router.replace('/seller-activation');
     } catch (error) {
       setMessage({ text: error instanceof Error ? error.message : 'Something went wrong. Please try again.', type: 'error' });
     } finally {
@@ -145,7 +146,7 @@ export default function BecomeSellerPage() {
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Seller application · Step {activeStep} of 3</p>
                 <h1 className="mt-1 text-3xl font-black text-slate-900">Become a Seller</h1>
-                <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">Tell us about your business. Your application will be sent to an admin for review before seller access is enabled.</p>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">Create your shop first. Then pay Rs 5,000 and submit your payment screenshot. Admin approval unlocks unlimited product listings.</p>
               </div>
             </div>
           </div>
@@ -234,7 +235,7 @@ export default function BecomeSellerPage() {
               ) : (
                 <button type="submit" disabled={submitting || message?.type === 'success'} className="inline-flex items-center gap-2 rounded-xl bg-primary px-7 py-3 text-sm font-bold text-white shadow-lg shadow-primary/20 transition hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-60">
                   {submitting && <Loader2 size={17} className="animate-spin" />}
-                  {submitting ? 'Submitting...' : 'Submit application'}
+                  {submitting ? 'Submitting...' : 'Create shop and continue'}
                 </button>
               )}
             </div>

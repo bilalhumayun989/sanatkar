@@ -1,5 +1,8 @@
 'use client';
 
+import { refreshOnRealtime } from '@/lib/realtime/client';
+import { useAuth } from '@/lib/AuthContext';
+
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { 
@@ -61,6 +64,7 @@ export default function MessagesPage() {
 }
 
 function MessagesInboxPage() {
+  const { user: authUser } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
   const requestedChatId = searchParams.get('chat');
@@ -82,10 +86,12 @@ function MessagesInboxPage() {
   }, []);
 
   useEffect(() => {
+    let active = true;
     const fetchChats = async () => {
       try {
         const meResponse = await fetch('/api/auth/me', { cache: 'no-store' });
         const meResult = await meResponse.json();
+        if (!active) return;
         if (!meResponse.ok || !meResult.success || !meResult.user) {
           window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname + window.location.search);
           return;
@@ -95,6 +101,7 @@ function MessagesInboxPage() {
 
         const response = await fetch('/api/chats', { cache: 'no-store' });
         const result = await response.json();
+        if (!active) return;
         if (!response.ok || !result.success) throw new Error(result.message || 'Unable to load chats');
         const enhancedChats = (result.chats || []).map((chat: any) => ({
           ...chat,
@@ -104,16 +111,18 @@ function MessagesInboxPage() {
         }));
         setChats(enhancedChats);
         const targetChat = new URLSearchParams(window.location.search).get('chat');
-        setSelectedChatId(targetChat ? enhancedChats.find((chat: any) => chat.id === targetChat)?.id || null : enhancedChats[0]?.id || null);
+        setSelectedChatId(previous => previous && enhancedChats.some((chat: any) => chat.id === previous) ? previous : targetChat ? enhancedChats.find((chat: any) => chat.id === targetChat)?.id || null : enhancedChats[0]?.id || null);
       } catch (err) {
         console.error(err);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
-    fetchChats();
-  }, []);
+    void fetchChats();
+    const unsubscribe = refreshOnRealtime(['chats'], fetchChats);
+    return () => { active = false; unsubscribe(); };
+  }, [authUser?.id]);
 
   useEffect(() => {
     if (requestedChatId) setSelectedChatId(chats.some(chat => chat.id === requestedChatId) ? requestedChatId : null);
@@ -137,7 +146,8 @@ function MessagesInboxPage() {
     };
 
     loadActiveChat().catch(error => console.error('Active chat load failed:', error));
-    return () => { active = false; };
+    const unsubscribe = refreshOnRealtime(['chats'], loadActiveChat);
+    return () => { active = false; unsubscribe(); };
   }, [selectedChatId, currentUserId]);
 
   const handleSendMessage = async (event: React.FormEvent) => {
@@ -156,7 +166,7 @@ function MessagesInboxPage() {
       const result = await response.json();
       if (!response.ok || !result.success) throw new Error(result.message || 'Unable to send message');
       const data = result.message as ChatMessage;
-      setActiveMessages(previous => [...previous, data]);
+      setActiveMessages(previous => previous.some(message => message.id === data.id) ? previous : [...previous, data]);
       setChats(previous => previous.map(chat => chat.id === selectedChatId
         ? { ...chat, unreadCount: 0, latestMessage: { content, created_at: data.created_at, sender_id: currentUserId, is_read: true, type: 'text' } }
         : chat));

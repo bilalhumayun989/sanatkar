@@ -1,5 +1,7 @@
 'use client';
 
+import { refreshOnRealtime } from '@/lib/realtime/client';
+
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -125,7 +127,8 @@ export default function MyAdsPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) { router.replace('/login?next=/my-ads'); return; }
-    loadListings();
+    void loadListings();
+    return refreshOnRealtime(['listings'], loadListings);
   }, [authLoading, router, user]);
 
   const resetEditor = () => {

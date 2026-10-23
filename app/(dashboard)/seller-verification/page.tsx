@@ -8,6 +8,7 @@ import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
 import { useAuth } from '@/lib/AuthContext';
 import { fetchJson } from '@/lib/utils/fetchJson';
+import { PAID_BADGES_ENABLED } from '@/lib/features';
 
 // Replace these values with the platform's real receiving account.
 const PAYMENT_DETAILS = {
@@ -38,6 +39,7 @@ export default function SellerVerificationPage() {
   };
 
   const handleSubmit = async () => {
+    if (!PAID_BADGES_ENABLED) return;
     if (!proofFile || !user) {
       setMessage({ type: 'error', text: 'Please attach a clear payment receipt or screenshot.' });
       return;
@@ -75,6 +77,7 @@ export default function SellerVerificationPage() {
     }
   };
 
+  if (!PAID_BADGES_ENABLED) return <><Navbar forceSolid /><main className="min-h-screen px-4 pb-16 pt-32 text-center"><h1 className="text-xl font-bold">Badge requests are currently disabled</h1><p className="mt-3">No badge purchases or payment submissions are being accepted.</p><Link href="/profile" className="mt-5 inline-block text-primary underline">Back to profile</Link></main><Footer /></>;
   if (authLoading || !user) return <div className="min-h-screen bg-[#F3F4F6]" />;
 
   if (user.role !== 'seller') {

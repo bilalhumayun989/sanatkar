@@ -6,6 +6,20 @@ datasource db {
   provider = "postgresql"
 }
 
+// Minimal deletion markers prevent old sessions from recreating removed profiles.
+model DeletedAccount {
+  userId    String   @id @map("user_id") @db.Uuid
+  deletedAt DateTime @default(now()) @map("deleted_at") @db.Timestamptz(6)
+  @@map("deleted_accounts")
+}
+
+model AccountDeletionAttempt {
+  userId          String   @id @map("user_id") @db.Uuid
+  attempts        Int      @default(1)
+  windowStartedAt DateTime @default(now()) @map("window_started_at") @db.Timestamptz(6)
+  @@map("account_deletion_attempts")
+}
+
 model Order {
   id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   buyerId          String   @map("buyer_id") @db.Uuid
@@ -68,6 +82,10 @@ model Profile {
   cnic                     String?
   emailVerified            Boolean         @default(false) @map("email_verified")
   sellerStatus             String?         @map("seller_status")
+  sellerActivationStatus   String          @default("unpaid") @map("seller_activation_status")
+  sellerPaymentProofPath    String?         @map("seller_payment_proof_path")
+  sellerPaymentSubmittedAt DateTime?        @map("seller_payment_submitted_at") @db.Timestamptz(6)
+  sellerPaymentReviewedAt  DateTime?        @map("seller_payment_reviewed_at") @db.Timestamptz(6)
   shopName                 String?         @map("shop_name")
   shopDescription          String?         @map("shop_description")
   shopAddress              String?         @map("shop_address")
@@ -223,8 +241,11 @@ model Notification {
   type      String?   @default("general")
   isRead    Boolean?  @default(false) @map("is_read")
   createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(6)
+  metadata  Json      @default("{}")
+  sourceKey String?   @unique @map("source_key")
   profile   Profile? @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@index([userId, isRead, createdAt(sort: Desc)])
   @@map("notifications")
 }
 

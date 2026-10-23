@@ -60,29 +60,44 @@ export async function getCurrentUser(request: NextRequest) {
       auth: { autoRefreshToken: false, persistSession: false },
     });
     const { data: { user }, error } = await client.auth.getUser(accessToken);
+    if (user && await isDeletedAccount(user.id)) return { user: null, error: null };
     return { user, error };
   }
 
   const { client } = createRouteSupabaseClient(request);
   const { data: { user }, error } = await client.auth.getUser();
+  if (user && await isDeletedAccount(user.id)) return { user: null, error: null };
   return { user, error };
+}
+
+async function isDeletedAccount(userId: string) {
+  const rows = await prisma.$queryRaw<Array<{ user_id: string }>>`
+    SELECT user_id FROM public.deleted_accounts WHERE user_id = ${userId}::uuid`;
+  return rows.length > 0;
 }
 
 export async function syncSupabaseProfile(user: User) {
   const email = user.email ?? `${user.id}@unknown.invalid`;
   const username = `${(user.email?.split('@')[0] || 'user').slice(0, 40)}-${user.id.slice(0, 8)}`;
   const authName = user.user_metadata?.full_name;
-  return prisma.profile.upsert({
-    where: { id: user.id },
-    create: {
-      id: user.id,
-      username,
-      email,
-      role: 'regular',
-      emailVerified: Boolean(user.email_confirmed_at),
-      ...(typeof authName === 'string' && authName.trim() ? { fullName: authName.trim().slice(0, 120) } : {}),
-    },
-    update: { email, emailVerified: Boolean(user.email_confirmed_at) },
+  const wantsSeller = user.user_metadata?.account_type === 'seller';
+  return prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${user.id}, 0))::text`;
+    const deleted = await tx.$queryRaw<Array<{ user_id: string }>>`SELECT user_id FROM public.deleted_accounts WHERE user_id = ${user.id}::uuid`;
+    if (deleted.length) throw new Error('Account has been deleted');
+    return tx.profile.upsert({
+      where: { id: user.id },
+      create: {
+        id: user.id,
+        username,
+        email,
+        role: wantsSeller ? 'seller' : 'regular',
+        sellerStatus: wantsSeller ? 'shop_required' : null,
+        emailVerified: Boolean(user.email_confirmed_at),
+        ...(typeof authName === 'string' && authName.trim() ? { fullName: authName.trim().slice(0, 120) } : {}),
+      },
+      update: { email, emailVerified: Boolean(user.email_confirmed_at) },
+    });
   });
 }
 
@@ -99,6 +114,7 @@ export async function getCurrentProfile(request: NextRequest) {
       verification_status: profile.verificationStatus,
       total_listings_posted: profile.totalListingsPosted,
       onboarding_complete: profile.onboardingComplete,
+      seller_activation_status: profile.sellerActivationStatus,
     },
   };
 }

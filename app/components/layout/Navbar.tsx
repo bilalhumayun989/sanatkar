@@ -1,5 +1,7 @@
 'use client';
 
+import { refreshOnRealtime } from '@/lib/realtime/client';
+
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
@@ -13,6 +15,7 @@ interface NavbarProps {
 }
 
 interface NavbarNotification {
+    id?: string;
     chatId: string;
     senderName: string;
     content: string;
@@ -67,26 +70,28 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
         return () => document.removeEventListener('mousedown', handleOutsideClick);
     }, []);
 
+    const notificationUser = useRef(authUser?.id);
+    notificationUser.current = authUser?.id;
+
     const loadNotifications = async () => {
         if (!authUser?.id) return;
+        const requestedUser = authUser.id;
         try {
-            const response = await fetch('/api/chats', { cache: 'no-store' });
+            const response = await fetch('/api/notifications?format=records&unread=true', { cache: 'no-store' });
             const result = await response.json();
-            if (!response.ok || !result.success) throw new Error(result.message || 'Unable to load message notifications.');
-            const items = (result.chats || [])
-                .filter((chat: any) => Number(chat.unreadCount) > 0)
-                .map((chat: any) => ({
-                    chatId: chat.id,
-                    senderName: chat.otherUser?.full_name || chat.otherUser?.username || 'New message',
-                    content: chat.latestMessage?.content || 'Sent a message',
-                    createdAt: chat.latestMessage?.created_at || chat.updated_at || new Date().toISOString(),
-                    unreadCount: Number(chat.unreadCount),
-                }));
+            if (notificationUser.current !== requestedUser) return;
+            if (!response.ok || !result.success) throw new Error(result.message || 'Unable to load notifications.');
+            const items = (result.notifications || []).map((notification: any) => ({
+                id: notification.id,
+                chatId: notification.metadata?.chat_id || '',
+                senderName: notification.title || 'New notification',
+                content: notification.message,
+                createdAt: notification.created_at || new Date().toISOString(),
+                unreadCount: 1,
+            }));
             setNotifications(items);
-            setMessageUnreadCount(items.reduce((count: number, item: NavbarNotification) => count + item.unreadCount, 0));
-        } catch (error) {
-            console.error('Failed to load message notifications:', error);
-        }
+            setMessageUnreadCount(Number(result.unread_count) || 0);
+        } catch (error) { console.error('Failed to load notifications:', error); }
     };
 
     useEffect(() => {
@@ -96,8 +101,8 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
             return;
         }
         void loadNotifications();
-        const interval = window.setInterval(() => { void loadNotifications(); }, 10000);
-        return () => window.clearInterval(interval);
+        const unsubscribe = refreshOnRealtime(['chats', 'notifications'], loadNotifications);
+        return unsubscribe;
     }, [authUser?.id]);
 
     return (
@@ -325,7 +330,7 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                                 </button>
                                 {notificationOpen && <div className="absolute right-0 mt-3 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.16)]">
                                     <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3"><div><p className="text-sm font-black text-slate-900">Notifications</p><p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Unread chat messages</p></div><span className="rounded-full bg-rose-50 px-2 py-1 text-[10px] font-black text-rose-600">{messageUnreadCount}</span></div>
-                                    <div className="max-h-80 overflow-y-auto p-2">{notifications.length === 0 ? <div className="px-4 py-8 text-center text-xs font-semibold text-slate-400">No new messages</div> : notifications.map(notification => <Link key={notification.chatId} href={`/messages?chat=${encodeURIComponent(notification.chatId)}`} onClick={() => setNotificationOpen(false)} className="flex items-start gap-3 rounded-xl p-3 transition hover:bg-rose-50"><span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-500"><MessageSquare size={15} /></span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><strong className="truncate text-xs font-black text-slate-800">{notification.senderName}</strong><b className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] text-white">{notification.unreadCount}</b></span><span className="mt-1 block truncate text-[11px] text-slate-500">{notification.content}</span><span className="mt-1 block text-[10px] font-semibold text-slate-400">{new Date(notification.createdAt).toLocaleString()}</span></span></Link>)}</div>
+                                    <div className="max-h-80 overflow-y-auto p-2">{notifications.length === 0 ? <div className="px-4 py-8 text-center text-xs font-semibold text-slate-400">No new notifications</div> : notifications.map(notification => <Link key={notification.id || notification.chatId} href={notification.chatId ? `/messages?chat=${encodeURIComponent(notification.chatId)}` : '/notifications'} onClick={() => { setNotificationOpen(false); if (notification.id) void fetch('/api/notifications', { method: 'PATCH', keepalive: true, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: notification.id }) }).catch(error => console.error('Notification read failed:', error)); }} className="flex items-start gap-3 rounded-xl p-3 transition hover:bg-rose-50"><span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-500"><MessageSquare size={15} /></span><span className="min-w-0 flex-1"><span className="flex items-center justify-between gap-2"><strong className="truncate text-xs font-black text-slate-800">{notification.senderName}</strong><b className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] text-white">{notification.unreadCount}</b></span><span className="mt-1 block truncate text-[11px] text-slate-500">{notification.content}</span><span className="mt-1 block text-[10px] font-semibold text-slate-400">{new Date(notification.createdAt).toLocaleString()}</span></span></Link>)}</div>
                                 </div>}
                             </div>
                         )}

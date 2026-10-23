@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/dbConn';
 import { getCurrentProfile, getCurrentUser } from '@/lib/auth/supabase/server';
 import { listingSellerSelect, parseImageUrls, serializeListing } from '@/lib/listings';
+import { sellerListingGate } from '@/lib/seller-activation';
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -67,6 +68,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     if (input.status !== undefined) {
       if (!['active', 'paused', 'sold'].includes(String(input.status))) return NextResponse.json({ message: 'Invalid listing status.' }, { status: 400 });
       data.status = input.status;
+      const gate = sellerListingGate(profile);
+      if (input.status === 'active' && gate) return NextResponse.json({ success: false, code: gate, message: 'Complete shop setup and seller payment approval before publishing listings.' }, { status: 403 });
     }
     if (profile.role === 'admin' && typeof input.is_featured === 'boolean') data.isFeatured = input.is_featured;
     if (Object.keys(data).length === 0) return NextResponse.json({ message: 'No supported changes were provided.' }, { status: 400 });

@@ -1,5 +1,7 @@
 'use client';
 
+import { refreshOnRealtime } from '@/lib/realtime/client';
+
 import { useEffect, useState, type FormEvent } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -152,10 +154,12 @@ export default function Home() {
       }
     };
 
+    const stopStorefront = refreshOnRealtime(['listings', 'catalog'], loadStorefront);
     loadStorefront().catch((error) => {
       console.error('Failed to load storefront:', error);
     });
     return () => {
+      stopStorefront();
       active = false;
     };
   }, []);
@@ -184,11 +188,11 @@ export default function Home() {
     void loadSellers();
     const refresh = () => { if (document.visibilityState === 'visible') void loadSellers(); };
     window.addEventListener('focus', refresh);
-    const interval = window.setInterval(refresh, 60000);
+    const unsubscribe = refreshOnRealtime(['catalog'], loadSellers);
     return () => {
       controller.abort();
       window.removeEventListener('focus', refresh);
-      window.clearInterval(interval);
+      unsubscribe();
     };
   }, [sellerRetry]);
 

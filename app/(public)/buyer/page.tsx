@@ -1,5 +1,7 @@
 'use client';
 
+import { refreshOnRealtime } from '@/lib/realtime/client';
+
 import { Fragment, Suspense, useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -122,9 +124,12 @@ function BuyerPageContent() {
             }
         };
 
+        const stopListings = refreshOnRealtime(['listings'], fetchParts);
+        const stopCatalog = refreshOnRealtime(['catalog'], async () => { await fetchBrands(); await fetchAd(); });
         fetchParts();
         fetchBrands();
         fetchAd();
+        return () => { stopListings(); stopCatalog(); };
     }, []);
 
     useEffect(() => {
@@ -145,12 +150,12 @@ function BuyerPageContent() {
         const refresh = () => { void loadCategories(); };
         window.addEventListener('focus', refresh);
         document.addEventListener('visibilitychange', refresh);
-        const interval = window.setInterval(refresh, 60000);
+        const unsubscribe = refreshOnRealtime(['catalog'], loadCategories);
         return () => {
             controller.abort();
             window.removeEventListener('focus', refresh);
             document.removeEventListener('visibilitychange', refresh);
-            window.clearInterval(interval);
+            unsubscribe();
         };
     }, []);
 

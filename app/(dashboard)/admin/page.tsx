@@ -1,4 +1,7 @@
 'use client';
+import { PAID_BADGES_ENABLED } from '@/lib/features';
+
+import { refreshOnRealtime } from '@/lib/realtime/client';
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
@@ -61,7 +64,7 @@ const sections: { id: Section; label: string; icon: typeof LayoutDashboard }[] =
   { id: 'categories', label: 'Categories', icon: FolderKanban },
   { id: 'brands', label: 'Brands', icon: BadgeCheck },
   { id: 'listings', label: 'Manage Listings', icon: Package },
-  { id: 'badges', label: 'Badge Requests', icon: Shield },
+  // { id: 'badges', label: 'Badge Requests', icon: Shield }, // Restore when badge reviews are needed.
   { id: 'users', label: 'User Management', icon: Users },
 ];
 
@@ -130,10 +133,10 @@ export default function AdminPage() {
   useEffect(() => {
     if (!user || !isAdmin) return;
     const refreshOnFocus = () => { void loadData(); };
-    const interval = window.setInterval(() => { void loadData(); }, 15000);
+    const unsubscribe = refreshOnRealtime(['admin'], loadData);
     window.addEventListener('focus', refreshOnFocus);
     return () => {
-      window.clearInterval(interval);
+      unsubscribe();
       window.removeEventListener('focus', refreshOnFocus);
     };
   }, [isAdmin, user]);
@@ -260,7 +263,7 @@ export default function AdminPage() {
           {section === 'blogs' && <BlogManager />}
           {section === 'dashboard' && <DashboardStats profiles={profiles} listings={listings} sellerRequests={sellerRequests} badgeRequests={badgeRequests} onNavigate={setSection} />}
           {section === 'sellers' && <SellerRequests requests={sellerRequests} onApprove={(id: string) => updateProfile(id, { role: 'seller', seller_status: 'approved' }, 'Seller approved')} onReject={(id: string) => updateProfile(id, { seller_status: 'rejected' }, 'Seller rejected')} />}
-          {section === 'badges' && <BadgeRequests requests={badgeRequests} onApprove={(id: string) => updateProfile(id, { verification_status: 'approved', verification_reviewed_at: new Date().toISOString() }, 'Badge approved')} onReject={(id: string) => updateProfile(id, { verification_status: 'rejected', verification_reviewed_at: new Date().toISOString() }, 'Badge rejected')} />}
+          {PAID_BADGES_ENABLED && section === 'badges' && <BadgeRequests requests={badgeRequests} onApprove={(id: string) => updateProfile(id, { verification_status: 'approved', verification_reviewed_at: new Date().toISOString() }, 'Badge approved')} onReject={(id: string) => updateProfile(id, { verification_status: 'rejected', verification_reviewed_at: new Date().toISOString() }, 'Badge rejected')} />}
           {section === 'categories' && <CategoryManagement
             items={categories}
             onAdd={() => { setEditingCategory(null); setCategoryForm({ ...emptyCategory }); }}
@@ -318,11 +321,11 @@ export default function AdminPage() {
 }
 
 function DashboardStats({ profiles, listings, sellerRequests, badgeRequests, onNavigate }: any) {
-  const cards = [{ label: 'Total users', value: profiles.length, icon: Users }, { label: 'Live listings', value: listings.filter((item: any) => item.status === 'active').length, icon: Package }, { label: 'Seller requests', value: sellerRequests.length, icon: Store }, { label: 'Badge requests', value: badgeRequests.length, icon: BadgeCheck }];
-  return <div><div className="mb-8"><p className="text-sm font-bold text-primary">Command center</p><h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">Platform overview</h2><p className="mt-2 text-sm text-slate-500">Review marketplace activity and keep seller operations moving.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{cards.map((card: any) => { const Icon = card.icon; return <button key={card.label} onClick={() => onNavigate(card.label === 'Seller requests' ? 'sellers' : card.label === 'Badge requests' ? 'badges' : card.label === 'Total users' ? 'users' : 'listings')} className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg"><div className="flex items-start justify-between"><div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{card.label}</p><p className="mt-3 text-3xl font-black text-slate-900">{card.value}</p></div><span className="rounded-xl bg-primary/10 p-3 text-primary group-hover:bg-primary group-hover:text-white"><Icon size={21} /></span></div></button>; })}</div><div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6"><h3 className="font-black text-slate-900">Quick actions</h3><div className="mt-4 flex flex-wrap gap-3">{['sellers', 'categories', 'brands', 'listings', 'badges', 'users'].map((item: any) => <button key={item} onClick={() => onNavigate(item)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold capitalize text-slate-600 hover:border-primary hover:text-primary">Manage {item}</button>)}</div></div></div>;
+  const cards = [{ label: 'Total users', value: profiles.length, icon: Users }, { label: 'Live listings', value: listings.filter((item: any) => item.status === 'active').length, icon: Package }, { label: 'Seller requests', value: sellerRequests.length, icon: Store }, { label: 'Badge requests', value: badgeRequests.length, icon: BadgeCheck }].filter(card => PAID_BADGES_ENABLED || card.label !== 'Badge requests');
+  return <div><div className="mb-8"><p className="text-sm font-bold text-primary">Command center</p><h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">Platform overview</h2><p className="mt-2 text-sm text-slate-500">Review marketplace activity and keep seller operations moving.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{cards.map((card: any) => { const Icon = card.icon; return <button key={card.label} onClick={() => onNavigate(card.label === 'Seller requests' ? 'sellers' : card.label === 'Badge requests' ? 'badges' : card.label === 'Total users' ? 'users' : 'listings')} className="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg"><div className="flex items-start justify-between"><div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{card.label}</p><p className="mt-3 text-3xl font-black text-slate-900">{card.value}</p></div><span className="rounded-xl bg-primary/10 p-3 text-primary group-hover:bg-primary group-hover:text-white"><Icon size={21} /></span></div></button>; })}</div><div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6"><h3 className="font-black text-slate-900">Quick actions</h3><div className="mt-4 flex flex-wrap gap-3">{['sellers', 'categories', 'brands', 'listings', 'badges', 'users'].filter(item => PAID_BADGES_ENABLED || item !== 'badges').map((item: any) => <button key={item} onClick={() => onNavigate(item)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold capitalize text-slate-600 hover:border-primary hover:text-primary">Manage {item}</button>)}</div></div></div>;
 }
 
-function SellerRequests({ requests, onApprove, onReject }: any) { return <ReviewList title="Seller verification requests" requests={requests} onApprove={onApprove} onReject={onReject} renderDetails={(item: any) => <><p className="font-black text-slate-900">{item.shop_name || 'Unnamed shop'}</p><p className="text-sm text-slate-500">{item.full_name || item.username || item.email}</p><p className="mt-2 text-sm text-slate-500">{item.shop_description}</p><p className="mt-2 text-xs font-bold text-slate-400">{item.phone || 'No phone'} {item.city ? ` · ${item.city}` : ''} {item.cnic ? ` · CNIC ${item.cnic}` : ''}</p>{item.shop_image_url && <img src={item.shop_image_url} alt="Shop" className="mt-3 h-24 w-24 rounded-xl object-cover" />}</>} />; }
+function SellerRequests({ requests, onApprove, onReject }: any) { return <ReviewList title="Seller activation payments — Rs 5,000" requests={requests} onApprove={onApprove} onReject={onReject} renderDetails={(item: any) => <><p className="font-black text-slate-900">{item.shop_name || 'Unnamed shop'}</p><p className="text-sm text-slate-500">{item.full_name || item.username || item.email}</p><p className="mt-2 text-sm text-slate-500">{item.shop_description}</p><p className="mt-2 text-xs font-bold text-slate-400">{item.phone || 'No phone'} {item.city ? ` · ${item.city}` : ''} {item.cnic ? ` · CNIC ${item.cnic}` : ''}</p>{item.seller_payment_proof_url && <a href={item.seller_payment_proof_url} target="_blank" rel="noreferrer" className="mt-3 block font-bold text-primary underline">View Rs 5,000 payment screenshot</a>}{item.shop_image_url && <img src={item.shop_image_url} alt="Shop" className="mt-3 h-24 w-24 rounded-xl object-cover" />}</>} />; }
 function BadgeRequests({ requests, onApprove, onReject }: any) { return <ReviewList title="Paid badge requests" requests={requests} onApprove={onApprove} onReject={onReject} renderDetails={(item: any) => <><p className="font-black text-slate-900">{item.shop_name || item.full_name || item.username}</p><p className="text-sm text-slate-500">{item.email} · {item.phone || 'No phone'}</p>{item.verification_proof_url && <a href={item.verification_proof_url} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-primary">View payment proof</a>}</>} />; }
 function ReviewList({ title, requests, onApprove, onReject, renderDetails }: any) { return <div><div className="mb-6"><h2 className="text-2xl font-black text-slate-900">{title}</h2><p className="mt-1 text-sm text-slate-500">{requests.length} pending request{requests.length === 1 ? '' : 's'}</p></div>{requests.length === 0 ? <Empty text="No pending requests" /> : <div className="space-y-4">{requests.map((item: any) => <div key={item.id} className="flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-start sm:justify-between"><div>{renderDetails(item)}</div><div className="flex shrink-0 gap-2"><button onClick={() => onApprove(item.id)} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2.5 text-xs font-black text-white hover:bg-emerald-600"><Check size={15} /> Approve</button><button onClick={() => onReject(item.id)} className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-black text-rose-600 hover:bg-rose-100"><XCircle size={15} /> Reject</button></div></div>)}</div>}</div>; }
 function BrandManagement({ items, onAdd, onEdit, onDelete }: {

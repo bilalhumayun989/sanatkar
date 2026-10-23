@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/dbConn';
 import { getCurrentProfile } from '@/lib/auth/supabase/server';
 import { listingSellerSelect, serializeListing } from '@/lib/listings';
+import { PAID_BADGES_ENABLED } from '@/lib/features';
 
 export async function GET(request: NextRequest) {
   const { user, profile } = await getCurrentProfile(request);
@@ -20,13 +21,13 @@ export async function GET(request: NextRequest) {
       prisma.category.findMany({ orderBy: { name: 'asc' } }),
       prisma.brand.findMany({ orderBy: { name: 'asc' } }),
       prisma.profile.findMany({
-        where: { role: 'regular', sellerStatus: 'pending' },
+        where: { role: { in: ['seller', 'professional'] }, sellerStatus: 'pending', sellerActivationStatus: 'pending', sellerPaymentProofPath: { not: null } },
         orderBy: { createdAt: 'asc' },
       }),
-      prisma.profile.findMany({
+      PAID_BADGES_ENABLED ? prisma.profile.findMany({
         where: { role: 'seller', verificationStatus: 'pending' },
         orderBy: { verificationRequestedAt: 'asc' },
-      }),
+      }) : Promise.resolve([]),
     ]);
 
     const toProfile = (item: typeof profiles[number]) => ({
@@ -38,6 +39,9 @@ export async function GET(request: NextRequest) {
       cnic: item.cnic,
       role: item.role,
       seller_status: item.sellerStatus,
+      seller_activation_status: item.sellerActivationStatus,
+      seller_payment_proof_url: item.sellerPaymentProofPath ? `/api/profile/seller-activation/proof?userId=${item.id}` : null,
+      seller_payment_submitted_at: item.sellerPaymentSubmittedAt?.toISOString() ?? null,
       verification_status: item.verificationStatus,
       verification_proof_url: item.verificationProofUrl,
       verification_requested_at: item.verificationRequestedAt?.toISOString() ?? null,

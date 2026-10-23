@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import prisma from '@/lib/dbConn';
 import { getCurrentProfile, getCurrentUser } from '@/lib/auth/supabase/server';
 import { listingSellerSelect, parseImageUrls, serializeListing } from '@/lib/listings';
+import { sellerListingGate } from '@/lib/seller-activation';
 
 export const dynamic = 'force-dynamic';
 
@@ -127,7 +128,11 @@ export async function POST(request: NextRequest) {
 
     const listing = await prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT id FROM profiles WHERE id = ${user.id}::uuid FOR UPDATE`;
-      if (profile.role === 'regular') {
+      const current = await tx.profile.findUnique({ where: { id: user.id } });
+      if (!current) throw new Error('ACCOUNT_UNAVAILABLE');
+      const gate = sellerListingGate(current);
+      if (gate) throw new Error(gate);
+      if (current.role === 'regular') {
         const count = await tx.listing.count({ where: { sellerId: user.id } });
         if (count >= 3) throw new Error('AD_LIMIT_REACHED');
       }
@@ -135,6 +140,12 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({ success: true, listing: serializeListing(listing) }, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && ['SHOP_REQUIRED', 'SELLER_ACTIVATION_REQUIRED'].includes(error.message)) {
+      return NextResponse.json({ success: false, code: error.message,
+        message: error.message === 'SHOP_REQUIRED' ? 'Create your shop before listing products.' : 'Verify yourself: pay Rs 5,000, attach your payment screenshot, and wait for admin approval to unlock unlimited listings.',
+        next: error.message === 'SHOP_REQUIRED' ? '/become-seller' : '/seller-activation',
+      }, { status: 403 });
+    }
     if (error instanceof Error && error.message === 'AD_LIMIT_REACHED') {
       return NextResponse.json({ code: 'AD_LIMIT_REACHED', message: 'You have reached the 3-listing limit. Submit a seller application to post more.' }, { status: 403 });
     }

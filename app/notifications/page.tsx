@@ -1,5 +1,7 @@
 'use client';
 
+import { refreshOnRealtime } from '@/lib/realtime/client';
+
 import React, { useEffect, useState } from 'react';
 import { Bell, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
@@ -58,7 +60,11 @@ export default function NotificationsPage() {
       }
     }
 
-    fetchNotifications();
+    void fetchNotifications();
+    if (!user) return;
+    const unsubscribe = refreshOnRealtime(['notifications', 'chats'], fetchNotifications);
+    void fetch('/api/notifications', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true }) });
+    return unsubscribe;
   }, [user]);
 
   const getStatusBadgeClass = (status: string) => {

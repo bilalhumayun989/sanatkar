@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/dbConn';
 import { getCurrentProfile } from '@/lib/auth/supabase/server';
+import { PAID_BADGES_ENABLED } from '@/lib/features';
+import { hasCompleteShop } from '@/lib/seller-activation';
 
 type Context = { params: Promise<{ id: string }> };
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -20,16 +22,21 @@ export async function PATCH(request: NextRequest, { params }: Context) {
   const input = body as Record<string, unknown>;
   try {
     if (input.action === 'approve_seller' || input.action === 'reject_seller') {
+      const applicant = await prisma.profile.findUnique({ where: { id } });
+      if (!applicant || !hasCompleteShop(applicant) || !applicant.sellerPaymentProofPath || applicant.sellerActivationStatus !== 'pending') {
+        return NextResponse.json({ success: false, message: 'A complete shop and submitted Rs 5,000 payment screenshot are required before review.' }, { status: 409 });
+      }
       const result = await prisma.profile.updateMany({
-        where: { id, role: 'regular', sellerStatus: 'pending' },
+        where: { id, role: { in: ['seller', 'professional'] }, sellerStatus: 'pending', sellerActivationStatus: 'pending', sellerPaymentProofPath: { not: null } },
         data: input.action === 'approve_seller'
-          ? { role: 'seller', sellerStatus: 'approved' }
-          : { sellerStatus: 'rejected' },
+          ? { role: 'seller', sellerStatus: 'approved', sellerActivationStatus: 'approved', sellerPaymentReviewedAt: new Date() }
+          : { sellerStatus: 'rejected', sellerActivationStatus: 'rejected', sellerPaymentReviewedAt: new Date() },
       });
       if (!result.count) return NextResponse.json({ success: false, message: 'No pending seller request was found.' }, { status: 409 });
       return NextResponse.json({ success: true });
     }
     if (input.action === 'approve_verification' || input.action === 'reject_verification') {
+      if (!PAID_BADGES_ENABLED) return NextResponse.json({ success: false, message: 'Badge reviews are currently disabled.' }, { status: 410 });
       const result = await prisma.profile.updateMany({
         where: { id, role: 'seller', verificationStatus: 'pending' },
         data: {

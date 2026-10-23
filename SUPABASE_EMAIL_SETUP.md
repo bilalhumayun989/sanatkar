@@ -2,6 +2,24 @@
 
 ## Issue: Email verification emails are not being sent after signup
 
+The website and Flutter app send verification and password recovery requests to
+the same Supabase project. A successful API response means Supabase accepted
+the request; it cannot confirm that the recipient's mail provider placed it in
+the inbox. Delivery is controlled by this project's Auth SMTP configuration.
+
+For production, configure and verify a custom SMTP sender in the Supabase
+project's Auth settings. Confirm the provider has accepted the message, and
+publish the provider's SPF and DKIM DNS records for the sender domain. Then
+check the Supabase Auth logs and the mail provider's delivery/bounce log for a
+test signup and password reset. Do not use Supabase's default email service as
+a production mail sender. Keep email confirmation enabled.
+
+Add the exact website callback URL (for example,
+`https://sanatkar.com/auth/callback`) to Supabase Auth's allowed redirect URLs.
+The Flutter app uses the `sanatkar://auth/callback` redirect and needs that URL
+allowed as well. The redirect URL controls where a delivered link opens; it
+does not configure mail delivery.
+
 ### Most Common Causes & Solutions:
 
 ## 1. Email Confirmation Disabled in Supabase Dashboard
