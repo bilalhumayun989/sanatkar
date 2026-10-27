@@ -98,6 +98,17 @@ export default function AuthCallbackPage() {
           return;
         }
         if (setData?.session) {
+          try {
+            await fetch('/api/auth/sync', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(setData.session),
+            });
+          } catch (e) {
+            // The verified Supabase session can continue even if server sync
+            // needs to be retried on the next authenticated request.
+          }
           setStatus('success');
           setMessage('Authentication successful! Redirecting...');
           await refreshAuth();

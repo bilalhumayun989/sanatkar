@@ -149,6 +149,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (active && currentGeneration === generation) setLoading(false);
           }, 0);
         });
+
+        // Older Supabase templates can redirect directly to the Site URL with
+        // an implicit session in the fragment. Consume signup/recovery sessions
+        // here so they work on the current origin, including localhost:3000.
+        const callback = new URLSearchParams(window.location.hash.slice(1));
+        const accessToken = callback.get('access_token');
+        const refreshToken = callback.get('refresh_token');
+        const callbackType = callback.get('type');
+        if ((callbackType === 'signup' || callbackType === 'recovery') && accessToken && refreshToken) {
+          window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search}`);
+          void client.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+            .then(({ error }) => {
+              if (error) {
+                console.error('Unable to restore the Supabase email session:', error.message);
+              } else if (callbackType === 'recovery') {
+                window.location.replace('/reset-password');
+              }
+            })
+            .catch((error) => console.error('Unable to restore the Supabase email session:', error));
+        }
+
         return () => {
           active = false;
           if (timer) clearTimeout(timer);

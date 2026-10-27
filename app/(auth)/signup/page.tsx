@@ -40,6 +40,7 @@ export default function SignupPage() {
 
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [showAccountActions, setShowAccountActions] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
@@ -68,6 +69,7 @@ export default function SignupPage() {
     setLoading(true);
     setError('');
     setMessage('');
+    setShowAccountActions(false);
 
     try {
       const { response, data } = await fetchJson('/api/auth/signup', {
@@ -86,8 +88,10 @@ export default function SignupPage() {
 
       if (!response.ok) {
         setError(data.message || 'Unable to create account.');
+        setShowAccountActions(data.code === 'ACCOUNT_EXISTS');
       } else {
         setMessage(data.message || 'Verification request accepted. Check your inbox and spam folder. If no email arrives, use Resend on the login screen or contact support.');
+        setShowAccountActions(true);
       }
     } catch {
       setError('Failed to connect to the server.');
@@ -396,6 +400,12 @@ export default function SignupPage() {
                   <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] rounded-lg px-3 py-1.5">
                     {message}
                   </motion.div>
+                )}
+
+                {showAccountActions && (
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-semibold">
+                    <Link href="/login" className="text-slate-600 hover:underline">Log in or reset your password</Link>
+                  </div>
                 )}
 
                 <div className="pt-1">

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Mail, Loader2, ArrowRight, ArrowLeft, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { fetchJson } from '@/lib/utils/fetchJson';
+import { createClient } from '@/lib/auth/supabase/client';
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
@@ -17,18 +17,21 @@ export default function ForgotPasswordPage() {
         setMessage('');
 
         try {
-            const { response: res, data } = await fetchJson('/api/auth/forgot-password', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email }),
-            });
+            const redirectTo = new URL(
+                '/auth/callback?type=recovery&next=%2Freset-password',
+                window.location.origin,
+            ).toString();
+            const { error } = await createClient().auth.resetPasswordForEmail(
+                email.trim(),
+                { redirectTo },
+            );
 
-            if (res.ok) {
-                setStatus('success');
-                setMessage(data.message ?? 'Email sent successfully');
-            } else {
+            if (error) {
                 setStatus('error');
-                setMessage(data.message || 'Something went wrong');
+                setMessage(error.message || 'Unable to request a reset email right now.');
+            } else {
+                setStatus('success');
+                setMessage('If an account exists for that email, Supabase has sent a password reset link. Open it in this same browser.');
             }
         } catch {
             setStatus('error');

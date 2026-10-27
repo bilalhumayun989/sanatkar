@@ -15,14 +15,25 @@ export default function ResetPasswordPage() {
     event.preventDefault();
     setLoading(true);
     setMessage('');
-    const { error } = await createClient().auth.updateUser({ password });
-    setLoading(false);
-    if (error) {
-      setMessage('This reset link may have expired. Request a new one and open it on this device.');
-      return;
+    try {
+      const supabase = createClient();
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session) {
+        throw new Error('No recovery session was found. Request a new reset email and open its link in this same browser.');
+      }
+
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      await supabase.auth.signOut({ scope: 'local' });
+      router.replace('/login?password_reset=1');
+    } catch (error) {
+      setMessage(error instanceof Error
+        ? error.message
+        : 'Unable to update the password. Request a new reset email and open its link in this same browser.');
+    } finally {
+      setLoading(false);
     }
-    await createClient().auth.signOut();
-    router.replace('/login?password_reset=1');
   }
 
   return (

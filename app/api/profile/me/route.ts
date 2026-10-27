@@ -6,15 +6,31 @@ export async function GET(request: NextRequest) {
   try {
     const { user, profile } = await getCurrentProfile(request);
     if (!user || !profile) return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-    const [totalListings, activeListings, offersCount, listingIds] = await Promise.all([
+    // Profile loading must not fail just because an unrelated dashboard
+    // counter is unavailable (for example, while a newer stats migration is
+    // being applied). The app and website share this profile as the source of
+    // account identity; counters are supplementary.
+    const [totalResult, activeResult, offersResult, listingsResult] = await Promise.allSettled([
       prisma.listing.count({ where: { sellerId: user.id } }),
       prisma.listing.count({ where: { sellerId: user.id, status: 'active' } }),
       prisma.offer.count({ where: { sellerId: user.id, status: 'pending' } }),
       prisma.listing.findMany({ where: { sellerId: user.id }, select: { id: true } }),
     ]);
-    const viewsCount = listingIds.length
-      ? await prisma.listingView.count({ where: { listingId: { in: listingIds.map(listing => listing.id) } } })
-      : 0;
+    const totalListings = totalResult.status === 'fulfilled' ? totalResult.value : 0;
+    const activeListings = activeResult.status === 'fulfilled' ? activeResult.value : 0;
+    const offersCount = offersResult.status === 'fulfilled' ? offersResult.value : 0;
+    const listingIds = listingsResult.status === 'fulfilled' ? listingsResult.value : [];
+    if ([totalResult, activeResult, offersResult, listingsResult].some(result => result.status === 'rejected')) {
+      console.warn('One or more profile dashboard counters could not be loaded.');
+    }
+    let viewsCount = 0;
+    if (listingIds.length) {
+      try {
+        viewsCount = await prisma.listingView.count({ where: { listingId: { in: listingIds.map(listing => listing.id) } } });
+      } catch (error) {
+        console.warn('Profile listing view count could not be loaded:', error);
+      }
+    }
     return NextResponse.json({ success: true, profile: {
       id: profile.id,
       username: profile.username,
