@@ -4,7 +4,21 @@ import { POST as createListing } from '@/app/api/listings/route';
 
 export async function GET() {
   try {
-    const rows = await prisma.listing.findMany({ where: { status: 'active' }, orderBy: { createdAt: 'desc' } });
+    const deletedSellerIds = (await prisma.deletedAccount.findMany({
+      select: { userId: true },
+    })).map(account => account.userId);
+    const rows = await prisma.listing.findMany({
+      where: {
+        status: 'active',
+        ...(deletedSellerIds.length ? {
+          OR: [
+            { sellerId: null },
+            { sellerId: { notIn: deletedSellerIds } },
+          ],
+        } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+    });
     return NextResponse.json(rows.map(row => ({
       id: row.id,
       make: row.brand ?? '',

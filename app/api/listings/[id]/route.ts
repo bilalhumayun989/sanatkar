@@ -91,7 +91,13 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     const row = await prisma.listing.findUnique({ where: { id }, select: { id: true, sellerId: true } });
     if (!row) return NextResponse.json({ message: 'Listing not found.' }, { status: 404 });
     if (row.sellerId !== user.id && profile.role !== 'admin') return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
-    await prisma.listing.delete({ where: { id } });
+    await prisma.$transaction(async tx => {
+      // Remove analytics rows first because the legacy foreign keys are
+      // restrictive and these counters are meaningful only while the listing exists.
+      await tx.listingView.deleteMany({ where: { listingId: id } });
+      await tx.listingShare.deleteMany({ where: { listingId: id } });
+      await tx.listing.delete({ where: { id } });
+    });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Listing delete failed:', error);

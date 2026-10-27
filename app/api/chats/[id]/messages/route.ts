@@ -16,8 +16,12 @@ export async function GET(request: NextRequest, { params }: Context) {
     });
     if (!chat) return NextResponse.json({ success: false, message: 'Chat not found.' }, { status: 404 });
 
+    const after = request.nextUrl.searchParams.get('after');
+    const afterDate = after ? new Date(after) : null;
     const messages = await prisma.message.findMany({
-      where: { chatId: id },
+      // Inclusive timestamp avoids skipping messages written in the same millisecond;
+      // the client deduplicates rows by message ID.
+      where: { chatId: id, ...(afterDate && Number.isFinite(afterDate.getTime()) ? { createdAt: { gte: afterDate } } : {}) },
       orderBy: { createdAt: 'asc' },
     });
 

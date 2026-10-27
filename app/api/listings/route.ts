@@ -23,10 +23,22 @@ export async function GET(request: NextRequest) {
       userId = user.id;
     }
 
+    // A completed account deletion removes listings transactionally. Exclude
+    // deletion markers as a guard for stale rows or older imported data too.
+    const deletedSellerIds = (await prisma.deletedAccount.findMany({
+      select: { userId: true },
+    })).map(account => account.userId);
+
     const where: Prisma.ListingWhereInput = {
       ...(includeOwn && userId
         ? { OR: [{ status: 'active' }, { sellerId: userId }] }
         : { status: 'active' }),
+      ...(deletedSellerIds.length ? {
+        AND: [{ OR: [
+          { sellerId: null },
+          { sellerId: { notIn: deletedSellerIds } },
+        ] }],
+      } : {}),
       ...(params.get('category') ? { category: { equals: params.get('category')!, mode: 'insensitive' } } : {}),
       ...(params.get('brand') ? { brand: { equals: params.get('brand')!, mode: 'insensitive' } } : {}),
       ...(params.get('sellerId') ? { sellerId: params.get('sellerId')! } : {}),
