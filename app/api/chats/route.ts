@@ -3,10 +3,10 @@ import prisma from '@/lib/dbConn';
 import { getCurrentProfile } from '@/lib/auth/supabase/server';
 
 export async function GET(request: NextRequest) {
-  const { user } = await getCurrentProfile(request);
-  if (!user) return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-
   try {
+    const { user } = await getCurrentProfile(request);
+    if (!user) return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+
     const chats = await prisma.chat.findMany({
       where: {
         OR: [{ buyerId: user.id }, { sellerId: user.id }],
@@ -25,12 +25,18 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    const payload = await Promise.all(chats.map(async (chat) => {
+    const unreadRows = chats.length
+      ? await prisma.message.groupBy({
+          by: ['chatId'],
+          where: { chatId: { in: chats.map(chat => chat.id) }, senderId: { not: user.id }, isRead: false },
+          _count: { _all: true },
+        })
+      : [];
+    const unreadCounts = new Map(unreadRows.map(row => [row.chatId, row._count._all]));
+
+    const payload = chats.map(chat => {
       const otherUser = chat.buyerId === user.id ? chat.seller : chat.buyer;
       const latestMessage = chat.messages[0] ?? null;
-      const unreadCount = await prisma.message.count({
-        where: { chatId: chat.id, senderId: { not: user.id }, isRead: false },
-      });
       return {
         id: chat.id,
         buyer_id: chat.buyerId,
@@ -55,9 +61,9 @@ export async function GET(request: NextRequest) {
           type: latestMessage.type,
           offer_amount: latestMessage.offerAmount ? Number(latestMessage.offerAmount) : null,
         } : null,
-        unreadCount,
+        unreadCount: unreadCounts.get(chat.id) ?? 0,
       };
-    }));
+    });
 
     return NextResponse.json({ success: true, chats: payload });
   } catch (error) {
