@@ -67,7 +67,7 @@ export default function ForgotPasswordPage() {
                             {/* Logo */}
                             <div className="inline-flex items-center gap-2 mb-4 sm:mb-6">
                                 <img
-                                    src="/Favicon.png"
+                                    src="/favicon.png"
                                     alt="Sanatkar Logo"
                                     className="h-7 sm:h-8 w-auto object-contain drop-shadow-sm"
                                 />

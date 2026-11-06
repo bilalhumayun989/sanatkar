@@ -325,7 +325,7 @@ export default function LoginPage() {
                 <motion.div variants={itemVariants}>
                     <div className="static sm:absolute sm:top-8 sm:left-10 z-20 flex items-center gap-2.5 mb-4 sm:mb-0">
                         <img
-                            src="/Favicon.png"
+                            src="/favicon.png"
                             alt="Sanatkar Logo"
                             className="h-7 sm:h-8 w-auto object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.12)]"
                         />
