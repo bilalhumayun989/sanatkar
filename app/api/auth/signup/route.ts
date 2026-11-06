@@ -48,8 +48,7 @@ export async function POST(request: NextRequest) {
     },
   );
 
-  // Preserve the origin being used now (localhost while developing, production
-  // domain after deployment) instead of redirecting local email flows to Vercel.
+  // Preserve the current origin so confirmation links return to this deployment.
   const appOrigin = new URL(request.url).origin;
   const redirectTo = new URL('/auth/callback?next=%2F', appOrigin).toString();
   const signup = () => supabase.auth.signUp({

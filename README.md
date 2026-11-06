@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SanatKar
 
-## Getting Started
+SanatKar is a full-stack marketplace built with Next.js 16, React, Supabase authentication, and PostgreSQL through Prisma.
 
-First, run the development server:
+## Local development
+
+Install dependencies and start the development server:
 
 ```bash
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The site runs at `http://localhost:3000`. Configure the required environment variables in `.env` before using database or authentication features. See `.env.example` for the variable names.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Production hosting
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+This application runs as a Node.js web application. Deploy it to SoIn Web as a Node.js/Next.js app, with the project root as the app directory and these commands:
 
-## Learn More
+```bash
+npm ci
+npm run build
+npm start
+```
 
-To learn more about Next.js, take a look at the following resources:
+Do not deploy it as a static export: the site uses server-rendered pages, API routes, authentication callbacks, and database access. Set the production environment variables in the hosting panel, including:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `DATABASE_URL` for the production PostgreSQL database.
+- `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` for Supabase authentication.
+- `NEXT_PUBLIC_APP_URL=https://sanatkaar.broshtech.com` for links sent by email.
+- `JWT_SECRET` and the mail settings used by the configured email flows.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Add the production domain to Supabase's allowed site and redirect URLs. Keep secrets in the hosting environment settings; do not commit `.env`.
 
-## Deploy on Vercel
+The upload API writes public images under `public/uploads` and private seller payment proofs under `private/seller-payments`. The host must provide persistent writable storage for these directories. If deployments use ephemeral storage or multiple app instances, configure shared persistent storage before relying on uploaded files.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Useful commands
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run lint
+npx prisma migrate deploy
+```
+
+Run database migrations against the production database only when the corresponding release is ready to deploy.
