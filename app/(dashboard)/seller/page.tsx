@@ -349,7 +349,7 @@ function SellerPageContent() {
 
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div className="grid grid-cols-3 gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
-                            [
+                            {[
                                 { step: 1, label: t('upload_media'), icon: Camera },
                                 { step: 2, label: t('listing_information'), icon: FileText },
                                 { step: 3, label: t('contact_section'), icon: PhoneIcon },

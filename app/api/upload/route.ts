@@ -5,6 +5,7 @@ import { getCurrentProfile, getCurrentUser } from '@/lib/auth/supabase/server';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_FILES = 6;
+const UPLOAD_ROOT = process.env.UPLOAD_DIR || join(process.cwd(), 'public', 'uploads');
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -64,9 +65,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: 'Only matching JPG, PNG, GIF, or WEBP files under 5MB are allowed.' }, { status: 400 });
     }
 
-    const uploadDir = folder
-      ? join(process.cwd(), 'public', 'uploads', folder)
-      : join(process.cwd(), 'public', 'uploads');
+    const uploadDir = folder ? join(UPLOAD_ROOT, folder) : UPLOAD_ROOT;
     await mkdir(uploadDir, { recursive: true });
 
     const uploadedUrls: string[] = [];
