@@ -29,6 +29,7 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const pendingOAuthCodes = new Set<string>();
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
@@ -119,9 +120,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let controller: AbortController | undefined;
       try {
         const client = createClient();
+        // Some production auth configurations send the PKCE code to the Site
+        // URL instead of the requested /auth/callback URL. Consume it here so
+        // the global auth state still becomes signed in on that landing page.
+        const currentUrl = new URL(window.location.href);
+        const oauthCode = currentUrl.pathname === '/auth/callback'
+          ? null
+          : currentUrl.searchParams.get('code');
+        const shouldExchangeOAuthCode = Boolean(oauthCode && !pendingOAuthCodes.has(oauthCode));
+        if (oauthCode && shouldExchangeOAuthCode) {
+          setLoading(true);
+          pendingOAuthCodes.add(oauthCode);
+        }
+
         // Auth callbacks run under Supabase's session lock. Defer queries and
         // cookie synchronization until that lock has been released.
         const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
+          const codeStillPending = oauthCode !== null && pendingOAuthCodes.has(oauthCode);
+          if (!session && codeStillPending) return;
+
           const currentGeneration = ++generation;
           if (timer) clearTimeout(timer);
           controller?.abort();
@@ -149,6 +166,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (active && currentGeneration === generation) setLoading(false);
           }, 0);
         });
+
+        if (oauthCode && shouldExchangeOAuthCode) {
+          // The set also prevents React Strict Mode's effect replay from
+          // exchanging the same one-time code twice.
+          void (async () => {
+            try {
+              const { data, error } = await client.auth.exchangeCodeForSession(oauthCode);
+              const landingUrl = new URL(window.location.href);
+              if (landingUrl.searchParams.get('code') === oauthCode) {
+                landingUrl.searchParams.delete('code');
+                window.history.replaceState(
+                  {},
+                  document.title,
+                  `${landingUrl.pathname}${landingUrl.search}${landingUrl.hash}`,
+                );
+              }
+
+              if (error || !data.session) {
+                console.error('Unable to complete Google sign-in:', error?.message || 'No session returned.');
+                return;
+              }
+
+              try {
+                await fetch('/api/auth/sync', {
+                  method: 'POST',
+                  credentials: 'include',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(data.session),
+                });
+              } catch (syncError) {
+                console.warn('Google sign-in succeeded; server session sync will retry:', syncError);
+              }
+
+              await refreshAuth();
+            } catch (error) {
+              console.error('Unable to complete Google sign-in:', error);
+            } finally {
+              pendingOAuthCodes.delete(oauthCode);
+              setLoading(false);
+            }
+          })();
+        }
 
         // Older Supabase templates can redirect directly to the Site URL with
         // an implicit session in the fragment. Consume signup/recovery sessions
@@ -181,7 +240,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setLoading(false);
       }
-    }, [fetchProfile]);
+    }, [fetchProfile, refreshAuth]);
 
     useEffect(() => {
         if (!user?.id) return;
