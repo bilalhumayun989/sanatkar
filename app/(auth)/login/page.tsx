@@ -8,6 +8,7 @@ import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { useAuth } from '@/lib/AuthContext';
 import { fetchJson } from '@/lib/utils/fetchJson';
 import { createClient } from '@/lib/auth/supabase/client';
+import { getOAuthRedirectTo } from '@/lib/auth/oauthRedirect';
 import { useLanguage } from '@/lib/LanguageContext';
 
 // Online Image Flag Components
@@ -169,9 +170,8 @@ export default function LoginPage() {
 
         try {
             const supabase = createClient();
-            const origin = window.location.origin;
             const next = new URL(window.location.href).searchParams.get('next');
-            const redirectTo = next ? `${origin}/auth/callback?next=${encodeURIComponent(next)}` : `${origin}/auth/callback`;
+            const redirectTo = getOAuthRedirectTo(next);
 
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);

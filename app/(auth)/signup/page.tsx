@@ -6,6 +6,7 @@ import { Loader2, Eye, EyeOff, ChevronDown, User, Store, CheckCircle2 } from 'lu
 import { motion, AnimatePresence } from 'framer-motion';
 import { fetchJson } from '@/lib/utils/fetchJson';
 import { createClient } from '@/lib/auth/supabase/client';
+import { getOAuthRedirectTo } from '@/lib/auth/oauthRedirect';
 import { useLanguage } from '@/lib/LanguageContext';
 
 type AccountType = 'user' | 'seller';
@@ -107,9 +108,8 @@ export default function SignupPage() {
 
     try {
       const supabase = createClient();
-      const origin = window.location.origin;
       const next = accountType === 'seller' ? '/become-seller' : new URL(window.location.href).searchParams.get('next');
-      const redirectTo = next ? `${origin}/auth/callback?next=${encodeURIComponent(next)}` : `${origin}/auth/callback`;
+      const redirectTo = getOAuthRedirectTo(next);
 
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
