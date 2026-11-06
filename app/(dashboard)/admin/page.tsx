@@ -238,6 +238,8 @@ export default function AdminPage() {
 
   const filteredProfiles = profiles.filter(profile => `${profile.full_name || ''} ${profile.username || ''} ${profile.email || ''}`.toLowerCase().includes(search.toLowerCase()));
   const filteredListings = listings.filter(listing => `${listing.title || ''} ${listing.brand || ''} ${listing.category || ''}`.toLowerCase().includes(search.toLowerCase()));
+  const filteredCategories = categories.filter(category => `${category.name || ''} ${category.description || ''}`.toLowerCase().includes(search.toLowerCase()));
+  const filteredBrands = brands.filter(brand => `${brand.name || ''} ${brand.description || ''}`.toLowerCase().includes(search.toLowerCase()));
 
   if (authLoading || loading && !user) return <div className="min-h-screen bg-[#071a20]" />;
   if (!user || !isAdmin) return null;
@@ -265,7 +267,7 @@ export default function AdminPage() {
           {section === 'sellers' && <SellerRequests requests={sellerRequests} onApprove={(id: string) => updateProfile(id, { role: 'seller', seller_status: 'approved' }, 'Seller approved')} onReject={(id: string) => updateProfile(id, { seller_status: 'rejected' }, 'Seller rejected')} />}
           {PAID_BADGES_ENABLED && section === 'badges' && <BadgeRequests requests={badgeRequests} onApprove={(id: string) => updateProfile(id, { verification_status: 'approved', verification_reviewed_at: new Date().toISOString() }, 'Badge approved')} onReject={(id: string) => updateProfile(id, { verification_status: 'rejected', verification_reviewed_at: new Date().toISOString() }, 'Badge rejected')} />}
           {section === 'categories' && <CategoryManagement
-            items={categories}
+            items={filteredCategories}
             onAdd={() => { setEditingCategory(null); setCategoryForm({ ...emptyCategory }); }}
             onEdit={(item: CategoryRecord) => {
               setEditingCategory(item.id);
@@ -283,7 +285,7 @@ export default function AdminPage() {
             onDelete={(id: string) => deleteRecord('categories', id)}
           />}
           {section === 'brands' && <BrandManagement
-            items={brands}
+            items={filteredBrands}
             onAdd={() => { setEditingBrand(null); setBrandForm({ ...emptyBrand }); }}
             onEdit={(item: BrandRecord) => {
               setEditingBrand(item.id);
@@ -340,9 +342,9 @@ function BrandManagement({ items, onAdd, onEdit, onDelete }: {
       <button type="button" onClick={onAdd} className="inline-flex items-center gap-1.5 self-start rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-white"><Plus size={15} /> Add brand</button>
     </div>
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {items.map(item => <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      {items.length === 0 ? <div className="col-span-full"><Empty text="No brands found. Add a brand or try another search." /></div> : items.map(item => <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         {item.logo_url ? <img src={item.logo_url} alt="" className="h-11 w-11 shrink-0 rounded-lg border border-slate-100 object-contain" /> : <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-black text-slate-500">{item.name.slice(0, 2).toUpperCase()}</span>}
-        <div className="min-w-0 flex-1"><p className="truncate font-bold text-slate-800">{item.name}</p><p className="mt-1 text-xs text-slate-500">{item.is_active === false ? 'Inactive' : 'Active'}</p></div>
+        <div className="min-w-0 flex-1"><p className="truncate font-bold text-slate-800">{item.name}</p><p className="mt-1 text-xs text-slate-500">{item.is_active === false ? 'Inactive' : 'Active'}</p>{item.description && <p className="mt-1 truncate text-xs text-slate-400">{item.description}</p>}</div>
         <div className="flex gap-1">
           <button type="button" onClick={() => onEdit(item)} aria-label={`Edit ${item.name}`} className="rounded-lg p-2 text-slate-400 hover:bg-primary/10 hover:text-primary"><Pencil size={15} /></button>
           <button type="button" onClick={() => onDelete(item.id)} aria-label={`Archive ${item.name}`} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={15} /></button>
@@ -422,8 +424,8 @@ function CategoryManagement({ items, onAdd, onEdit, onTogglePopular, updatingCat
       <button type="button" onClick={onAdd} className="inline-flex items-center gap-1.5 self-start rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-white"><Plus size={15} /> Add category</button>
     </div>
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {items.map(item => <div key={item.id} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="min-w-0"><p className="truncate font-bold text-slate-800">{item.name}</p><p className="mt-1 text-xs text-slate-500">{item.is_active === false ? 'Inactive' : 'Active'}{item.is_popular ? ' · Popular' : ''}</p></div>
+      {items.length === 0 ? <div className="col-span-full"><Empty text="No categories found. Add a category or try another search." /></div> : items.map(item => <div key={item.id} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex min-w-0 items-center gap-3">{item.image_url ? <img src={item.image_url} alt="" className="h-11 w-11 shrink-0 rounded-lg border border-slate-100 object-cover" /> : null}<div className="min-w-0"><p className="truncate font-bold text-slate-800">{item.name}</p><p className="mt-1 text-xs text-slate-500">{item.is_active === false ? 'Inactive' : 'Active'}{item.is_popular ? ' · Popular' : ''}</p>{item.description && <p className="mt-1 truncate text-xs text-slate-400">{item.description}</p>}</div></div>
         <div className="flex gap-1">
           <button disabled={Boolean(updatingCategory)} aria-label={`${item.is_popular ? 'Remove' : 'Mark'} ${item.name} ${item.is_popular ? 'from' : 'as'} popular`} aria-pressed={Boolean(item.is_popular)} title="Popular category" onClick={() => onTogglePopular(item.id, !item.is_popular)} className="rounded-lg p-2 text-amber-500 hover:bg-amber-50 disabled:opacity-50"><Star size={17} fill={item.is_popular ? 'currentColor' : 'none'} /></button>
           <button onClick={() => onEdit(item)} aria-label={`Edit ${item.name}`} className="rounded-lg p-2 text-slate-400 hover:bg-primary/10 hover:text-primary"><Pencil size={15} /></button>
