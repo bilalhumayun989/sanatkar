@@ -82,7 +82,7 @@ export default function CategoriesSection({ categories = [], title }: { categori
   };
 
   return (
-    <section className="container-wide py-2 md:py-3 lg:!mx-0 lg:!max-w-none lg:!px-0">
+    <section className="w-full py-2 md:py-3">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between gap-4">
         <h2 className="text-lg font-bold text-slate-900 sm:text-xl">{title || t('browse_categories')}</h2>
