@@ -16,7 +16,12 @@ export async function GET(request: NextRequest) {
       prisma.offer.count({ where: { sellerId: user.id, status: 'pending' } }),
       prisma.listing.findMany({ where: { sellerId: user.id }, select: { id: true } }),
     ]);
-    const totalListings = totalResult.status === 'fulfilled' ? totalResult.value : 0;
+    // The profile counter records lifetime posts; the row count is retained as
+    // a fallback for accounts created before the counter was wired up.
+    const totalListings = Math.max(
+      profile.totalListingsPosted,
+      totalResult.status === 'fulfilled' ? totalResult.value : 0,
+    );
     const activeListings = activeResult.status === 'fulfilled' ? activeResult.value : 0;
     const offersCount = offersResult.status === 'fulfilled' ? offersResult.value : 0;
     const listingIds = listingsResult.status === 'fulfilled' ? listingsResult.value : [];

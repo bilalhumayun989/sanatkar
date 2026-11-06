@@ -8,7 +8,8 @@ export const revalidate = 0;
 export async function GET(request: NextRequest) {
   const { user, profile } = await getCurrentProfile(request);
   if (!user || !profile) return NextResponse.json({ success: true, user: null });
-  const totalListingsPosted = await prisma.listing.count({ where: { sellerId: user.id } });
+  const existingListingCount = await prisma.listing.count({ where: { sellerId: user.id } });
+  const totalListingsPosted = Math.max(profile.totalListingsPosted, existingListingCount);
 
   return NextResponse.json({
     success: true,

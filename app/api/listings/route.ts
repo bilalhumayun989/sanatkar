@@ -146,8 +146,12 @@ export async function POST(request: NextRequest) {
       const gate = sellerListingGate(current);
       if (gate) throw new Error(gate);
       if (current.role === 'regular') {
-        const count = await tx.listing.count({ where: { sellerId: user.id } });
+        // Keep this lifetime counter separate from listing rows so deleting an
+        // ad never restores a regular account's three-listing allowance.
+        const existingListingCount = await tx.listing.count({ where: { sellerId: user.id } });
+        const count = Math.max(current.totalListingsPosted, existingListingCount);
         if (count >= 3) throw new Error('AD_LIMIT_REACHED');
+        await tx.profile.update({ where: { id: user.id }, data: { totalListingsPosted: count + 1 } });
       }
       return tx.listing.create({ data, include: { seller: { select: listingSellerSelect } } });
     });
