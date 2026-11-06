@@ -15,7 +15,6 @@ export default function ContactPage() {
         subject: '',
         message: ''
     });
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -24,12 +23,16 @@ export default function ContactPage() {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        setIsSubmitting(true);
-        setTimeout(() => {
-            setIsSubmitting(false);
-            setSubmitted(true);
-            setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
-        }, 1200);
+        const subject = formData.subject.trim() || 'Sanatkar support request';
+        const body = [
+            `Name: ${formData.name}`,
+            `Email: ${formData.email}`,
+            `Phone: ${formData.phone || 'Not provided'}`,
+            '',
+            formData.message,
+        ].join('\\n');
+        window.location.href = `mailto:support@sanatkar.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        setSubmitted(true);
     };
 
     return (
@@ -111,19 +114,11 @@ export default function ContactPage() {
                                 </div>
                             </div>
 
-                            {/* Social Presence */}
+                            {/* Direct support contact */}
                             <div>
-                                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3">Connect With Us</p>
+                                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3">Email support</p>
                                 <div className="flex flex-wrap gap-2.5">
-                                    {['Facebook', 'Instagram', 'LinkedIn', 'YouTube'].map((social) => (
-                                        <a 
-                                            key={social} 
-                                            href="#"
-                                            className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-600 hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all duration-200 shadow-sm"
-                                        >
-                                            {social}
-                                        </a>
-                                    ))}
+                                    <a href="mailto:support@sanatkar.com" className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-600 hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all duration-200 shadow-sm">support@sanatkar.com</a>
                                 </div>
                             </div>
                         </div>
@@ -137,9 +132,9 @@ export default function ContactPage() {
                                     <div className="w-16 h-16 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-2xl flex items-center justify-center mb-2 animate-bounce">
                                         <CheckCircle2 size={32} />
                                     </div>
-                                    <h3 className="text-2xl font-black text-slate-900">Message Delivered!</h3>
+                                    <h3 className="text-2xl font-black text-slate-900">Email draft opened</h3>
                                     <p className="text-slate-600 text-sm max-w-sm font-medium leading-relaxed">
-                                        Thank you for reaching out. A representative from SanatKar team will review your message and reply via email shortly.
+                                        Your email app should open with your message ready. Send the email there to contact our support team.
                                     </p>
                                     <button
                                         onClick={() => setSubmitted(false)}
@@ -223,20 +218,10 @@ export default function ContactPage() {
                                     {/* Submit Button */}
                                     <button
                                         type="submit"
-                                        disabled={isSubmitting}
-                                        className="w-full bg-primary hover:bg-primary-dark text-white py-4 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.99] shadow-md shadow-primary/20 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+                                        className="w-full bg-primary hover:bg-primary-dark text-white py-4 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.99] shadow-md shadow-primary/20 cursor-pointer"
                                     >
-                                        {isSubmitting ? (
-                                            <span className="flex items-center gap-2">
-                                                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                Sending Message...
-                                            </span>
-                                        ) : (
-                                            <>
-                                                Submit Message
-                                                <Send size={15} />
-                                            </>
-                                        )}
+                                        Submit Message
+                                        <Send size={15} />
                                     </button>
                                 </form>
                             )}

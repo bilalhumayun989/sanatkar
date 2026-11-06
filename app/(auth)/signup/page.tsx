@@ -520,8 +520,8 @@ export default function SignupPage() {
             <Link href="/terms" className="hover:underline transition-all">
               Terms
             </Link>
-            <Link href="/plans" className="hover:underline transition-all">
-              Plans
+            <Link href="/become-seller" className="hover:underline transition-all">
+              Become a Seller
             </Link>
             <Link href="/contact" className="hover:underline transition-all">
               Contact Us

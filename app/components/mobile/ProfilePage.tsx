@@ -144,7 +144,7 @@ export default function ProfilePage() {
         {/* Verification Banner */}
         {PAID_BADGES_ENABLED && <>
         <Link 
-          href="/verify"
+          href="/seller-verification"
           className="flex items-center justify-between bg-white p-3.5 rounded-2xl border border-slate-100 shadow-2xs active:scale-[0.99] transition-transform"
         >
           <div className="flex items-center gap-3">
@@ -227,7 +227,7 @@ export default function ProfilePage() {
             </Link>
 
             {PAID_BADGES_ENABLED && <>
-            <Link href="/verification" className="flex items-center justify-between p-3.5 hover:bg-slate-50 transition-colors">
+            <Link href="/seller-verification" className="flex items-center justify-between p-3.5 hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-3">
                 <ShieldCheck className="w-4 h-4 text-slate-600" />
                 <span className="text-xs font-semibold text-slate-700">Verification Status</span>
@@ -273,7 +273,7 @@ export default function ProfilePage() {
               <ChevronRight className="w-4 h-4 text-slate-400" />
             </Link>
 
-            <Link href="/support" className="flex items-center justify-between p-3.5 hover:bg-slate-50 transition-colors">
+            <Link href="/contact" className="flex items-center justify-between p-3.5 hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-3">
                 <HelpCircle className="w-4 h-4 text-slate-600" />
                 <span className="text-xs font-semibold text-slate-700">Help & Support</span>

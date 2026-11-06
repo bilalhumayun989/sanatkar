@@ -52,6 +52,10 @@ function BuyerPageContent() {
     const [sortBy, setSortBy] = useState('most_recent');
     const [showMobileFilters, setShowMobileFilters] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(urlCategory || null);
+    const configuredAdHref = typeof adConfig?.buttonLink === 'string' ? adConfig.buttonLink.trim() : '';
+    const adButtonHref = configuredAdHref.startsWith('/') && !configuredAdHref.startsWith('//') && configuredAdHref !== '/#'
+        ? configuredAdHref
+        : '/seller';
 
     useEffect(() => {
         const fetchParts = async () => {
@@ -504,10 +508,8 @@ function BuyerPageContent() {
                                         <span className="inline-block bg-primary text-white text-[10px] font-black px-4 py-1.5 rounded-full mb-4 tracking-[0.2em]">{adConfig.badgeText || t('promoted_badge')}</span>
                                         <h3 className="text-2xl md:text-3xl font-black text-black mb-4 leading-tight">{adConfig.title || t('ad_title')}</h3>
                                         <p className="text-gray-500 text-sm font-medium mb-6">{adConfig.description || t('ad_desc')}</p>
-                                        <Link href={adConfig.buttonLink || '/seller'}>
-                                            <button className="bg-primary text-white px-8 py-4 rounded-2xl font-black hover:bg-primary-dark transition-all active:scale-95">
-                                                {adConfig.buttonText || t('ad_button')}
-                                            </button>
+                                        <Link href={adButtonHref} className="inline-flex bg-primary text-white px-8 py-4 rounded-2xl font-black hover:bg-primary-dark transition-all active:scale-95">
+                                            {adConfig.buttonText || t('ad_button')}
                                         </Link>
                                     </div>
                                     <div className="relative w-full md:w-[320px] lg:w-[400px] aspect-video md:aspect-[16/10] bg-white rounded-3xl overflow-hidden border border-gray-200 transition-transform duration-500 hover:scale-105 shrink-0">

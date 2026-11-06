@@ -7,7 +7,7 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { 
   MessageSquare, Loader2, User, Search, Circle, 
-  ArrowUpRight, Tag, DollarSign, Clock, ChevronRight, Inbox, Send, MoreVertical, Plus, CheckCheck
+  ArrowUpRight, Tag, DollarSign, Clock, ChevronRight, Inbox, Send, Plus, CheckCheck
 } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ChatRoomMobile from '@/app/components/mobile/ChatRoomMobile';
@@ -285,7 +285,6 @@ function MessagesInboxPage() {
                 return <>
                   <header className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-4">
                     <div className="flex min-w-0 items-center gap-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary/10 text-primary">{selectedChat.otherUser?.avatar_url ? <img src={selectedChat.otherUser.avatar_url} alt="" className="h-full w-full object-cover" /> : <User size={19} />}</div><div className="min-w-0"><h2 className="truncate text-sm font-black text-slate-900">{name}</h2><p className="truncate text-[11px] font-semibold text-slate-400">{listing?.title || listing?.brand || 'Conversation'}</p></div></div>
-                    <button type="button" aria-label="Chat options" className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><MoreVertical size={18} /></button>
                   </header>
                   <div className="min-h-0 flex-1 overflow-y-auto p-5">
                     <div className="mx-auto mb-5 w-fit rounded-full bg-white px-3 py-1 text-[10px] font-bold text-slate-400 shadow-sm">Conversation started</div>

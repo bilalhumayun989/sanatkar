@@ -62,7 +62,7 @@ export default function TopBrandsMobile() {
             brands.map((brand) => (
               <Link
                 key={brand.id}
-                href={`/brands/${brand.id}`}
+                href={`/buyer?brand=${encodeURIComponent(brand.name)}#products`}
                 className="h-12 px-4 bg-[#f4fafb] hover:bg-[#e6f5f7] border border-[#e1f2f4] rounded-2xl flex items-center justify-center shrink-0 transition-all active:scale-95"
               >
                 {brand.logo_url ? (

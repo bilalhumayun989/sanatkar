@@ -210,10 +210,8 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
                     compact
                   />
                   {sellerPhone ? (
-                    <a href={`tel:${sellerPhone}`} className="block">
-                      <button className="w-full border border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary py-3 rounded-lg font-semibold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
+                    <a href={`tel:${sellerPhone}`} className="w-full border border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary py-3 rounded-lg font-semibold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
                         <Phone size={16} /> {sellerPhone}
-                      </button>
                     </a>
                   ) : (
                     <div className="w-full border border-dashed border-slate-200 text-slate-400 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2">

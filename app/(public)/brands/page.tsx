@@ -184,9 +184,9 @@ export default function BrandsPage() {
           <h2 className="text-xl font-black text-slate-900">
             Results <span className="text-slate-400">({mappedListings.length})</span>
           </h2>
-          <button className="flex items-center gap-2 text-sm font-bold text-[#13BDC4]">
+          <Link href="/buyer" className="flex items-center gap-2 text-sm font-bold text-[#13BDC4]">
             <SlidersHorizontal size={16} /> Filters
-          </button>
+          </Link>
         </div>
 
         {loading ? (

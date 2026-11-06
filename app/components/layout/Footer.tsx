@@ -1,11 +1,20 @@
 'use client';
 
-import { Facebook, Twitter, Instagram, Youtube, Mail, MapPin, Phone, Send } from 'lucide-react';
+import { Mail, MapPin, Phone, Send } from 'lucide-react';
 import Link from 'next/link';
+import { useState } from 'react';
 import { useLanguage } from '@/lib/LanguageContext';
 
 export default function Footer() {
     const { t } = useLanguage();
+    const [newsletterEmail, setNewsletterEmail] = useState('');
+
+    const handleNewsletterSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        const subject = encodeURIComponent('Subscribe me to Sanatkar updates');
+        const body = encodeURIComponent(`Please add ${newsletterEmail} to the Sanatkar email updates list.`);
+        window.location.href = `mailto:support@sanatkar.com?subject=${subject}&body=${body}`;
+    };
 
     return (
         <footer className="hidden md:block relative bg-white text-slate-600 pt-16 pb-8 border-t border-slate-200 font-sans" id="contact">
@@ -27,23 +36,7 @@ export default function Footer() {
                             {t('footer_desc')}
                         </p>
 
-                        {/* Social Links */}
-                        <div className="flex items-center gap-2 pt-2">
-                            {[
-                                { icon: Facebook, href: '#' },
-                                { icon: Twitter, href: '#' },
-                                { icon: Instagram, href: '#' },
-                                { icon: Youtube, href: '#' }
-                            ].map((social, i) => (
-                                <a 
-                                    key={i} 
-                                    href={social.href} 
-                                    className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-200/80 flex items-center justify-center text-slate-600 hover:text-white hover:bg-[#0092B8] hover:border-[#0092B8] transition-all duration-200"
-                                >
-                                    <social.icon size={16} />
-                                </a>
-                            ))}
-                        </div>
+                        <a href="mailto:support@sanatkar.com" className="inline-flex items-center gap-2 pt-2 text-sm font-semibold text-[#0092B8] hover:underline"><Mail size={16} /> support@sanatkar.com</a>
                     </div>
 
 
@@ -85,9 +78,9 @@ export default function Footer() {
                                 <div className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-[#0092B8] shrink-0">
                                     <Mail size={16} />
                                 </div>
-                                <span className="text-slate-600 text-xs sm:text-sm">
+                                <a href="mailto:support@sanatkar.com" className="text-slate-600 text-xs sm:text-sm hover:text-[#0092B8]">
                                     support@sanatkar.com
-                                </span>
+                                </a>
                             </li>
                         </ul>
                     </div>
@@ -101,10 +94,14 @@ export default function Footer() {
                         <p className="text-slate-500 text-xs leading-relaxed mb-4 font-medium">
                             Receive daily stock updates and machinery deals.
                         </p>
-                        <form onSubmit={(e) => e.preventDefault()} className="space-y-3">
+                        <form onSubmit={handleNewsletterSubmit} className="space-y-3">
                             <div className="relative">
                                 <input
                                     type="email"
+                                    required
+                                    aria-label="Email address for Sanatkar updates"
+                                    value={newsletterEmail}
+                                    onChange={event => setNewsletterEmail(event.target.value)}
                                     placeholder="Enter your email"
                                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#0092B8] focus:ring-1 focus:ring-[#0092B8] transition-all pr-12 font-medium"
                                 />

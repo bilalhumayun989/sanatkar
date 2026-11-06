@@ -141,7 +141,7 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                         >
                             <div className="flex items-center gap-1.5 cursor-pointer">
                                 <Link
-                                    href={authLoading ? '#' : (authUser ? "/seller" : `/login?next=${encodeURIComponent('/seller')}`)}
+                                    href={authLoading ? '/seller' : (authUser ? "/seller" : `/login?next=${encodeURIComponent('/seller')}`)}
                                     onClick={(e) => { if (authLoading) e.preventDefault(); }}
                                     className="text-slate-800 hover:text-[#09ACC9] transition-colors whitespace-nowrap py-2"
                                 >
@@ -617,7 +617,7 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                             {t('post_ad')}
                         </div>
                         <Link
-                            href={authLoading ? '#' : (authUser ? "/seller?tab=post&category=machines" : `/login?next=${encodeURIComponent('/seller?tab=post&category=machines')}`)}
+                            href={authLoading ? '/seller?tab=post&category=machines' : (authUser ? "/seller?tab=post&category=machines" : `/login?next=${encodeURIComponent('/seller?tab=post&category=machines')}`)}
                             onClick={(e) => { setMenuOpen(false); if (authLoading) e.preventDefault(); }}
                             className="flex items-center gap-3 px-4 py-4 rounded-xl font-semibold text-sm hover:bg-[#09ACC9]/10 hover:text-[#09ACC9] transition-colors"
                         >
@@ -625,7 +625,7 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                             Machines
                         </Link>
                         <Link
-                            href={authLoading ? '#' : (authUser ? "/seller?tab=post&category=parts" : `/login?next=${encodeURIComponent('/seller?tab=post&category=parts')}`)}
+                            href={authLoading ? '/seller?tab=post&category=parts' : (authUser ? "/seller?tab=post&category=parts" : `/login?next=${encodeURIComponent('/seller?tab=post&category=parts')}`)}
                             onClick={(e) => { setMenuOpen(false); if (authLoading) e.preventDefault(); }}
                             className="flex items-center gap-3 px-4 py-4 rounded-xl font-semibold text-sm hover:bg-[#09ACC9]/10 hover:text-[#09ACC9] transition-colors"
                         >
