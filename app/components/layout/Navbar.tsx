@@ -210,9 +210,9 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                                             <div className="px-3 py-2 mb-1 rounded-xl bg-slate-50 border border-slate-100">
                                                 <div className="text-xs font-semibold text-slate-500 mb-1">Listings Quota</div>
                                                 <div className="text-sm font-bold text-slate-800">
-                                                    {(authUser.total_listings_posted ?? 0)} of 5 used
+                                                    {(authUser.total_listings_posted ?? 0)} of 3 used
                                                 </div>
-                                                {(authUser.total_listings_posted ?? 0) >= 5 && (
+                                                {(authUser.total_listings_posted ?? 0) >= 3 && (
                                                     <div className="text-xs text-rose-500 mt-0.5 font-medium">
                                                         Limit reached
                                                     </div>
@@ -363,9 +363,9 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                                             <div className="px-3 py-2 mb-1 rounded-xl bg-slate-50 border border-slate-100">
                                                 <div className="text-xs font-semibold text-slate-500 mb-1">Listings Quota</div>
                                                 <div className="text-sm font-bold text-slate-800">
-                                                    {(authUser.total_listings_posted ?? 0)} of 5 used
+                                                    {(authUser.total_listings_posted ?? 0)} of 3 used
                                                 </div>
-                                                {(authUser.total_listings_posted ?? 0) >= 5 && (
+                                                {(authUser.total_listings_posted ?? 0) >= 3 && (
                                                     <div className="text-xs text-rose-500 mt-0.5 font-medium">
                                                         Limit reached
                                                     </div>
@@ -530,9 +530,9 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                                 <div className="px-4 py-3 mx-2 my-2 rounded-xl bg-slate-50 border border-slate-100">
                                     <div className="text-xs font-semibold text-slate-500 mb-1">Listings Quota</div>
                                     <div className="text-sm font-bold text-slate-800">
-                                        {(authUser.total_listings_posted ?? 0)} of 5 used
+                                        {(authUser.total_listings_posted ?? 0)} of 3 used
                                     </div>
-                                    {(authUser.total_listings_posted ?? 0) >= 5 && (
+                                    {(authUser.total_listings_posted ?? 0) >= 3 && (
                                         <div className="text-xs text-rose-500 mt-0.5 font-medium">
                                             Limit reached
                                         </div>
@@ -672,3 +672,4 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
         </>
     );
 }
+

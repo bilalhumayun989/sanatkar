@@ -3,6 +3,7 @@ import { createClient as createSupabaseClient, type User } from '@supabase/supab
 import { cookies } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
 import prisma from '@/lib/dbConn';
+import { AUTH_COOKIE_NAME, readAuthAccessToken } from './auth-cookie';
 
 function config() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -53,7 +54,8 @@ export function createAdminClient() {
 
 export async function getCurrentUser(request: NextRequest) {
   const authorization = request.headers.get('authorization');
-  const accessToken = authorization?.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : null;
+  const accessToken = (authorization?.startsWith('Bearer ') ? authorization.slice('Bearer '.length) : null)
+    ?? readAuthAccessToken(request.cookies.get(AUTH_COOKIE_NAME)?.value);
   if (accessToken) {
     const { url, key } = config();
     const client = createSupabaseClient(url, key, {

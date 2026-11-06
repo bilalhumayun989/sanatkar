@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentProfile } from '@/lib/auth/supabase/server';
+import prisma from '@/lib/dbConn';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -7,6 +8,7 @@ export const revalidate = 0;
 export async function GET(request: NextRequest) {
   const { user, profile } = await getCurrentProfile(request);
   if (!user || !profile) return NextResponse.json({ success: true, user: null });
+  const totalListingsPosted = await prisma.listing.count({ where: { sellerId: user.id } });
 
   return NextResponse.json({
     success: true,
@@ -21,7 +23,7 @@ export async function GET(request: NextRequest) {
       shop_name: profile.shopName,
       shop_complete: Boolean(profile.shopName && profile.shopDescription && profile.shopAddress && profile.city && profile.shopImageUrl && profile.phone && profile.cnic),
       verification_status: profile.verification_status ?? null,
-      total_listings_posted: profile.total_listings_posted ?? 0,
+      total_listings_posted: totalListingsPosted,
       onboarding_complete: profile.onboarding_complete ?? false,
     },
   });

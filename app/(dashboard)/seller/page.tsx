@@ -13,6 +13,7 @@ import Link from 'next/link';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
 import { FIXED_CATEGORY_OPTIONS, normalizeCategoryValue } from '@/lib/categoryConstants';
+import { createClient } from '@/lib/auth/supabase/client';
 
 import BrandSelect from '@/app/components/BrandSelect';
 import SellerListingGate from '@/app/components/profile/SellerListingGate';
@@ -32,14 +33,12 @@ const CITIES = ['Lahore', 'Karachi', 'Islamabad', 'Faisalabad', 'Rawalpindi', 'M
 interface FormState {
     title: string;
     origin: string;
-    stock_status: string;
     city: string;
     make: string;
     model: string;
     year: string;
     condition: Condition;
     category: Category;
-    mileage: string;
     price: string;
     description: string;
     phone: string;
@@ -69,7 +68,7 @@ export default function SellerPage() {
 function SellerPageContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
-    const { user: authUser, loading: authLoading } = useAuth();
+    const { user: authUser, loading: authLoading, refreshAuth } = useAuth();
     const { t, language } = useLanguage();
 
     const urlCategory = searchParams.get('category') as Category | null;
@@ -85,14 +84,12 @@ function SellerPageContent() {
     const [form, setForm] = useState<FormState>({
         title: '',
         origin: '',
-        stock_status: '',
         city: '',
         make: '',
         model: '',
         year: '',
         condition: (urlCondition && CONDITIONS.includes(urlCondition as Condition)) ? urlCondition as Condition : 'new',
         category: 'parts',
-        mileage: '',
         price: '',
         description: '',
         phone: '',
@@ -137,14 +134,12 @@ function SellerPageContent() {
                     ...prev,
                     title: listing.title || '',
                     origin: listing.origin || '',
-                    stock_status: listing.stock_status || '',
                     city: listing.location || prev.city,
                     make: listing.brand || prev.make,
                     model: listing.model || prev.model,
                     year: String(listing.year ?? ''),
                     condition: (CONDITIONS.includes(String(listing.condition || '').toLowerCase() as Condition) ? String(listing.condition || '').toLowerCase() : prev.condition) as Condition,
                     category: normalizeCategoryValue(listing.category),
-                    mileage: String(listing.hours ?? ''),
                     price: String(listing.price ?? ''),
                     description: listing.description || prev.description,
                     phone: listing.phone_number || prev.phone,
@@ -181,12 +176,9 @@ function SellerPageContent() {
 
     const handleNextStep = () => {
         setError('');
-        if (activeStep === 1 && (!form.title.trim() || !form.city || !form.make.trim() || !form.price || !Number.isFinite(Number(form.price)) || Number(form.price) < 0 || !form.description.trim())) {
+        if (activeStep === 2 && (!form.title.trim() || !form.city || !form.make.trim() || !form.price || !Number.isFinite(Number(form.price)) || Number(form.price) <= 0 || !form.year || !form.origin.trim() || !form.description.trim())) {
             setError(t('fill_required_fields'));
             return;
-        }
-        if (activeStep === 2 && images.length + existingImages.length === 0) {
-            setError(t('adding_pictures_tip'));
         }
         setActiveStep(prev => Math.min(prev + 1, 3));
     };
@@ -198,7 +190,7 @@ function SellerPageContent() {
 
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
-        if (existingImages.length + images.length + files.length > 6) { setError(t('max_images_allowed')); return; }
+        if (existingImages.length + images.length + files.length > 3) { setError(t('max_images_allowed')); e.target.value = ''; return; }
         setImages(prev => [...prev, ...files]);
         setPreviews(prev => [...prev, ...files.map(f => URL.createObjectURL(f))]);
         setError('');
@@ -213,7 +205,7 @@ function SellerPageContent() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
-        if (!form.title.trim() || !form.city || !form.make.trim() || !form.price || !Number.isFinite(Number(form.price)) || Number(form.price) < 0 || !form.description.trim() || !form.phone) {
+        if (!form.title.trim() || !form.city || !form.make.trim() || !form.category || !form.price || !Number.isFinite(Number(form.price)) || Number(form.price) <= 0 || !form.year || !form.origin.trim() || !form.description.trim() || !form.phone.trim()) {
             setError(t('fill_required_fields'));
             return;
         }
@@ -222,6 +214,29 @@ function SellerPageContent() {
             setSubmitting(true);
             if (!authUser) { setError(t('login_required')); return; }
 
+            const { data: { session } } = await createClient().auth.getSession();
+            if (!session?.access_token) { setError(t('login_required')); return; }
+            const authHeaders = { Authorization: `Bearer ${session.access_token}` };
+
+            let uploadedUrls: string[] = [];
+            if (images.length > 0) {
+                setUploading(true);
+                const formData = new FormData();
+                images.forEach(image => formData.append('files', image));
+                const uploadResponse = await fetch('/api/upload', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: authHeaders,
+                    body: formData,
+                });
+                const uploadJson = await uploadResponse.json();
+                if (!uploadResponse.ok || !uploadJson.success || !Array.isArray(uploadJson.urls)) {
+                    throw new Error(uploadJson.message || 'Image upload failed');
+                }
+                uploadedUrls = uploadJson.urls;
+                setUploading(false);
+            }
+
             const payload = {
                 title: form.title.trim(),
                 brand: form.make.trim(),
@@ -229,12 +244,10 @@ function SellerPageContent() {
                 category: normalizeCategoryValue(form.category),
                 price: Number(form.price),
                 year: form.year ? Number(form.year) : null,
-                hours: form.mileage ? Number(form.mileage) : null,
                 origin: form.origin.trim() || null,
-                stock_status: form.stock_status || null,
                 location: form.city,
                 description: form.description,
-                image_urls: existingImages,
+                image_urls: [...existingImages, ...uploadedUrls],
                 condition: form.condition,
                 status: 'active',
                 phone_number: form.phone,
@@ -246,7 +259,7 @@ function SellerPageContent() {
                 const response = await fetch(`/api/listings/${editListingId}`, {
                     method: 'PATCH',
                     credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { ...authHeaders, 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
                 });
                 const data = await response.json();
@@ -258,7 +271,7 @@ function SellerPageContent() {
                 const response = await fetch('/api/listings', {
                     method: 'POST',
                     credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { ...authHeaders, 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload),
                 });
                 const data = await response.json();
@@ -276,34 +289,8 @@ function SellerPageContent() {
                 throw new Error(editListingId ? t('failed_update_listing') : t('failed_create_listing'));
             }
 
-            let uploadedUrls: string[] = [];
-            if (images.length > 0) {
-                setUploading(true);
-                const formData = new FormData();
-                images.forEach((image) => formData.append('files', image));
-                const uploadResponse = await fetch('/api/upload', {
-                    method: 'POST',
-                    body: formData,
-                    credentials: 'include',
-                });
-                const uploadJson = await uploadResponse.json();
-                if (!uploadResponse.ok || !uploadJson.success || !Array.isArray(uploadJson.urls)) {
-                    throw new Error(uploadJson.message || 'Image upload failed');
-                }
-                uploadedUrls = uploadJson.urls;
-                const mergePayload = { image_urls: [...existingImages, ...uploadedUrls] };
-                const updateResponse = await fetch(`/api/listings/${listingId}`, {
-                    method: 'PATCH',
-                    credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(mergePayload),
-                });
-                const updateJson = await updateResponse.json();
-                if (!updateResponse.ok || !updateJson.success) {
-                    throw new Error(updateJson.message || 'Unable to attach listing images.');
-                }
-            }
             setSuccess(true);
+            await refreshAuth();
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : t('failed_post_listing');
             setError(message.includes('AD_LIMIT_REACHED') ? t('ad_limit_reached') : message);
@@ -348,9 +335,9 @@ function SellerPageContent() {
                 <div className="max-w-6xl mx-auto px-4 sm:px-6">
                     <div className="py-6 mb-3 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
                         <div>
-                            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary mb-2">SANATKAR SELLER</p>
+                            <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary mb-2">SANATKAR LISTING</p>
                             <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">{editingListing ? t('edit_your_ad') : t('post_your_ad')}</h1>
-                            <p className="text-sm text-gray-500 mt-1">{t('all_fields_mandatory')}</p>
+                            <p className="text-sm text-gray-500 mt-1">Complete the listing details. Model is optional; add up to 3 photos.</p>
                         </div>
                         <div className="text-left lg:text-right">
                             <span className="text-xs font-bold text-gray-400">STEP {activeStep} OF 3</span>
@@ -362,9 +349,9 @@ function SellerPageContent() {
 
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div className="grid grid-cols-3 gap-2 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
-                            {[
-                                { step: 1, label: t('listing_information'), icon: FileText },
-                                { step: 2, label: t('upload_media'), icon: Camera },
+                            [
+                                { step: 1, label: t('upload_media'), icon: Camera },
+                                { step: 2, label: t('listing_information'), icon: FileText },
                                 { step: 3, label: t('contact_section'), icon: PhoneIcon },
                             ].map(({ step, label, icon: Icon }) => (
                                 <button key={step} type="button" onClick={() => step < activeStep && setActiveStep(step)}
@@ -376,15 +363,15 @@ function SellerPageContent() {
                             ))}
                         </div>
 
-                        {activeStep === 1 && <>
+                        {activeStep === 2 && <>
                         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                            <SectionHeader step={1} title={t('listing_information')} icon={FileText} />
+                            <SectionHeader step={2} title={t('listing_information')} icon={FileText} />
                             <div className="px-4 sm:px-8 py-6 space-y-5">
 
                                 {/* Category */}
                                 <div className="grid grid-cols-3 gap-4 items-start">
                                     <label htmlFor="listing-category" className="text-sm font-semibold text-gray-600 text-right pt-2.5">Category *</label>
-                                    <select id="listing-category" name="category" value={form.category} onChange={handleChange}
+                                    <select id="listing-category" name="category" required value={form.category} onChange={handleChange}
                                         className="col-span-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary">
                                         {categoryOptions.map(option => <option key={option.slug} value={option.slug}>{option.name}</option>)}
                                     </select>
@@ -396,7 +383,7 @@ function SellerPageContent() {
                                         <MapPin size={14} className="text-gray-400" /> {t('city')} <span className="text-primary">*</span>
                                     </label>
                                     <div className="col-span-2">
-                                        <select name="city" value={form.city} onChange={handleChange}
+                                        <select name="city" required value={form.city} onChange={handleChange}
                                             className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary bg-white">
                                             <option value="">{t('select_city')}</option>
                                             {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -412,17 +399,13 @@ function SellerPageContent() {
                                     <label className="text-sm font-semibold text-gray-600 text-right pt-2.5">Brand *</label>
                                     <div className="col-span-2"><BrandSelect value={form.make} onChange={make => setForm(prev => ({ ...prev, make }))} /></div>
                                 </div>
-                                {([{ name: 'model', label: 'Model', type: 'text' }, { name: 'mileage', label: 'Hours', type: 'number' }, { name: 'origin', label: 'Origin', type: 'text' }] as const).map(field => (
-                                    <div key={field.name} className="grid grid-cols-3 gap-4 items-start">
-                                        <label className="text-sm font-semibold text-gray-600 text-right pt-2.5">{field.label}</label>
-                                        <input aria-label={field.label} name={field.name} type={field.type} min={field.type === 'number' ? 0 : undefined} value={form[field.name]} onChange={handleChange} className="col-span-2 rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
-                                    </div>
-                                ))}
                                 <div className="grid grid-cols-3 gap-4 items-start">
-                                    <label className="text-sm font-semibold text-gray-600 text-right pt-2.5">Stock status</label>
-                                    <select aria-label="Stock status" name="stock_status" value={form.stock_status} onChange={handleChange} className="col-span-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm">
-                                        <option value="">Not specified</option><option>In Stock</option><option>Out of Stock</option>
-                                    </select>
+                                    <label className="text-sm font-semibold text-gray-600 text-right pt-2.5">Model <span className="text-gray-400">(optional)</span></label>
+                                    <input aria-label="Model (optional)" name="model" value={form.model} onChange={handleChange} className="col-span-2 rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
+                                </div>
+                                <div className="grid grid-cols-3 gap-4 items-start">
+                                    <label className="text-sm font-semibold text-gray-600 text-right pt-2.5">Origin <span className="text-primary">*</span></label>
+                                    <input aria-label="Origin" name="origin" required value={form.origin} onChange={handleChange} className="col-span-2 rounded-lg border border-gray-300 px-3 py-2.5 text-sm" />
                                 </div>
 
                                 {/* Condition */}
@@ -447,9 +430,9 @@ function SellerPageContent() {
 
                                 {/* Year */}
                                 <div className="grid grid-cols-3 gap-4 items-start">
-                                    <label className="text-sm font-semibold text-gray-600 text-right pt-2.5 col-span-1">{t('year_label')}</label>
+                                    <label className="text-sm font-semibold text-gray-600 text-right pt-2.5 col-span-1">{t('year_label')} <span className="text-primary">*</span></label>
                                     <div className="col-span-2 grid grid-cols-2 gap-3">
-                                        <input name="year" type="number" value={form.year} onChange={handleChange}
+                                        <input name="year" type="number" required value={form.year} onChange={handleChange}
                                             min="1900" max={new Date().getFullYear() + 1}
                                             className="border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
                                     </div>
@@ -463,7 +446,7 @@ function SellerPageContent() {
                                     <div className="col-span-2 space-y-1">
                                         <div className="flex">
                                             <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-300 bg-gray-100 text-sm text-gray-500 font-semibold">PKR</span>
-                                            <input name="price" type="number" value={form.price} onChange={handleChange}
+                                            <input name="price" type="number" min="1" required value={form.price} onChange={handleChange}
                                                 placeholder={t('price')}
                                                 className="flex-1 border border-gray-300 rounded-r-lg px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
                                         </div>
@@ -496,9 +479,9 @@ function SellerPageContent() {
                         </div>
                         </>}
 
-                        {activeStep === 2 && <>
+                        {activeStep === 1 && <>
                         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                            <SectionHeader step={2} title={t('upload_media')} icon={Camera} />
+                            <SectionHeader step={1} title={t('upload_media')} icon={Camera} />
                             <div className="px-4 sm:px-8 py-6">
                                 <div className="border-2 border-dashed border-primary/30 rounded-xl p-5 sm:p-8 mb-4 bg-primary/[0.02]">
                                     <div className="flex flex-col items-center gap-3 mb-6">
@@ -510,6 +493,7 @@ function SellerPageContent() {
                                             <Plus size={16} /> {t('add_photos')}
                                         </button>
                                         <p className="text-xs text-gray-400">{t('max_image_size')}</p>
+                                        <p className="text-xs font-semibold text-gray-500">Up to 3 photos</p>
                                     </div>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-500">
                                         {[
@@ -541,7 +525,7 @@ function SellerPageContent() {
                                                     </button>
                                                 </div>
                                             ))}
-                                            {previews.length < 6 && (
+                                            {existingImages.length + previews.length < 3 && (
                                                 <button type="button" onClick={() => fileInputRef.current?.click()}
                                                     className="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center hover:border-primary transition-colors">
                                                     <Plus size={20} className="text-gray-400" />
@@ -570,7 +554,7 @@ function SellerPageContent() {
                                             <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-300 bg-gray-100">
                                                 <PhoneIcon size={15} className="text-gray-500" />
                                             </span>
-                                            <input name="phone" value={form.phone} onChange={handleChange}
+                                            <input name="phone" required value={form.phone} onChange={handleChange}
                                                 placeholder="03XXXXXXXXX"
                                                 maxLength={20}
                                                 className="flex-1 border border-gray-300 rounded-r-lg px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
@@ -581,15 +565,17 @@ function SellerPageContent() {
                                 {/* WhatsApp toggle */}
                                 <div className="grid grid-cols-3 gap-4 items-center">
                                     <div className="col-span-1" />
-                                    <div className="col-span-2 flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                            <MessageCircle size={16} className="text-primary" />
-                                        </div>
-                                        <span className="text-sm font-semibold text-gray-700 flex-1">{t('whatsapp_contact')}</span>
-                                        <button type="button" onClick={() => setForm(p => ({ ...p, allowWhatsapp: !p.allowWhatsapp }))}
-                                            className={`relative w-11 h-6 rounded-full transition-colors ${form.allowWhatsapp ? 'bg-primary' : 'bg-gray-300'}`}>
-                                            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.allowWhatsapp ? 'translate-x-5' : ''}`} />
-                                        </button>
+                                    <div className="col-span-2 flex flex-wrap items-center gap-3">
+                                        <MessageCircle size={17} className="text-primary" />
+                                        <span className="text-sm font-semibold text-gray-700">Contact by</span>
+                                        {(['WhatsApp', 'Call'] as const).map(option => {
+                                            const selected = option === 'WhatsApp' ? form.allowWhatsapp : !form.allowWhatsapp;
+                                            return <button key={option} type="button" aria-pressed={selected}
+                                                onClick={() => setForm(current => ({ ...current, allowWhatsapp: option === 'WhatsApp' }))}
+                                                className={`rounded-lg border px-4 py-2 text-sm font-semibold ${selected ? 'border-primary bg-primary text-white' : 'border-gray-300 text-gray-600 hover:border-primary'}`}>
+                                                {option}
+                                            </button>;
+                                        })}
                                     </div>
                                 </div>
                             </div>

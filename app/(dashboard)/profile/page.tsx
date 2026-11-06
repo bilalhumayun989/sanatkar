@@ -166,9 +166,9 @@ export default function ProfilePage() {
                     <div>
                       <h3 className="text-sm font-bold text-slate-800">Listings Quota</h3>
                       <p className="text-xs text-slate-500 font-medium">
-                        {(profile?.total_listings_posted ?? 0)} of 5 listings used
+                        {(profile?.total_listings_posted ?? 0)} of 3 listings used
                       </p>
-                      {(profile?.total_listings_posted ?? 0) >= 5 && (
+                      {(profile?.total_listings_posted ?? 0) >= 3 && (
                         <p className="text-xs text-rose-500 font-bold mt-0.5">Upgrade to post more</p>
                       )}
                     </div>
@@ -267,3 +267,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+

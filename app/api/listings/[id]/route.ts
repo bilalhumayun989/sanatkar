@@ -64,7 +64,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       if (!Number.isFinite(price) || price <= 0) return NextResponse.json({ message: 'Price must be greater than zero.' }, { status: 400 });
       data.price = price;
     }
-    if (input.image_urls !== undefined || input.images !== undefined) data.imageUrls = parseImageUrls(input.image_urls ?? input.images);
+    if (input.image_urls !== undefined || input.images !== undefined) data.imageUrls = parseImageUrls(input.image_urls ?? input.images, 3);
     if (input.status !== undefined) {
       if (!['active', 'paused', 'sold'].includes(String(input.status))) return NextResponse.json({ message: 'Invalid listing status.' }, { status: 400 });
       data.status = input.status;

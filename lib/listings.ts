@@ -51,11 +51,11 @@ export function serializeListing(item: ListingRecord) {
   };
 }
 
-export function parseImageUrls(value: unknown): string[] {
+export function parseImageUrls(value: unknown, maxImages = 12): string[] {
   if (!Array.isArray(value)) return [];
   return value
     .filter((item): item is string => typeof item === 'string')
     .map(item => item.trim())
     .filter(item => item.length > 0 && item.length <= 2048 && /^(https:\/\/|\/)/i.test(item))
-    .slice(0, 12);
+    .slice(0, maxImages);
 }
