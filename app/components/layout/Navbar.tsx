@@ -150,9 +150,12 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
 
                                 <button
                                     type="button"
+                                    aria-label={postAdOpen ? 'Close listing menu' : 'Open listing menu'}
+                                    aria-expanded={postAdOpen}
                                     onClick={() => setPostAdOpen(!postAdOpen)}
-                                    className="text-slate-800 hover:text-[#09ACC9] transition-colors p-1"
+                                    className="flex h-8 w-8 items-center justify-center rounded-full text-slate-800 transition-colors hover:bg-slate-100 hover:text-[#09ACC9]"
                                 >
+                                    <ChevronDown size={16} aria-hidden="true" />
                                 </button>
                             </div>
                         </div>
@@ -477,8 +480,10 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                 
                 {/* Mobile Header */}
                 <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200/60">
-                    <img src="/sanatkar.png" alt="SanatKar" className="h-8 w-auto" />
+                    <img src="/sanatkar.png" alt="SanatKar" width={423} height={137} className="h-8 w-auto" />
                     <button
+                        type="button"
+                        aria-label="Close menu"
                         onClick={() => setMenuOpen(false)}
                         className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
                     >

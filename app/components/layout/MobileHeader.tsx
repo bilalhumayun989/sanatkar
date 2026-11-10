@@ -23,7 +23,6 @@ export default function MobileHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
   const [unreadOffersCount, setUnreadOffersCount] = useState<number>(0);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -79,7 +78,6 @@ export default function MobileHeader() {
       } catch (error) {
         console.error('Failed to load mobile header data:', error);
       } finally {
-        setLoading(false);
       }
     }
 
@@ -143,7 +141,7 @@ export default function MobileHeader() {
   return (
     <>
       {/* Fixed Teal Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 bg-[#13BDC4] text-white pt-3 pb-3 px-3.5 z-40">
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-[#075b6f] text-white pt-3 pb-3 px-3.5 z-40">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2.5">
             <div className="w-9 h-9 md:w-10 md:h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center shrink-0 border border-white/30">
@@ -151,17 +149,17 @@ export default function MobileHeader() {
             </div>
 
             <div className="flex flex-col">
-              <span className="text-[9px] font-medium tracking-wider text-white/80 uppercase">
+              <span className="text-[9px] font-medium tracking-wider text-white uppercase">
                 WELCOME BACK
               </span>
               <div className="text-xs sm:text-sm font-bold leading-tight truncate max-w-[150px] sm:max-w-[220px]">
-                {loading ? 'Loading...' : displayName}
+                {displayName}
               </div>
             </div>
           </div>
 
           <div className="flex items-center space-x-2">
-            <Link href="/blogs" className="rounded-full bg-white/20 px-3 py-2 text-xs font-bold hover:bg-white/30">Blogs</Link>
+            <Link href="/blogs" className="rounded-full bg-white/10 px-3 py-2 text-xs font-bold text-white hover:bg-white/20">Blogs</Link>
             <Link
               href="/notifications"
               aria-label="Notifications"
@@ -169,7 +167,7 @@ export default function MobileHeader() {
             >
               <Bell className="w-4 h-4 text-white" />
               {unreadOffersCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-[#13BDC4]">
+                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-[#075b6f]">
                   {unreadOffersCount}
                 </span>
               )}
@@ -186,7 +184,7 @@ export default function MobileHeader() {
         </div>
 
         <form onSubmit={handleSearch} className="relative flex max-w-2xl items-center mx-auto">
-          <div className="absolute left-3.5 text-slate-400 pointer-events-none">
+          <div className="absolute left-3.5 text-slate-500 pointer-events-none">
             <Search className="w-4 h-4" />
           </div>
 
@@ -195,14 +193,14 @@ export default function MobileHeader() {
             onChange={(event) => setSearchQuery(event.target.value)}
             type="text"
             placeholder="Search machines, brands, category..."
-            className="w-full bg-white text-slate-800 placeholder-slate-400 text-xs rounded-xl py-2.5 pl-9 pr-11 focus:outline-none shadow-inner font-medium"
+            className="w-full bg-white text-slate-800 placeholder-slate-500 text-xs rounded-xl py-2.5 pl-9 pr-11 focus:outline-none shadow-inner font-medium"
           />
 
           <button
             type="button"
             onClick={() => pathname === '/buyer' ? window.dispatchEvent(new Event('marketplace-filters')) : setIsFilterOpen(true)}
             aria-label="Filter"
-            className="absolute right-1 w-8 h-8 md:w-8.5 md:h-8.5 bg-[#EAEFF9] hover:bg-[#d8eff1] rounded-lg flex items-center justify-center text-[#13BDC4] transition-colors"
+            className="absolute right-1 w-8 h-8 md:w-8.5 md:h-8.5 bg-[#EAEFF9] hover:bg-[#d8eff1] rounded-lg flex items-center justify-center text-[#006b80] transition-colors"
           >
             <SlidersHorizontal className="w-4 h-4" />
           </button>

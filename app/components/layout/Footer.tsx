@@ -36,7 +36,7 @@ export default function Footer() {
                             {t('footer_desc')}
                         </p>
 
-                        <a href="mailto:support@sanatkar.com" className="inline-flex items-center gap-2 pt-2 text-sm font-semibold text-[#0092B8] hover:underline"><Mail size={16} /> support@sanatkar.com</a>
+                        <a href="mailto:support@sanatkar.com" className="inline-flex items-center gap-2 pt-2 text-sm font-semibold text-[#006b80] hover:underline"><Mail size={16} /> support@sanatkar.com</a>
                     </div>
 
 
@@ -107,7 +107,8 @@ export default function Footer() {
                                 />
                                 <button 
                                     type="submit"
-                                    className="absolute right-1.5 top-1.5 bottom-1.5 bg-[#0092B8] hover:bg-[#007b9b] text-white px-3 rounded-lg flex items-center justify-center transition-all active:scale-95 shadow-md shadow-[#0092B8]/20"
+                                    aria-label="Subscribe to email updates"
+                                    className="absolute right-1.5 top-1.5 bottom-1.5 bg-[#006b80] hover:bg-[#005466] text-white px-3 rounded-lg flex items-center justify-center transition-all active:scale-95 shadow-md shadow-[#006b80]/20"
                                 >
                                     <Send size={14} />
                                 </button>
@@ -128,7 +129,7 @@ export default function Footer() {
                         className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300 transition-all duration-200"
                     >
                         <span>Designed & Developed by</span>
-                        <span className="font-bold text-[#0092B8]">BroshTech</span>
+                        <span className="font-bold text-[#006b80]">BroshTech</span>
                     </a>
                 </div>
 

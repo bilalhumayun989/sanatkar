@@ -88,7 +88,7 @@ export default function CategoriesSection({ categories = [], title }: { categori
         <h2 className="text-lg font-bold text-slate-900 sm:text-xl">{title || t('browse_categories')}</h2>
         <Link
           href="/buyer"
-          className="shrink-0 text-sm font-semibold text-[#079bb5] hover:text-[#087c91]"
+          className="shrink-0 text-sm font-semibold text-[#006b80] hover:text-[#005466]"
         >
           View all
         </Link>
@@ -132,7 +132,7 @@ export default function CategoriesSection({ categories = [], title }: { categori
                     />
                   </div>
 
-                  <span className="w-full truncate text-xs font-semibold text-slate-700 text-center transition-colors group-hover:text-[#079bb5]">
+                  <span className="w-full truncate text-xs font-semibold text-slate-700 text-center transition-colors group-hover:text-[#006b80]">
                     {category.name}
                   </span>
                 </Link>

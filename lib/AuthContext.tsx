@@ -150,13 +150,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (!active || currentGeneration !== generation) return;
             controller = new AbortController();
             try {
-              await fetch(session ? '/api/auth/sync' : '/api/auth/logout', {
-                method: 'POST', credentials: 'include', signal: controller.signal,
-                ...(session ? {
+              if (session) {
+                await fetch('/api/auth/sync', {
+                  method: 'POST', credentials: 'include', signal: controller.signal,
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ access_token: session.access_token, expires_at: session.expires_at }),
-                } : {}),
-              });
+                });
+              }
             } catch { /* Bearer-authenticated profile requests still work if cookie sync fails. */ }
             if (!active || currentGeneration !== generation || !session) return;
             await fetchProfile(

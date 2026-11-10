@@ -137,7 +137,7 @@ export default function FeaturedListing() {
 
         <Link
           href="/buyer"
-          className="shrink-0 text-sm font-semibold text-[#079bb5] hover:text-[#087c91]"
+          className="shrink-0 text-sm font-semibold text-[#006b80] hover:text-[#005466]"
         >
           View all
         </Link>
@@ -215,7 +215,7 @@ export default function FeaturedListing() {
 
                         {/* Price & Saved Icon Row */}
                         <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
-                          <div className="text-sm font-bold text-[#079bb5]">
+                          <div className="text-sm font-bold text-[#006b80]">
                             PKR {Number(item.price).toLocaleString()}
                           </div>
 

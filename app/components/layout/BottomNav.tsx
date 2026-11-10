@@ -75,7 +75,7 @@ export default function BottomNav() {
                 <div className="w-13 h-13 sm:w-16 sm:h-16 bg-[#09acc9] text-white rounded-full flex items-center justify-center shadow-[#0092b8]/50 border-4 border-white transition-all duration-300 active:scale-95 group-hover:scale-110">
                   <Plus className="w-7 h-7 sm:w-8 sm:h-8 stroke-[2.5]" />
                 </div>
-                <span className="text-[9px] sm:text-[10px] font-extrabold text-[#0092b8] tracking-wider mt-1 uppercase whitespace-nowrap">
+                <span className="text-[9px] sm:text-[10px] font-extrabold text-[#006b80] tracking-wider mt-1 uppercase whitespace-nowrap">
                   {item.label}
                 </span>
               </Link>
@@ -89,7 +89,7 @@ export default function BottomNav() {
               key={item.label}
               href={item.href}
               className={`relative flex-1 flex flex-col items-center justify-center py-1.5 transition-colors min-w-0 ${
-                isActive ? 'text-[#0092b8]' : 'text-slate-400 hover:text-slate-600'
+                isActive ? 'text-[#006b80]' : 'text-slate-600 hover:text-slate-800'
               }`}
             >
               {showBadge && (
@@ -98,7 +98,7 @@ export default function BottomNav() {
                 </span>
               )}
               <Icon className={`w-5 h-5 sm:w-6 sm:h-6 mb-1 ${isActive ? 'stroke-[2.2]' : 'stroke-[1.8]'}`} />
-              <span className={`text-[10px] sm:text-xs font-semibold whitespace-nowrap ${isActive ? 'text-[#0092b8]' : 'text-slate-500'}`}>
+              <span className={`text-[10px] sm:text-xs font-semibold whitespace-nowrap ${isActive ? 'text-[#006b80]' : 'text-slate-600'}`}>
                 {item.label}
               </span>
             </Link>
