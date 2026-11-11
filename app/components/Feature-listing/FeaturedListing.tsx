@@ -9,8 +9,8 @@ import { useLanguage } from '@/lib/LanguageContext';
 interface Listing {
   id: string;
   title: string;
-  price: number;
-  location: string;
+  price: number | null;
+  location: string | null;
   image_urls?: string[] | null;
   year?: string | null;
   brand?: string | null;
@@ -29,10 +29,9 @@ interface Listing {
   created_at?: string | null;
 }
 
-export default function FeaturedListing() {
+export default function FeaturedListing({ initialListings }: { initialListings: Listing[] }) {
   const { t } = useLanguage();
-  const [featuredListings, setFeaturedListings] = useState<Listing[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [featuredListings, setFeaturedListings] = useState<Listing[]>(initialListings);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -52,18 +51,8 @@ export default function FeaturedListing() {
           if (favResponse.ok && favResult.success) setSavedIds((favResult.favorites || []).map((fav: any) => fav.listing_id));
         }
 
-        const listingsResponse = await fetch('/api/listings?featured=true&limit=6', { cache: 'no-store' });
-        const listingsResult = await listingsResponse.json();
-        if (listingsResponse.ok && listingsResult.success && Array.isArray(listingsResult.data)) {
-          setFeaturedListings(listingsResult.data);
-        } else {
-          setFeaturedListings([]);
-        }
       } catch (error) {
         console.error('Failed to fetch data:', error);
-        setFeaturedListings([]);
-      } finally {
-        setLoading(false);
       }
     };
 
@@ -143,14 +132,6 @@ export default function FeaturedListing() {
         </Link>
       </div>
 
-      {/* Loading State */}
-      {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="bg-slate-100/60 rounded-2xl h-64 animate-pulse"></div>
-          ))}
-        </div>
-      ) : (
         <div className="relative group/carousel w-full">
           {featuredListings.length > 0 ? (
             <>
@@ -191,6 +172,8 @@ export default function FeaturedListing() {
                           src={displayImage}
                           alt={item.title}
                           fill
+                          sizes="(max-width: 640px) 46vw, 220px"
+                          quality={75}
                           className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
                         />
                         {item.condition && (
@@ -257,7 +240,6 @@ export default function FeaturedListing() {
             </div>
           )}
         </div>
-      )}
     </section>
   );
 }

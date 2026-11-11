@@ -1,6 +1,5 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { MapPin } from 'lucide-react';
@@ -8,48 +7,17 @@ import { MapPin } from 'lucide-react';
 interface Listing {
   id: string;
   title: string;
-  price: number;
-  location: string;
-  image_urls: string[];
+  price: number | null;
+  location: string | null;
+  image_urls: string[] | null;
   year?: string;
-  brand?: string;
-  condition?: string;
-  is_featured: boolean;
+  brand?: string | null;
+  condition?: string | null;
+  is_featured?: boolean | null;
 }
 
-export default function FeaturedListingsMobile() {
-  const [featuredListings, setFeaturedListings] = useState<Listing[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchFeatured() {
-      try {
-        const response = await fetch('/api/listings?featured=true&limit=3', { cache: 'no-store' });
-        const result = await response.json();
-        if (response.ok && result.success && Array.isArray(result.data)) {
-          setFeaturedListings(result.data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch featured listings:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchFeatured();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="w-full px-4 my-4 space-y-3 lg:hidden">
-        <div className="w-full h-52 bg-slate-200 animate-pulse rounded-3xl" />
-        <div className="grid grid-cols-2 gap-3">
-          <div className="h-44 bg-slate-200 animate-pulse rounded-2xl" />
-          <div className="h-44 bg-slate-200 animate-pulse rounded-2xl" />
-        </div>
-      </div>
-    );
-  }
+export default function FeaturedListingsMobile({ initialListings }: { initialListings: Listing[] }) {
+  const featuredListings = initialListings;
 
   if (featuredListings.length === 0) return null;
 
@@ -75,6 +43,8 @@ export default function FeaturedListingsMobile() {
                   src={item.image_urls?.[0] || '/placeholder.png'}
                   alt={item.title}
                   fill
+                  sizes="(max-width: 640px) 46vw, 220px"
+                  quality={75}
                   className="object-cover"
                 />
                 <span className="absolute left-2 top-2 rounded bg-white/95 px-2 py-1 text-[10px] font-semibold text-[#087c91] shadow-sm">

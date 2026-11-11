@@ -1,29 +1,9 @@
-import prisma from '@/lib/dbConn';
-import { listingSellerSelect, serializeListing } from '@/lib/listings';
-import HomeClient, { type Listing } from './HomeClient';
+import { getHomeData } from '@/lib/home-data';
+import HomeClient from './HomeClient';
 
-export const dynamic = 'force-dynamic';
-
-async function getRecentListings(): Promise<Listing[]> {
-  try {
-    const deletedAccounts = await prisma.deletedAccount.findMany({ select: { userId: true } });
-    const rows = await prisma.listing.findMany({
-      where: {
-        status: 'active',
-        ...(deletedAccounts.length ? { sellerId: { notIn: deletedAccounts.map(account => account.userId) } } : {}),
-      },
-      include: { seller: { select: listingSellerSelect } },
-      orderBy: { createdAt: 'desc' },
-      take: 8,
-    });
-    return rows.map(row => serializeListing(row));
-  } catch (error) {
-    console.error('Failed to load initial storefront listings:', error);
-    return [];
-  }
-}
+export const revalidate = 60;
 
 export default async function Page() {
-  const initialListings = await getRecentListings();
-  return <HomeClient initialListings={initialListings} />;
+  const homeData = await getHomeData();
+  return <HomeClient {...homeData} />;
 }

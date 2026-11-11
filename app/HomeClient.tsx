@@ -7,7 +7,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { BadgeCheck, Search, SlidersHorizontal, Store } from 'lucide-react';
-import { FIXED_CATEGORY_OPTIONS } from '@/lib/categoryConstants';
 import PriceSlider, { type PriceRange } from './components/PriceSlider';
 import CategoriesSection from './api/categories/Category';
 import FeaturedListing from './components/Feature-listing/FeaturedListing';
@@ -30,7 +29,7 @@ interface Shop {
   seller_id: string;
   title: string;
   image_urls: string[] | null;
-  verification_status: string;
+  verification_status: string | null;
 }
 
 interface VerifiedSeller {
@@ -57,7 +56,7 @@ interface HomeCategory {
   id: string;
   name: string;
   image_url?: string | null;
-  is_active?: boolean;
+  is_active?: boolean | null;
   is_popular?: boolean;
 }
 
@@ -72,7 +71,7 @@ function SectionHeading({ title, href, linkLabel = 'View all', headingId }: { ti
   );
 }
 
-function ProductCard({ listing, priority = false }: { listing: Listing; priority?: boolean }) {
+function ProductCard({ listing }: { listing: Listing }) {
   return (
     <Link
       href={`/listings/${listing.id}`}
@@ -84,8 +83,7 @@ function ProductCard({ listing, priority = false }: { listing: Listing; priority
           alt={listing.title}
           fill
           sizes="(max-width: 640px) 46vw, (max-width: 1024px) 30vw, 220px"
-          priority={priority}
-          fetchPriority={priority ? 'high' : 'auto'}
+          quality={75}
           className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
         />
         {listing.condition && (
@@ -104,109 +102,47 @@ function ProductCard({ listing, priority = false }: { listing: Listing; priority
   );
 }
 
-export default function Home({ initialListings }: { initialListings: Listing[] }) {
+export default function Home({
+  categories: initialCategories,
+  brands: initialBrands,
+  shops: initialShops,
+  verifiedSellers: initialVerifiedSellers,
+  recentListings: initialListings,
+  featuredListings,
+}: {
+  categories: HomeCategory[];
+  brands: Brand[];
+  shops: Shop[];
+  verifiedSellers: VerifiedSeller[];
+  recentListings: Listing[];
+  featuredListings: Listing[];
+}) {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [brandFilter, setBrandFilter] = useState('');
   const [priceFilter, setPriceFilter] = useState<PriceRange>([0, null]);
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [shops, setShops] = useState<Shop[]>([]);
-  const [verifiedSellers, setVerifiedSellers] = useState<VerifiedSeller[]>([]);
-  const [sellersLoading, setSellersLoading] = useState(true);
-  const [sellersError, setSellersError] = useState(false);
-  const [sellerRetry, setSellerRetry] = useState(0);
-  const [categories, setCategories] = useState<HomeCategory[]>([]);
+  const [brands, setBrands] = useState<Brand[]>(initialBrands);
+  const [shops, setShops] = useState<Shop[]>(initialShops);
+  const [verifiedSellers] = useState<VerifiedSeller[]>(initialVerifiedSellers);
+  const [categories, setCategories] = useState<HomeCategory[]>(initialCategories);
   const [recentListings, setRecentListings] = useState<Listing[]>(initialListings);
-  const [storefrontLoading, setStorefrontLoading] = useState(true);
+  const [storefrontLoading] = useState(false);
 
   useEffect(() => {
-    let active = true;
-
-    const loadStorefront = async (refreshListings = false) => {
-      try {
-        const responses = await Promise.all([
-          fetch('/api/brands', { cache: 'no-store' }),
-          fetch('/api/shops?limit=12', { cache: 'no-store' }),
-        ]);
-        const [brandResult, shopResult] = await Promise.all(responses.map(response => response.json()));
-        if (!active) return;
-        setBrands(brandResult.brands || []);
-        setShops(shopResult.shops || []);
-        if (refreshListings) {
-          const response = await fetch('/api/listings?limit=8', { cache: 'no-store' });
-          const listingResult = await response.json();
-          if (active) setRecentListings(listingResult.data || []);
-        }
-      } catch (error) {
-        console.error('Failed to load storefront:', error);
-      } finally {
-        if (active) setStorefrontLoading(false);
-      }
-
-      try {
-        const response = await fetch('/api/categories');
-        const result = await response.json();
-        if (active && result.success && Array.isArray(result.categories) && result.categories.length) {
-          setCategories(result.categories);
-          return;
-        }
-      } catch {
-        // Use the built-in categories when the category endpoint is unavailable.
-      }
-
-      if (active) {
-        setCategories(FIXED_CATEGORY_OPTIONS.map((item) => ({
-          id: item.value,
-          name: item.label,
-          image_url: null,
-          is_active: true,
-        })));
-      }
-    };
-
-    const stopStorefront = refreshOnRealtime(['listings', 'catalog'], () => loadStorefront(true));
-    loadStorefront().catch((error) => {
-      console.error('Failed to load storefront:', error);
-    });
+    const unsubscribe = refreshOnRealtime(['listings', 'catalog'], () => router.refresh());
     return () => {
-      stopStorefront();
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    let inFlight = false;
-    const loadSellers = async () => {
-      if (inFlight) return;
-      inFlight = true;
-      setSellersError(false);
-      try {
-        const response = await fetch('/api/verified-sellers', { cache: 'no-store', signal: controller.signal });
-        if (!response.ok) throw new Error('Unable to load verified sellers');
-        const result = await response.json();
-        if (!Array.isArray(result.sellers)) throw new Error('Invalid seller response');
-        if (!controller.signal.aborted) setVerifiedSellers(result.sellers);
-      } catch {
-        if (!controller.signal.aborted) setSellersError(true);
-      } finally {
-        inFlight = false;
-        if (!controller.signal.aborted) setSellersLoading(false);
-      }
-    };
-    setSellersLoading(true);
-    void loadSellers();
-    const refresh = () => { if (document.visibilityState === 'visible') void loadSellers(); };
-    window.addEventListener('focus', refresh);
-    const unsubscribe = refreshOnRealtime(['catalog'], loadSellers);
-    return () => {
-      controller.abort();
-      window.removeEventListener('focus', refresh);
       unsubscribe();
     };
-  }, [sellerRetry]);
+  }, [router]);
+
+  useEffect(() => {
+    setCategories(initialCategories);
+    setBrands(initialBrands);
+    setShops(initialShops);
+    setRecentListings(initialListings);
+  }, [initialCategories, initialBrands, initialShops, initialListings]);
 
   const applySearch = () => {
     const params = new URLSearchParams();
@@ -378,7 +314,7 @@ export default function Home({ initialListings }: { initialListings: Listing[] }
             )}
         </section>
 
-        <CategoriesSection categories={categories} />
+        <CategoriesSection categories={categories} prioritizeFirstImage />
         {categories.some(category => category.is_popular) && <CategoriesSection categories={categories.filter(category => category.is_popular)} title="Popular categories" />}
 
         {/* <section aria-labelledby="verified-sellers-heading">
@@ -419,17 +355,17 @@ export default function Home({ initialListings }: { initialListings: Listing[] }
         </section> */}
 
         <div className="lg:hidden">
-          <FeaturedListingsMobile />
+          <FeaturedListingsMobile initialListings={featuredListings.slice(0, 3)} />
         </div>
         <div className="hidden lg:block">
-          <FeaturedListing />
+          <FeaturedListing initialListings={featuredListings} />
         </div>
 
         <section aria-labelledby="recent-listings-heading">
           <SectionHeading title="Recent listings" href="/buyer" headingId="recent-listings-heading" />
           {recentListings.length > 0 ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
-              {recentListings.map((listing, index) => <ProductCard key={listing.id} listing={listing} priority={index === 0} />)}
+              {recentListings.map((listing) => <ProductCard key={listing.id} listing={listing} />)}
             </div>
           ) : (
             <p className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500">

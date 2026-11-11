@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRef, useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -10,24 +11,30 @@ interface Category {
   name: string;
   image_url?: string | null;
   description?: string;
-  is_active?: boolean;
+  is_active?: boolean | null;
 }
 
-const CategoryImage = ({ 
-  name, 
-  imageUrl 
+const CategoryImage = ({
+  name,
+  imageUrl,
+  priority,
 }: { 
   name: string; 
   imageUrl?: string | null;
+  priority?: boolean;
 }) => {
   const [imageError, setImageError] = useState(false);
 
   // If image_url exists and hasn't failed to load
   if (imageUrl && imageUrl.trim() !== '' && !imageError) {
     return (
-      <img
+      <Image
         src={imageUrl}
         alt={name}
+        width={88}
+        height={88}
+        sizes="88px"
+        priority={priority}
         className="w-full h-full object-cover rounded-full transition-transform duration-300 group-hover:scale-110"
         onError={() => setImageError(true)}
       />
@@ -42,7 +49,7 @@ const CategoryImage = ({
   );
 };
 
-export default function CategoriesSection({ categories = [], title }: { categories: Category[]; title?: string }) {
+export default function CategoriesSection({ categories = [], title, prioritizeFirstImage = false }: { categories: Category[]; title?: string; prioritizeFirstImage?: boolean }) {
   const { t } = useLanguage();
   const activeCategories = categories.filter((cat) => cat.is_active !== false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -119,7 +126,7 @@ export default function CategoriesSection({ categories = [], title }: { categori
               }}
               className="flex items-start gap-4 overflow-x-auto pb-2 pt-1 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden sm:gap-6"
             >
-              {activeCategories.map((category) => (
+              {activeCategories.map((category, index) => (
                 <Link
                   key={category.id}
                   href={`/buyer?category=${encodeURIComponent(category.name.toLowerCase())}#products`}
@@ -129,6 +136,7 @@ export default function CategoriesSection({ categories = [], title }: { categori
                     <CategoryImage 
                       name={category.name} 
                       imageUrl={category.image_url}
+                      priority={prioritizeFirstImage && index === 0}
                     />
                   </div>
 
