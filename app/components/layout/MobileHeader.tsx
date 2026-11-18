@@ -141,7 +141,7 @@ export default function MobileHeader() {
   return (
     <>
       {/* Fixed Teal Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 bg-[#075b6f] text-white pt-3 pb-3 px-3.5 z-40">
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-[#09acc9] text-white pt-3 pb-3 px-3.5 z-40">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2.5">
             <div className="w-9 h-9 md:w-10 md:h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center shrink-0 border border-white/30">
@@ -167,7 +167,7 @@ export default function MobileHeader() {
             >
               <Bell className="w-4 h-4 text-white" />
               {unreadOffersCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-[#075b6f]">
+                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-[#09acc9]">
                   {unreadOffersCount}
                 </span>
               )}
