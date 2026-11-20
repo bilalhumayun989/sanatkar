@@ -103,19 +103,24 @@ export function subscribeRealtime(topics: string[], callback: (event: LiveEvent)
 }
 
 /** Coalesce transaction bursts and serialize refreshes to prevent stale races. */
-export function refreshOnRealtime(topics: string[], refresh: () => unknown | Promise<unknown>) {
+export function refreshOnRealtime(topics: string[], refresh: (event: LiveEvent) => unknown | Promise<unknown>) {
   let active = true;
   let busy = false;
   let pending = false;
+  let pendingEvent: LiveEvent | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const run = async () => {
     if (!active) return;
     if (busy) { pending = true; return; }
+    const event = pendingEvent;
+    if (!event) return;
+    pendingEvent = undefined;
     busy = true;
-    try { await refresh(); } catch (error) { console.error('Realtime refresh failed:', error); }
+    try { await refresh(event); } catch (error) { console.error('Realtime refresh failed:', error); }
     finally { busy = false; if (pending && active) { pending = false; void run(); } }
   };
-  const unsubscribe = subscribeRealtime(topics, () => {
+  const unsubscribe = subscribeRealtime(topics, (event) => {
+    pendingEvent = event;
     clearTimeout(timer);
     timer = setTimeout(() => { void run(); }, 75);
   });
