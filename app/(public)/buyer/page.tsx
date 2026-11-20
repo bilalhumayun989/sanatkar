@@ -373,15 +373,15 @@ function BuyerPageContent() {
         ...FIXED_CATEGORY_OPTIONS.map(c => ({ id: c.value, name: c.label })), ...categories,
     ].map(c => [c.name.toLowerCase(), c])).values());
     const filterSection = (
-        <div className="space-y-10">
+        <div className="space-y-6">
             <label className="block text-xs font-bold text-slate-600">Category
-                <select aria-label="Category" value={categoryOptions.find(c => c.id === selectedCategory)?.name.toLowerCase() || selectedCategory?.toLowerCase() || ''} onChange={e => setSelectedCategory(e.target.value || null)} className="mt-2 w-full rounded-lg border border-slate-200 p-2 text-sm">
+                <select aria-label="Category" value={categoryOptions.find(c => c.id === selectedCategory)?.name.toLowerCase() || selectedCategory?.toLowerCase() || ''} onChange={e => setSelectedCategory(e.target.value || null)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white p-2.5 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
                     <option value="">All categories</option>
                     {categoryOptions.map(c => <option key={c.id} value={c.name.toLowerCase()}>{c.name}</option>)}
                 </select>
             </label>
             <label className="block text-xs font-bold text-slate-600">{t('brand')}
-                <select aria-label={t('brand')} value={selectedBrandFilter} onChange={e => { setSelectedBrandFilter(e.target.value); setSelectedBrands([]); }} className="mt-2 w-full rounded-lg border border-slate-200 p-2 text-sm">
+                <select aria-label={t('brand')} value={selectedBrandFilter} onChange={e => { setSelectedBrandFilter(e.target.value); setSelectedBrands([]); }} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white p-2.5 text-sm text-slate-800 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
                     <option value="">All brands</option>
                     {brands.map(brand => <option key={brand.id} value={brand.name}>{brand.name}</option>)}
                 </select>
@@ -395,17 +395,30 @@ function BuyerPageContent() {
             <Navbar />
 
             {/* Mobile Filter Drawer */}
-            <div className={`fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm lg:hidden transition-opacity duration-300 ${showMobileFilters ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-                onClick={() => setShowMobileFilters(false)} />
-            <div className={`fixed top-0 right-0 h-full w-[85%] max-w-sm z-[210] bg-white flex flex-col lg:hidden transition-transform duration-300 ease-out shadow-2xl ${showMobileFilters ? 'translate-x-0' : 'translate-x-full'}`}>
-                <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-                    <h2 className="text-xl font-black">{t('filters')}</h2>
-                    <button onClick={() => setShowMobileFilters(false)} className="p-2 bg-gray-100 rounded-full"><X size={18} /></button>
+            <div
+                className={`fixed inset-0 z-[10000] bg-black/50 backdrop-blur-sm lg:hidden transition-opacity duration-300 ${showMobileFilters ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+                onClick={() => setShowMobileFilters(false)}
+            />
+            <div className={`fixed inset-y-0 right-0 w-[85%] max-w-sm z-[10001] bg-white flex flex-col lg:hidden transition-transform duration-300 ease-out shadow-2xl ${showMobileFilters ? 'translate-x-0' : 'translate-x-full'}`}>
+                {/* Header */}
+                <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4">
+                    <h2 className="flex items-center gap-2 text-base font-black text-slate-900">
+                        <SlidersHorizontal size={16} className="text-primary" />
+                        {t('filters')}
+                        {activeFilterCount > 0 && (
+                            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-black text-white">{activeFilterCount}</span>
+                        )}
+                    </h2>
+                    <button onClick={() => setShowMobileFilters(false)} className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-slate-600 hover:bg-gray-200"><X size={16} /></button>
                 </div>
-                <div className="flex-1 overflow-y-auto px-6 py-6">{filterSection}</div>
-                <div className="px-6 py-5 border-t border-gray-100 flex flex-col gap-3">
-                    <button onClick={resetFilters} className="w-full py-3.5 rounded-2xl font-bold text-sm text-gray-400 hover:text-gray-600">{t('reset')}</button>
-                    <button onClick={() => { setShowMobileFilters(false); scrollToProducts(); }} className="w-full bg-primary text-white py-3.5 rounded-2xl font-bold text-sm hover:bg-primary-dark active:scale-95">{t('apply_filters')}</button>
+                {/* Scrollable filter body — only this scrolls, page behind is locked */}
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">
+                    {filterSection}
+                </div>
+                {/* Footer actions */}
+                <div className="shrink-0 border-t border-gray-100 px-5 py-4 flex flex-col gap-2.5">
+                    <button onClick={() => { setShowMobileFilters(false); scrollToProducts(); }} className="w-full rounded-2xl bg-primary py-3 text-sm font-black text-white transition hover:bg-primary-dark active:scale-95">{t('apply_filters')}</button>
+                    <button onClick={resetFilters} className="w-full py-2 text-sm font-semibold text-gray-400 hover:text-gray-600">{t('reset')}</button>
                 </div>
             </div>
 
