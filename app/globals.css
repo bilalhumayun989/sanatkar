@@ -29,7 +29,7 @@
 html {
   scroll-behavior: smooth;
   scroll-padding-top: 5rem;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
@@ -39,7 +39,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.6;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* Urdu/RTL Support */
@@ -197,6 +197,28 @@ body {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;             /* Chrome, Safari */
+}
+
+/* Defer painting heavier homepage sections until they approach the viewport. */
+.home-deferred {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 340px;
+}
+
+.home-deferred-listings {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 900px;
+}
+
+.content-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 340px;
+}
+
+@media (min-width: 1280px) {
+  .home-deferred-listings {
+    contain-intrinsic-size: auto 740px;
+  }
 }
 
 /* Auto-sliding animation from right to left */

@@ -2,7 +2,7 @@
 
 import { refreshOnRealtime } from '@/lib/realtime/client';
 
-import { Fragment, Suspense, useEffect, useState, useMemo } from 'react';
+import { Fragment, Suspense, useEffect, useState, useMemo, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/app/components/layout/Navbar';
@@ -35,10 +35,12 @@ function BuyerPageContent() {
     const urlCategory = searchParams.get('category');
     const urlSearch = searchParams.get('search');
     const urlBrand = searchParams.get('brand');
+    const urlFeatured = searchParams.get('featured');
     const urlPrice = searchParams.get('price');
     const [parts, setParts] = useState<(PartType & { categoryId?: string; year?: number })[]>([]);
     const [categories, setCategories] = useState<{ id: string; name: string; is_popular?: boolean; is_active?: boolean }[]>([]);
-    const [visibleCount, setVisibleCount] = useState(20);
+    const [currentPage, setCurrentPage] = useState(1);
+    const productsPerPage = 20;
     const [priceRange, setPriceRange] = useState<PriceRange>([0, null]);
     const [condition, setCondition] = useState('');
     const [year, setYear] = useState('');
@@ -49,8 +51,11 @@ function BuyerPageContent() {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
     const [selectedBrandFilter, setSelectedBrandFilter] = useState<string>('');
+    const [featuredOnly, setFeaturedOnly] = useState(urlFeatured === 'true');
     const [sortBy, setSortBy] = useState('most_recent');
     const [showMobileFilters, setShowMobileFilters] = useState(false);
+    const filterSidebarRef = useRef<HTMLElement | null>(null);
+    const filterPanelRef = useRef<HTMLDivElement | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(urlCategory || null);
     const configuredAdHref = typeof adConfig?.buttonLink === 'string' ? adConfig.buttonLink.trim() : '';
     const adButtonHref = configuredAdHref.startsWith('/') && !configuredAdHref.startsWith('//') && configuredAdHref !== '/#'
@@ -73,7 +78,7 @@ function BuyerPageContent() {
                         compatibility: item.mileage || 'Universal',
                         condition: item.condition || 'New',
                         stockStatus: 'In Stock',
-                        isFeatured: Boolean(item.is_featured || item.status === 'active'),
+                        isFeatured: Boolean(item.is_featured),
                         sellerRole: item.seller?.role || undefined,
                         sellerId: item.seller_id || item.seller?.id || undefined,
                         sellerName: item.seller?.full_name || item.seller?.username || undefined,
@@ -167,6 +172,7 @@ function BuyerPageContent() {
         setSearchQuery(urlSearch || '');
         setSelectedCategory(urlCategory || null);
         setSelectedBrandFilter(urlBrand || '');
+        setFeaturedOnly(urlFeatured === 'true');
         setSelectedBrands([]);
         const legacy: Record<string, PriceRange> = { under_5k: [0, 5000], '5k_15k': [5000, 15000], '15k_50k': [15000, 50000], '50k_plus': [50000, null] };
         const parse = (value: string | null) => value !== null && value.trim() !== '' && Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : null;
@@ -175,7 +181,7 @@ function BuyerPageContent() {
         setPriceRange([min, max === null ? null : Math.max(min, max)]);
         setCondition(searchParams.get('condition') || '');
         setYear(searchParams.get('year') || '');
-    }, [urlSearch, urlCategory, urlBrand, urlPrice, searchParams]);
+    }, [urlSearch, urlCategory, urlBrand, urlPrice, urlFeatured, searchParams]);
 
     useEffect(() => {
         const openFilters = () => setShowMobileFilters(true);
@@ -204,6 +210,115 @@ function BuyerPageContent() {
         return () => { document.body.style.overflow = ''; };
     }, [showMobileFilters]);
 
+    useEffect(() => {
+        const sidebar = filterSidebarRef.current;
+        const panel = filterPanelRef.current;
+        const productsSection = document.getElementById('products');
+        const heroSection = productsSection?.previousElementSibling;
+        if (!sidebar || !panel || !productsSection) return;
+
+        const top = 80;
+        let frame = 0;
+        let isPinned = false;
+        let sidebarTop = 0;
+        let sidebarLeft = 0;
+        let sidebarWidth = 0;
+        let productsBottom = 0;
+
+        const measureLayout = () => {
+            const sidebarRect = sidebar.getBoundingClientRect();
+            sidebarTop = sidebarRect.top + window.scrollY;
+            sidebarLeft = sidebarRect.left;
+            sidebarWidth = sidebarRect.width;
+            const productsGrid = productsSection.querySelector<HTMLElement>('[data-products-grid]');
+            productsBottom = (productsGrid || productsSection).getBoundingClientRect().bottom + window.scrollY;
+        };
+
+        const pinPanel = () => {
+            panel.style.position = 'fixed';
+            panel.style.top = `${top}px`;
+            panel.style.left = `${sidebarLeft}px`;
+            panel.style.width = `${sidebarWidth}px`;
+            panel.style.height = 'calc(100vh - 6rem)';
+            panel.style.transform = 'translate3d(0, 0, 0)';
+            panel.style.zIndex = '40';
+        };
+
+        const resetPanelPosition = () => {
+            panel.style.position = '';
+            panel.style.top = '';
+            panel.style.left = '';
+            panel.style.width = '';
+            panel.style.height = '';
+            panel.style.transform = '';
+            panel.style.zIndex = '';
+        };
+
+        const updatePinnedFilter = () => {
+            if (frame) return;
+            frame = window.requestAnimationFrame(() => {
+                frame = 0;
+                if (window.innerWidth < 1024) {
+                    isPinned = false;
+                    resetPanelPosition();
+                    return;
+                }
+
+                const scrollTop = window.scrollY + top;
+                const startThreshold = isPinned ? sidebarTop - 2 : sidebarTop + 2;
+                const stillInProducts = window.scrollY < productsBottom - 2;
+                const shouldPin = scrollTop >= startThreshold && stillInProducts;
+
+                if (shouldPin !== isPinned) {
+                    isPinned = shouldPin;
+                    if (isPinned) pinPanel();
+                    else resetPanelPosition();
+                }
+
+                if (isPinned) {
+                    const bottomAlignedTop = productsBottom - window.scrollY - panel.offsetHeight;
+                    const translateY = Math.min(0, bottomAlignedTop - top);
+                    const transform = `translate3d(0, ${translateY}px, 0)`;
+                    if (panel.style.transform !== transform) panel.style.transform = transform;
+                }
+            });
+        };
+
+        const handleResize = () => {
+            measureLayout();
+            if (window.innerWidth < 1024) {
+                isPinned = false;
+                resetPanelPosition();
+            } else if (isPinned) pinPanel();
+            updatePinnedFilter();
+        };
+
+        const handleLayoutChange = () => {
+            measureLayout();
+            updatePinnedFilter();
+        };
+
+        measureLayout();
+        updatePinnedFilter();
+        window.addEventListener('scroll', updatePinnedFilter, { passive: true });
+        window.addEventListener('resize', handleResize);
+        const resizeObserver = typeof ResizeObserver === 'undefined'
+            ? null
+            : new ResizeObserver(handleLayoutChange);
+        resizeObserver?.observe(sidebar);
+        resizeObserver?.observe(productsSection);
+        const productsGrid = productsSection.querySelector<HTMLElement>('[data-products-grid]');
+        if (productsGrid) resizeObserver?.observe(productsGrid);
+        if (heroSection instanceof HTMLElement) resizeObserver?.observe(heroSection);
+        return () => {
+            window.removeEventListener('scroll', updatePinnedFilter);
+            window.removeEventListener('resize', handleResize);
+            resizeObserver?.disconnect();
+            if (frame) window.cancelAnimationFrame(frame);
+            resetPanelPosition();
+        };
+    }, []);
+
     const filteredParts = useMemo(() => {
         let result = [...parts];
         if (searchQuery) {
@@ -220,15 +335,23 @@ function BuyerPageContent() {
         result = result.filter(p => p.price >= priceRange[0] && (priceRange[1] === null || p.price <= priceRange[1]));
         if (condition) result = result.filter(p => p.condition.toLowerCase() === condition.toLowerCase());
         if (year) result = result.filter(p => p.year && p.year >= Number(year));
+        if (featuredOnly) result = result.filter(p => p.isFeatured);
         switch (sortBy) {
             case 'price_low_high': result.sort((a, b) => a.price - b.price); break;
             case 'price_high_low': result.sort((a, b) => b.price - a.price); break;
             default: result.sort((a, b) => new Date(b.createdAt as string).getTime() - new Date(a.createdAt as string).getTime());
         }
         return result;
-    }, [parts, searchQuery, selectedBrands, priceRange, sortBy, selectedCategory, selectedBrandFilter, categories, condition, year]);
+    }, [parts, searchQuery, selectedBrands, priceRange, sortBy, selectedCategory, selectedBrandFilter, categories, condition, year, featuredOnly]);
 
-    useEffect(() => { setVisibleCount(20); }, [searchQuery, selectedBrands, priceRange, sortBy, selectedCategory, selectedBrandFilter, condition, year]);
+    const pageCount = Math.max(1, Math.ceil(filteredParts.length / productsPerPage));
+    const pageParts = filteredParts.slice((currentPage - 1) * productsPerPage, currentPage * productsPerPage);
+    const goToPage = (page: number) => {
+        setCurrentPage(page);
+        requestAnimationFrame(() => document.querySelector('[data-products-grid]')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    };
+
+    useEffect(() => { setCurrentPage(1); }, [searchQuery, selectedBrands, priceRange, sortBy, selectedCategory, selectedBrandFilter, condition, year, featuredOnly]);
     const handleBrandToggle = (brand: string) => {
         setSelectedBrandFilter('');
         setSelectedBrands(prev => prev.includes(brand) ? prev.filter(b => b !== brand) : [...prev, brand]);
@@ -242,8 +365,9 @@ function BuyerPageContent() {
         setSortBy('most_recent');
         setSelectedCategory(null);
         setSelectedBrandFilter('');
+        setFeaturedOnly(false);
     };
-    const activeFilterCount = selectedBrands.length + Number(priceRange[0] > 0 || priceRange[1] !== null) + Number(Boolean(selectedCategory)) + Number(Boolean(selectedBrandFilter)) + Number(Boolean(condition)) + Number(Boolean(year));
+    const activeFilterCount = selectedBrands.length + Number(priceRange[0] > 0 || priceRange[1] !== null) + Number(Boolean(selectedCategory)) + Number(Boolean(selectedBrandFilter)) + Number(Boolean(condition)) + Number(Boolean(year)) + Number(featuredOnly);
     const categoryOptions = Array.from(new Map([
         ...FIXED_CATEGORY_OPTIONS.map(c => ({ id: c.value, name: c.label })), ...categories,
     ].map(c => [c.name.toLowerCase(), c])).values());
@@ -255,22 +379,13 @@ function BuyerPageContent() {
                     {categoryOptions.map(c => <option key={c.id} value={c.name.toLowerCase()}>{c.name}</option>)}
                 </select>
             </label>
+            <label className="block text-xs font-bold text-slate-600">{t('brand')}
+                <select aria-label={t('brand')} value={selectedBrandFilter} onChange={e => { setSelectedBrandFilter(e.target.value); setSelectedBrands([]); }} className="mt-2 w-full rounded-lg border border-slate-200 p-2 text-sm">
+                    <option value="">All brands</option>
+                    {brands.map(brand => <option key={brand.id} value={brand.name}>{brand.name}</option>)}
+                </select>
+            </label>
             <PriceSlider value={priceRange} onChange={setPriceRange} ceiling={parts.reduce((max, p) => Math.max(max, p.price), 1000)} />
-            <div>
-                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">{t('brand')}</h4>
-                <div className="space-y-3">
-                    {brands.map((brand) => (
-                        <label key={brand.id} className="flex items-center group cursor-pointer">
-                            <div className="relative flex items-center justify-center">
-                                <input type="checkbox" checked={selectedBrands.includes(brand.name)} onChange={() => handleBrandToggle(brand.name)}
-                                    className="peer appearance-none w-5 h-5 border-2 border-gray-200 rounded-lg checked:bg-primary checked:border-primary transition-all cursor-pointer" />
-                                <div className="absolute text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none"><Check size={14} strokeWidth={4} /></div>
-                            </div>
-                            <span className="ml-3 text-sm font-bold text-black/70 group-hover:text-black transition-colors">{brand.name}</span>
-                        </label>
-                    ))}
-                </div>
-            </div>
         </div>
     );
 
@@ -340,11 +455,14 @@ function BuyerPageContent() {
 
             {/* Main Layout */}
             <div id="products" className="scroll-mt-32 lg:scroll-mt-20 py-12 px-4 md:px-6">
-                <div className="flex flex-col lg:flex-row gap-10">
+                <div className="flex flex-col gap-6 lg:flex-row lg:gap-6">
 
                     {/* Desktop Sidebar */}
-                    <aside className="hidden w-72 flex-shrink-0 self-stretch lg:block">
-                        <div className="sticky top-4 flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" style={{ height: 'calc(100vh - 2rem)' }}>
+                    <aside ref={filterSidebarRef} className="hidden h-[calc(100vh-6rem)] w-56 shrink-0 self-start lg:block xl:w-64" style={{ height: 'calc(100vh - 6rem)' }}>
+                        <div
+                            ref={filterPanelRef}
+                            className="flex h-[calc(100vh-6rem)] min-h-[360px] max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:p-6"
+                        >
 
                             {/* Header */}
                             <div className="flex items-center justify-between pb-5 mb-6 border-b border-slate-100">
@@ -445,6 +563,7 @@ function BuyerPageContent() {
                         {/* Active filter chips */}
                         {activeFilterCount > 0 && (
                             <div className="flex flex-wrap gap-2 mb-5">
+                                {featuredOnly && <button onClick={() => setFeaturedOnly(false)} className="flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-full text-xs font-bold hover:bg-primary/20 transition-colors">Featured <X size={11} /></button>}
                                 {selectedBrands.map(b => (
                                     <button key={b} onClick={() => handleBrandToggle(b)}
                                         className="flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 px-3 py-1 rounded-full text-xs font-bold hover:bg-primary/20 transition-colors">
@@ -486,13 +605,11 @@ function BuyerPageContent() {
                                 <button onClick={resetFilters} className="mt-6 text-primary font-bold hover:underline">{t('reset_all_filters')}</button>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-                                {filteredParts.slice(0, visibleCount).map((part, idx) => (
+                            <div data-products-grid className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                {pageParts.map((part, idx) => (
                                     <Fragment key={part.id}>
-                                        <div className="reveal-up" style={{ animationDelay: `${(idx % 20) * 0.05}s` }}>
-                                            <PartCard part={part as any} compact />
-                                        </div>
-                                        {SHOW_PRODUCT_ADS && (idx + 1) % PRODUCTS_PER_AD === 0 && idx + 1 < Math.min(visibleCount, filteredParts.length) && (
+                                        <PartCard part={part as any} compact />
+                                        {SHOW_PRODUCT_ADS && (idx + 1) % PRODUCTS_PER_AD === 0 && idx + 1 < pageParts.length && (
                                             <ProductAdSlot slot={(idx + 1) / PRODUCTS_PER_AD} />
                                         )}
                                     </Fragment>
@@ -520,12 +637,21 @@ function BuyerPageContent() {
                             </div>
                         )}
 
-                        {!loading && !error && filteredParts.length > visibleCount && (
-                            <div className="mt-16 flex justify-center">
-                                <button onClick={() => setVisibleCount(count => count + 20)} className="bg-white border border-gray-200 text-black font-black px-12 py-5 rounded-[2rem] hover:bg-primary hover:text-white hover:border-primary transition-all duration-300 active:scale-95">
-                                    {t('load_more_parts')}
-                                </button>
-                            </div>
+                        {!loading && !error && pageCount > 1 && (
+                            <nav aria-label="Product pages" className="mt-10 flex flex-col items-center gap-4 border-t border-slate-200 pt-6 sm:flex-row sm:justify-between">
+                                <p className="text-sm font-medium text-slate-500">
+                                    Showing <span className="font-bold text-slate-800">{(currentPage - 1) * productsPerPage + 1}–{Math.min(currentPage * productsPerPage, filteredParts.length)}</span> of <span className="font-bold text-slate-800">{filteredParts.length}</span> products
+                                </p>
+                                <div className="flex items-center gap-1.5" role="group" aria-label="Choose page">
+                                    <button type="button" onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1} aria-label="Previous page" className="h-10 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40">‹</button>
+                                    {Array.from({ length: pageCount }, (_, index) => index + 1).map(page => (
+                                        <button key={page} type="button" onClick={() => goToPage(page)} aria-current={currentPage === page ? 'page' : undefined} className={`h-10 min-w-10 rounded-xl border px-3 text-sm font-bold transition ${currentPage === page ? 'border-primary bg-primary text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:border-primary hover:text-primary'}`}>
+                                            {page}
+                                        </button>
+                                    ))}
+                                    <button type="button" onClick={() => goToPage(currentPage + 1)} disabled={currentPage === pageCount} aria-label="Next page" className="h-10 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40">›</button>
+                                </div>
+                            </nav>
                         )}
                     </div>
                 </div>

@@ -11,7 +11,7 @@ export async function GET() {
       logo_url: brand.logoUrl,
       description: brand.description,
       is_active: brand.isActive,
-    })) });
+    })) }, { headers: { 'Cache-Control': 'no-store, max-age=0' } });
   } catch (error) {
     console.error('Brands query failed:', error);
     return NextResponse.json({ success: false, message: 'Unable to load brands.', brands: [] }, { status: 500 });

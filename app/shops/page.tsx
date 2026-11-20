@@ -7,7 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
-import { Search, Store, CheckCircle2, Package, MapPin, Users } from 'lucide-react';
+import { Search, Store, CheckCircle2, Package, Users, ArrowUpRight } from 'lucide-react';
 
 interface Shop {
   id: string;
@@ -55,53 +55,50 @@ export default function AllShopsPage() {
   }, [shops, searchQuery]);
 
   return (
-   <div className="min-h-screen bg-slate-50">
+   <div className="min-h-screen bg-[#f5f8fa]">
   <Navbar />
 
   {/* Slim Banner Section */}
-  <section className="relative overflow-hidden">
+  <section className="relative isolate overflow-hidden bg-[#12343a]">
     {/* Public Folder Image Background */}
     <img
       src="/shop.jfif" // Public folder me mojud image ka path
       alt="Banner Background"
-      className="absolute  w-full h-full object-cover object-top"
+      className="absolute inset-0 h-full w-full object-cover object-center"
     />
 
-    {/* Subtle Dark Overlay for Text Visibility */}
-    {/* <div className="absolute inset-0 bg-slatex-900/70 backdrop-blur-[2px]"></div> */}
+    <div className="absolute inset-0 bg-gradient-to-r from-[#0b2930]/95 via-[#10353c]/85 to-[#10353c]/35" />
 
-    <div className="relative z-10 container-wide py-12 md:py-30 ">
-      <div className="max-w-7xl">
+    <div className="relative z-10 container-wide py-14 sm:py-18 md:py-20">
+      <div className="max-w-2xl">
         {/* Badge (div replacement) */}
         <div className="inline-block mb-4">
-          <div className="inline-flex items-center rounded-full border border-white/40 bg-white/20 backdrop-blur-md px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] text-white shadow-sm">
+          <div className="inline-flex items-center rounded-full border border-white/20 bg-white/10 backdrop-blur-md px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-white shadow-sm">
             <Store className="w-4 h-4 mr-2" />
             Shop Directory
           </div>
         </div>
 
         {/* Heading (div replacement for h1) */}
-        <div className="text-3xl sm:text-4xl md:text-5xl font-black text-white leading-tight tracking-tight mb-4">
-          Browse Shops
-        </div>
+        <h1 className="text-4xl sm:text-5xl font-extrabold text-white leading-tight tracking-tight mb-4">Find a shop for every need</h1>
 
         {/* Subtext */}
         <p className="text-white/90 text-lg mb-8 leading-relaxed max-w-2xl">
-          Explore verified sellers and their storefronts
+          Explore seller storefronts and browse the industrial products they have available.
         </p>
 
         {/* Search Bar */}
        <div className="max-w-md">
   <div className="relative flex items-center">
     {/* Search Icon ko z-20 aur pointer-events-none diya gaya hai */}
-    <Search className="absolute left-4 z-20 text-white/70 w-5 h-5 pointer-events-none" />
+    <Search className="absolute left-4 z-20 text-slate-400 w-5 h-5 pointer-events-none" />
     
     <input
       type="text"
       placeholder="Search shops..."
       value={searchQuery}
       onChange={(e) => setSearchQuery(e.target.value)}
-      className="w-full pl-12 pr-4 py-3 bg-white/10 border border-white/30 rounded-xl text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-[#09ACC9]/50 focus:border-[#09ACC9] transition-all backdrop-blur-sm relative z-10"
+      className="w-full pl-12 pr-4 py-4 bg-white border border-white/70 rounded-2xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-4 focus:ring-[#73e3e2]/25 focus:border-[#73e3e2] transition-all relative z-10 shadow-xl"
     />
   </div>
 </div>
@@ -111,10 +108,12 @@ export default function AllShopsPage() {
 
 
       {/* Main Content */}
-      <section className="container-wide py-12 md:py-16">
+      <section className="container-wide py-10 md:py-14">
         {/* Results Summary */}
-        <div className="mb-8">
-          <p className="text-slate-600 text-sm">
+        <div className="mb-7 flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-5">
+          <div>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">Explore shops</h2>
+          <p className="mt-1 text-slate-600 text-sm">
             {loading ? (
               'Loading shops...'
             ) : (
@@ -127,6 +126,8 @@ export default function AllShopsPage() {
               </>
             )}
           </p>
+          </div>
+          {!loading && !error && <span className="rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-sm font-semibold text-slate-600 shadow-sm">{filteredShops.length} {filteredShops.length === 1 ? 'shop' : 'shops'}</span>}
         </div>
 
         {/* Loading State */}
@@ -177,58 +178,55 @@ export default function AllShopsPage() {
 
         {/* Shops Grid */}
         {!loading && !error && filteredShops.length > 0 && (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 xl:gap-6">
+          <div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 xl:grid-cols-3 xl:gap-6 2xl:grid-cols-4">
             {filteredShops.map((shop, idx) => (
               <div 
                 key={shop.id} 
-                className="reveal-up group overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:border-[#09ACC9]/30 hover:shadow-[0_18px_45px_rgba(15,23,42,0.12)]"
+                className="group w-full max-w-[360px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_4px_18px_rgba(15,23,42,0.045)] transition-all duration-300 hover:-translate-y-1 hover:border-[#09ACC9]/35 hover:shadow-[0_16px_35px_rgba(15,23,42,0.10)]"
                 style={{ animationDelay: `${idx * 0.05}s` }}
               >
                 <Link href={`/shop/${shop.id}`}>
                   {/* Shop Image */}
-                  <div className="relative aspect-[1.55/1] overflow-hidden bg-slate-100">
+                  <div className="relative aspect-[1.9/1] overflow-hidden bg-slate-100">
                     {Array.isArray(shop.image_urls) && shop.image_urls[0] ? (
                       <Image
                         src={shop.image_urls[0]}
                         alt={shop.title}
                         fill
-                        className="object-cover transition-transform duration-700 group-hover:scale-110"
+                        className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                         sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#09ACC9]/10 to-slate-100">
-                        <Store className="h-16 w-16 text-slate-300 transition-transform duration-500 group-hover:scale-110" />
+                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#e9f7f8] via-slate-50 to-slate-100">
+                        <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-white bg-white text-[#079bb5] shadow-sm"><Store className="h-9 w-9" /></div>
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-transparent to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/25 via-transparent to-transparent" />
 
                     {/* Verification Badge */}
-                    <div className="absolute left-4 right-4 top-4 flex items-center justify-between gap-2">
-                      <span className="rounded-full border border-white/25 bg-slate-950/35 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white/85 backdrop-blur-sm">
-                        Industrial shop
-                      </span>
-                      {shop.verification_status === 'approved' && <div className="flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-lg">
+                    <div className="absolute left-4 right-4 top-4 flex items-center justify-end gap-2">
+                      {shop.verification_status === 'approved' && <div className="flex items-center gap-1.5 rounded-full border border-white/70 bg-white/95 px-3 py-1.5 text-[11px] font-bold text-emerald-700 shadow-sm">
                         <CheckCircle2 className="w-3 h-3" />
                         Verified
                       </div>}
                     </div>
-                    <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-3 text-white">
-                      <h3 className="line-clamp-1 text-xl font-black tracking-tight drop-shadow-sm">{shop.title}</h3>
-                      <span className="flex shrink-0 items-center gap-1 text-[11px] font-bold text-white/80"><Users size={13} /> {shop.listing_count || 0}</span>
-                    </div>
                   </div>
 
                   {/* Shop Info */}
-                  <div className="p-5">
+                  <div className="p-4 sm:p-5">
+                    <div className="flex min-h-14 items-start justify-between gap-3">
+                      <h3 className="line-clamp-2 text-lg font-bold leading-6 tracking-tight text-slate-900 transition-colors group-hover:text-[#078ba3]">{shop.title}</h3>
+                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-500"><Users size={14} className="text-[#079bb5]" />{shop.listing_count || 0}</span>
+                    </div>
                     {/* Description */}
                     {shop.description && (
-                      <p className="mb-4 line-clamp-2 text-sm leading-6 text-slate-500">
+                      <p className="mt-2 mb-4 line-clamp-2 min-h-11 text-sm leading-5 text-slate-500">
                         {shop.description}
                       </p>
                     )}
 
                     {/* Stats */}
-                    <div className="mb-4 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2.5 text-xs font-semibold text-slate-500">
+                    <div className="mb-4 flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-xs font-semibold text-slate-500">
                       <div className="flex items-center gap-2">
                         <Package className="h-4 w-4 text-[#09ACC9]" />
                         <span>{shop.listing_count || 0} active listing{shop.listing_count !== 1 ? 's' : ''}</span>
@@ -238,9 +236,9 @@ export default function AllShopsPage() {
 
                     {/* Action Button */}
                     <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-                      <span className="text-xs font-bold text-slate-400 transition-colors group-hover:text-slate-600">Explore storefront</span>
-                      <span className="rounded-xl bg-[#09ACC9] px-4 py-2.5 text-xs font-black text-white shadow-md shadow-[#09ACC9]/20 transition-all duration-300 group-hover:bg-[#0092b8] group-hover:shadow-lg">
-                        View Shop <span aria-hidden="true" className="ml-1">→</span>
+                      <span className="text-xs font-medium text-slate-500">Explore this storefront</span>
+                      <span className="inline-flex items-center gap-2 rounded-xl bg-[#079bb5] px-4 py-2.5 text-xs font-bold text-white transition-colors group-hover:bg-[#087c91]">
+                        View shop <ArrowUpRight size={15} />
                       </span>
                     </div>
                   </div>

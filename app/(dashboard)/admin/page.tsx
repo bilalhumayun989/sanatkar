@@ -186,7 +186,7 @@ export default function AdminPage() {
     const endpoint = table === 'listings' ? `/api/listings/${id}` : `/api/${table}/${id}`;
     try {
       await adminRequest(endpoint, { method: 'DELETE' });
-      notify('Deleted successfully');
+      notify(table === 'categories' || table === 'brands' ? 'Deleted permanently' : 'Deleted successfully');
       await loadData();
     } catch (error) {
       notify(error instanceof Error ? error.message : 'Unable to delete item.');
@@ -338,7 +338,7 @@ function BrandManagement({ items, onAdd, onEdit, onDelete }: {
 }) {
   return <div>
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div><h2 className="text-2xl font-black">Manage Brands</h2><p className="mt-1 text-sm text-slate-500">Create, edit, and archive marketplace brands.</p></div>
+      <div><h2 className="text-2xl font-black">Manage Brands</h2><p className="mt-1 text-sm text-slate-500">Create, edit, and delete marketplace brands.</p></div>
       <button type="button" onClick={onAdd} className="inline-flex items-center gap-1.5 self-start rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-white"><Plus size={15} /> Add brand</button>
     </div>
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -347,7 +347,7 @@ function BrandManagement({ items, onAdd, onEdit, onDelete }: {
         <div className="min-w-0 flex-1"><p className="truncate font-bold text-slate-800">{item.name}</p><p className="mt-1 text-xs text-slate-500">{item.is_active === false ? 'Inactive' : 'Active'}</p>{item.description && <p className="mt-1 truncate text-xs text-slate-400">{item.description}</p>}</div>
         <div className="flex gap-1">
           <button type="button" onClick={() => onEdit(item)} aria-label={`Edit ${item.name}`} className="rounded-lg p-2 text-slate-400 hover:bg-primary/10 hover:text-primary"><Pencil size={15} /></button>
-          <button type="button" onClick={() => onDelete(item.id)} aria-label={`Archive ${item.name}`} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={15} /></button>
+          <button type="button" onClick={() => onDelete(item.id)} aria-label={`Delete ${item.name}`} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={15} /></button>
         </div>
       </div>)}
     </div>
@@ -420,7 +420,7 @@ function CategoryManagement({ items, onAdd, onEdit, onTogglePopular, updatingCat
 }) {
   return <div>
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div><h2 className="text-2xl font-black">Manage Categories</h2><p className="mt-1 text-sm text-slate-500">Create, edit, and archive marketplace categories.</p></div>
+      <div><h2 className="text-2xl font-black">Manage Categories</h2><p className="mt-1 text-sm text-slate-500">Create, edit, and delete marketplace categories.</p></div>
       <button type="button" onClick={onAdd} className="inline-flex items-center gap-1.5 self-start rounded-xl bg-primary px-4 py-2.5 text-xs font-black text-white"><Plus size={15} /> Add category</button>
     </div>
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -429,7 +429,7 @@ function CategoryManagement({ items, onAdd, onEdit, onTogglePopular, updatingCat
         <div className="flex gap-1">
           <button disabled={Boolean(updatingCategory)} aria-label={`${item.is_popular ? 'Remove' : 'Mark'} ${item.name} ${item.is_popular ? 'from' : 'as'} popular`} aria-pressed={Boolean(item.is_popular)} title="Popular category" onClick={() => onTogglePopular(item.id, !item.is_popular)} className="rounded-lg p-2 text-amber-500 hover:bg-amber-50 disabled:opacity-50"><Star size={17} fill={item.is_popular ? 'currentColor' : 'none'} /></button>
           <button onClick={() => onEdit(item)} aria-label={`Edit ${item.name}`} className="rounded-lg p-2 text-slate-400 hover:bg-primary/10 hover:text-primary"><Pencil size={15} /></button>
-          <button onClick={() => onDelete(item.id)} aria-label={`Archive ${item.name}`} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={15} /></button>
+          <button onClick={() => onDelete(item.id)} aria-label={`Delete ${item.name}`} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={15} /></button>
         </div>
       </div>)}
     </div>

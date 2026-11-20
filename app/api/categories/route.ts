@@ -22,7 +22,7 @@ export async function GET() {
   try {
     const rows = await prisma.category.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } });
     const categories = rows.map(toCategory);
-    return NextResponse.json({ success: true, categories, count: categories.length });
+    return NextResponse.json({ success: true, categories, count: categories.length }, { headers: { 'Cache-Control': 'no-store, max-age=0' } });
   } catch (error) {
     console.error('Categories query failed:', error);
     return NextResponse.json({ success: false, message: 'Unable to load categories.', categories: [] }, { status: 500 });

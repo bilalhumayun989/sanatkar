@@ -57,10 +57,10 @@ export async function DELETE(request: NextRequest, { params }: Context) {
   if (!uuidPattern.test(id)) return NextResponse.json({ success: false, message: 'Brand not found.' }, { status: 404 });
   try {
     if (!await isAdmin(request)) return NextResponse.json({ success: false, message: 'Admin access required.' }, { status: 403 });
-    await prisma.brand.update({ where: { id }, data: { isActive: false } });
+    await prisma.brand.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Brand archive failed:', error);
-    return NextResponse.json({ success: false, message: 'Unable to archive brand.' }, { status: 404 });
+    console.error('Brand delete failed:', error);
+    return NextResponse.json({ success: false, message: 'Unable to delete brand.' }, { status: 404 });
   }
 }

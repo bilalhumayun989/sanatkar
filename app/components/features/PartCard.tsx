@@ -14,6 +14,34 @@ interface PartCardProps {
     compact?: boolean;
 }
 
+type FavoriteLookupCache = {
+    userId: string;
+    expiresAt: number;
+    promise: Promise<Map<string, string>>;
+};
+
+let favoriteLookupCache: FavoriteLookupCache | null = null;
+
+function getFavoriteLookup(userId: string) {
+    if (favoriteLookupCache?.userId === userId && favoriteLookupCache.expiresAt > Date.now()) {
+        return favoriteLookupCache.promise;
+    }
+
+    const promise = fetch('/api/favorites', { cache: 'no-store' })
+        .then(async (response) => {
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.message || 'Favorites lookup failed.');
+            return new Map<string, string>((result.favorites || []).map((item: { listing_id: string; id: string }) => [item.listing_id, item.id] as const));
+        })
+        .catch((error) => {
+            if (favoriteLookupCache?.userId === userId) favoriteLookupCache.expiresAt = 0;
+            throw error;
+        });
+
+    favoriteLookupCache = { userId, expiresAt: Date.now() + 15_000, promise };
+    return promise;
+}
+
 export default function PartCard({ part, onUnsave, compact = false }: PartCardProps) {
     const { language } = useLanguage();
     const { user, loading: authLoading } = useAuth();
@@ -36,25 +64,20 @@ export default function PartCard({ part, onUnsave, compact = false }: PartCardPr
             return;
         }
 
-        const loadFavorite = async () => {
-            try {
-                const response = await fetch('/api/favorites', { cache: 'no-store' });
-                const result = await response.json();
-                if (!response.ok || !result.success) throw new Error(result.message || 'Favorites lookup failed.');
-                const favorite = (result.favorites || []).find((item: { listing_id: string }) => item.listing_id === part.id);
-                if (favorite) {
-                    setIsLiked(true);
-                    setFavoriteId(favorite.id);
-                } else {
-                    setIsLiked(false);
-                }
-            } catch (err) {
+        let active = true;
+        getFavoriteLookup(user.id)
+            .then((favorites) => {
+                if (!active) return;
+                const id = favorites.get(part.id);
+                setIsLiked(Boolean(id));
+                setFavoriteId(id || null);
+            })
+            .catch((err) => {
+                if (!active) return;
                 console.error('Failed to load favorite state:', err);
                 setIsLiked(false);
-            }
-        };
-
-        loadFavorite();
+            });
+        return () => { active = false; };
     }, [authLoading, user, part.id, favoriteId]);
 
     const showError = (message: string) => {
@@ -84,6 +107,7 @@ export default function PartCard({ part, onUnsave, compact = false }: PartCardPr
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.message || 'Unable to update saved listing.');
             setFavoriteId(nextValue ? result.favorite?.id || null : null);
+            favoriteLookupCache = null;
             if (!nextValue) onUnsave?.();
         } catch (err) {
             console.error('Favorite toggle failed', err);
@@ -95,7 +119,7 @@ export default function PartCard({ part, onUnsave, compact = false }: PartCardPr
     };
 
     return (
-        <div className={`relative ${compact ? 'h-[340px] rounded-xl border border-slate-200 bg-white shadow-sm hover:shadow-md' : 'h-[420px] sm:h-[460px] lg:h-[550px] rounded-[24px] sm:rounded-[28px] lg:rounded-[22px] bg-[#15171a] border border-white/10'} w-full overflow-hidden group flex flex-col transition-shadow`}>
+        <div className={`relative ${compact ? 'content-auto h-[340px] rounded-xl border border-slate-200 bg-white shadow-sm transition-colors hover:border-cyan-200' : 'h-[420px] sm:h-[460px] lg:h-[550px] rounded-[24px] sm:rounded-[28px] lg:rounded-[22px] bg-[#15171a] border border-white/10 transition-shadow'} w-full overflow-hidden group flex flex-col`}>
             <Link
                 href={`/buyer/${part.id}`}
                 className="absolute inset-0 z-0 rounded-[24px]"
@@ -107,20 +131,24 @@ export default function PartCard({ part, onUnsave, compact = false }: PartCardPr
                 <img
                     src={part.image}
                     alt={`${part.brand} ${part.partName}`}
-                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    loading={compact ? 'lazy' : 'eager'}
+                    decoding="async"
+                    className="h-full w-full object-cover"
                 />
+
+                {part.isFeatured && <span className={`absolute ${compact ? 'right-3 top-3' : 'right-4 top-14'} z-10 rounded-sm bg-rose-700 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide text-white shadow sm:text-[10px]`}>Featured</span>}
 
                 {/* Heart / bookmark */}
                 <button
                     type="button"
                     onClick={handleFavoriteToggle}
-                    className={`absolute ${compact ? 'right-3 top-3 p-2' : 'top-4 right-4 p-2 sm:top-5 sm:right-5 sm:p-2.5'} rounded-full backdrop-blur-md transition-all z-10 ${isLiked ? 'bg-primary text-white hover:bg-primary-dark' : compact ? 'bg-white/95 text-slate-700 shadow-sm hover:bg-white' : 'bg-white/20 text-white hover:bg-white'}`}
+                    className={`absolute ${compact ? 'hidden' : 'top-4 right-4 p-2 sm:top-5 sm:right-5 sm:p-2.5'} rounded-full backdrop-blur-md transition-all z-10 ${isLiked ? 'bg-primary text-white hover:bg-primary-dark' : 'bg-white/20 text-white hover:bg-white'}`}
                 >
                     <Heart size={18} fill={isLiked ? 'currentColor' : 'none'} />
                 </button>
 
                 {/* Price badge sits on the image so it isn't lost once the section is solid black */}
-                <span className={`absolute ${compact ? 'left-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-xs text-slate-900 shadow-sm' : 'top-4 left-4 rounded-xl bg-black/50 px-2.5 py-1.5 text-xs text-white sm:top-5 sm:left-5 sm:px-3 sm:text-sm'} font-bold backdrop-blur-md whitespace-nowrap`}>
+                <span className={`absolute ${compact ? 'left-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-xs text-slate-900 shadow-sm' : 'top-4 left-4 rounded-xl bg-black/50 px-2.5 py-1.5 text-xs text-white sm:top-5 sm:left-5 sm:px-3 sm:text-sm'} font-bold ${compact ? '' : 'backdrop-blur-md'} whitespace-nowrap`}>
                     {language === 'ur' ? 'روپے' : 'PKR'} {part.price.toLocaleString()}
                 </span>
             </div>
@@ -176,13 +204,22 @@ export default function PartCard({ part, onUnsave, compact = false }: PartCardPr
                 )}
 
                 {/* Button */}
-                <Link
-                    href={`/buyer/${part.id}`}
-                    className={`mt-auto flex w-full items-center justify-center gap-2 rounded-full bg-primary text-white ${compact ? 'py-2 text-xs' : 'py-3 text-sm sm:py-4 sm:text-[15px]'} font-bold transition-colors hover:bg-primary-dark`}
-                >
-                    View Details
-                    <ArrowRight size={16} />
-                </Link>
+                <div className="mt-auto flex items-center gap-2">
+                    <Link
+                        href={`/buyer/${part.id}`}
+                        className={`flex min-w-0 flex-1 items-center justify-center gap-2 rounded-full bg-primary text-white ${compact ? 'py-2 text-xs' : 'py-3 text-sm sm:py-4 sm:text-[15px]'} font-bold transition-colors hover:bg-primary-dark`}
+                    >
+                        View Details
+                        <ArrowRight size={16} />
+                    </Link>
+                    {compact && <button
+                        type="button"
+                        onClick={handleFavoriteToggle}
+                        aria-label={isLiked ? 'Remove from saved listings' : 'Save listing'}
+                        aria-pressed={isLiked}
+                        className={`z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors ${isLiked ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-primary hover:text-primary'}`}
+                    ><Heart size={17} fill={isLiked ? 'currentColor' : 'none'} /></button>}
+                </div>
             </div>
         </div>
     );

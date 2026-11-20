@@ -63,10 +63,10 @@ export async function DELETE(request: NextRequest, { params }: Context) {
   if (!uuidPattern.test(id)) return NextResponse.json({ success: false, message: 'Category not found.' }, { status: 404 });
   try {
     if (!await requireAdmin(request)) return NextResponse.json({ success: false, message: 'Admin access required.' }, { status: 403 });
-    await prisma.category.update({ where: { id }, data: { isActive: false } });
+    await prisma.category.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Category archive failed:', error);
-    return NextResponse.json({ success: false, message: 'Unable to archive category.' }, { status: 404 });
+    console.error('Category delete failed:', error);
+    return NextResponse.json({ success: false, message: 'Unable to delete category.' }, { status: 404 });
   }
 }
