@@ -3,14 +3,14 @@
 import { refreshOnRealtime } from '@/lib/realtime/client';
 
 import { Fragment, Suspense, useEffect, useState, useMemo, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/app/components/layout/Navbar';
 import Footer from '@/app/components/layout/Footer';
 import PartCard from '@/app/components/features/PartCard';
 import ProductAdSlot from '@/app/components/ads/ProductAdSlot';
 import { Part as PartType } from '@/lib/database/mockData';
-import { Search, SlidersHorizontal, Check, Loader2, X, Package } from 'lucide-react';
+import { Search, SlidersHorizontal, Check, Loader2, X, Package, LayoutGrid, List, Heart, MapPin, ArrowRight } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import PriceSlider, { type PriceRange } from '@/app/components/PriceSlider';
@@ -54,6 +54,7 @@ function BuyerPageContent() {
     const [featuredOnly, setFeaturedOnly] = useState(urlFeatured === 'true');
     const [sortBy, setSortBy] = useState('most_recent');
     const [showMobileFilters, setShowMobileFilters] = useState(false);
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const filterSidebarRef = useRef<HTMLElement | null>(null);
     const filterPanelRef = useRef<HTMLDivElement | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(urlCategory || null);
@@ -529,33 +530,40 @@ function BuyerPageContent() {
                                 </button>
                             </div>
                             <div className="flex items-center gap-3 self-end sm:self-auto">
-                                {/* Brand filter dropdown */}
-                                <div className="relative">
-                                    <select
-                                        value={selectedBrandFilter}
-                                        onChange={(e) => { setSelectedBrandFilter(e.target.value); setSelectedBrands([]); }}
-                                        className="bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold text-black focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer pr-9 min-w-[120px]"
-                                    >
-                                        <option value="">All Brands</option>
-                                        {brands.map((brand) => (
-                                            <option key={brand.id} value={brand.name}>{brand.name}</option>
-                                        ))}
-                                    </select>
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
-                                    </div>
-                                </div>
-                                <span className="text-xs font-black text-gray-400 uppercase tracking-wider whitespace-nowrap hidden sm:block">{t('sort_by')}</span>
+                                {/* Sort by — left side */}
                                 <div className="relative">
                                     <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
-                                        className="bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold text-black focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer pr-9">
+                                        className="h-9 rounded-xl border border-gray-200 bg-white pl-3 pr-8 text-xs font-bold text-black focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer">
                                         <option value="most_recent">{t('most_recent')}</option>
                                         <option value="price_low_high">{t('price_low_high')}</option>
                                         <option value="price_high_low">{t('price_high_low')}</option>
                                     </select>
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
+                                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>
                                     </div>
+                                </div>
+
+                                {/* Grid / List toggle — right side */}
+                                <div className="flex h-9 items-center overflow-hidden rounded-xl border border-gray-200 bg-white">
+                                    <button
+                                        type="button"
+                                        onClick={() => setViewMode('grid')}
+                                        aria-label="Grid view"
+                                        aria-pressed={viewMode === 'grid'}
+                                        className={`flex h-full w-9 items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-primary text-white' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700'}`}
+                                    >
+                                        <LayoutGrid size={15} />
+                                    </button>
+                                    <span className="h-4 w-px bg-gray-200" />
+                                    <button
+                                        type="button"
+                                        onClick={() => setViewMode('list')}
+                                        aria-label="List view"
+                                        aria-pressed={viewMode === 'list'}
+                                        className={`flex h-full w-9 items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-primary text-white' : 'text-gray-400 hover:bg-gray-50 hover:text-gray-700'}`}
+                                    >
+                                        <List size={15} />
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -605,10 +613,14 @@ function BuyerPageContent() {
                                 <button onClick={resetFilters} className="mt-6 text-primary font-bold hover:underline">{t('reset_all_filters')}</button>
                             </div>
                         ) : (
-                            <div data-products-grid className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                            <div data-products-grid className={viewMode === 'list' ? 'flex flex-col gap-3' : 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4'}>
                                 {pageParts.map((part, idx) => (
                                     <Fragment key={part.id}>
-                                        <PartCard part={part as any} compact />
+                                        {viewMode === 'list' ? (
+                                            <ListCard part={part as any} />
+                                        ) : (
+                                            <PartCard part={part as any} compact />
+                                        )}
                                         {SHOW_PRODUCT_ADS && (idx + 1) % PRODUCTS_PER_AD === 0 && idx + 1 < pageParts.length && (
                                             <ProductAdSlot slot={(idx + 1) / PRODUCTS_PER_AD} />
                                         )}
@@ -658,6 +670,109 @@ function BuyerPageContent() {
             </div>
 
             <Footer />
+        </div>
+    );
+}
+
+function ListCard({ part }: { part: any }) {
+    const { language } = useLanguage();
+    const { user, loading: authLoading } = useAuth();
+    const router = useRouter();
+    const [isLiked, setIsLiked] = useState(false);
+    const [favoriteId, setFavoriteId] = useState<string | null>(part.favoriteId || null);
+    const [loadingFavorite, setLoadingFavorite] = useState(false);
+
+    useEffect(() => {
+        if (authLoading || !user) { setIsLiked(false); setFavoriteId(null); return; }
+        if (favoriteId) { setIsLiked(true); return; }
+        let active = true;
+        fetch('/api/favorites', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(result => {
+                if (!active || !result.success) return;
+                const item = (result.favorites || []).find((f: any) => f.listing_id === part.id);
+                setIsLiked(Boolean(item));
+                setFavoriteId(item?.id || null);
+            })
+            .catch(() => {});
+        return () => { active = false; };
+    }, [authLoading, user, part.id, favoriteId]);
+
+    const handleFavoriteToggle = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (authLoading) return;
+        if (!user) { router.push(`/login?next=${encodeURIComponent(`/buyer/${part.id}`)}`); return; }
+        if (loadingFavorite) return;
+        setLoadingFavorite(true);
+        const next = !isLiked;
+        setIsLiked(next);
+        try {
+            const r = await fetch('/api/favorites', {
+                method: next ? 'POST' : 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ listing_id: part.id }),
+            });
+            const result = await r.json();
+            if (!r.ok || !result.success) throw new Error();
+            setFavoriteId(next ? result.favorite?.id || null : null);
+        } catch {
+            setIsLiked(!next);
+        } finally {
+            setLoadingFavorite(false);
+        }
+    };
+
+    return (
+        <div className="relative flex gap-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-colors hover:border-cyan-200 sm:p-4">
+            <Link href={`/buyer/${part.id}`} className="absolute inset-0 rounded-xl" aria-label={`View ${part.partName}`} />
+
+            {/* Image */}
+            <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-slate-100 sm:h-28 sm:w-28">
+                <img src={part.image} alt={part.partName} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                {part.isFeatured && (
+                    <span className="absolute left-1 top-1 rounded bg-rose-700 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">Featured</span>
+                )}
+            </div>
+
+            {/* Details */}
+            <div className="flex min-w-0 flex-1 flex-col justify-between gap-1">
+                <div className="min-w-0">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#079bb5]">{part.brand}</span>
+                    <h3 className="line-clamp-1 text-sm font-bold text-slate-900 sm:text-base">{part.partName}</h3>
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-500">
+                        <MapPin size={11} className="shrink-0 text-slate-400" />
+                        {part.location}
+                    </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[10px] font-semibold text-slate-600">{part.category || 'General'}</span>
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[10px] font-semibold capitalize text-slate-600">{part.condition}</span>
+                </div>
+            </div>
+
+            {/* Price + actions */}
+            <div className="flex shrink-0 flex-col items-end justify-between gap-2">
+                <span className="text-sm font-bold text-slate-900 sm:text-base">
+                    {language === 'ur' ? 'روپے' : 'PKR'} {part.price.toLocaleString()}
+                </span>
+                <div className="z-10 flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={handleFavoriteToggle}
+                        aria-label={isLiked ? 'Remove from saved' : 'Save listing'}
+                        aria-pressed={isLiked}
+                        className={`flex h-8 w-8 items-center justify-center rounded-full border transition-colors ${isLiked ? 'border-primary bg-primary text-white' : 'border-slate-200 bg-white text-slate-500 hover:border-primary hover:text-primary'}`}
+                    >
+                        <Heart size={15} fill={isLiked ? 'currentColor' : 'none'} />
+                    </button>
+                    <Link
+                        href={`/buyer/${part.id}`}
+                        className="z-10 flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-primary-dark"
+                    >
+                        View <ArrowRight size={13} />
+                    </Link>
+                </div>
+            </div>
         </div>
     );
 }

@@ -178,12 +178,16 @@ export default function AdminPage() {
   };
 
   const deleteRecord = async (table: 'categories' | 'brands' | 'listings' | 'profiles', id: string) => {
-    if (!window.confirm('Delete this item?')) return;
     if (table === 'profiles') {
-      notify('Profiles are tied to Supabase Auth identities and cannot be deleted here.');
-      return;
+      if (!window.confirm('Permanently delete this user and all their data? This cannot be undone.')) return;
+    } else {
+      if (!window.confirm('Delete this item?')) return;
     }
-    const endpoint = table === 'listings' ? `/api/listings/${id}` : `/api/${table}/${id}`;
+    const endpoint = table === 'listings'
+      ? `/api/listings/${id}`
+      : table === 'profiles'
+        ? `/api/admin/users/${id}`
+        : `/api/${table}/${id}`;
     try {
       await adminRequest(endpoint, { method: 'DELETE' });
       notify(table === 'categories' || table === 'brands' ? 'Deleted permanently' : 'Deleted successfully');

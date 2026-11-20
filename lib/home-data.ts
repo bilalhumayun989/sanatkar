@@ -14,7 +14,7 @@ export const getHomeData = cache(async () => {
     const [categoryRows, brandRows, shopProfiles, sellerProfiles, recentRows, featuredRows] = await Promise.all([
       prisma.category.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.brand.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
-      prisma.profile.findMany({ where: { role: 'seller', sellerStatus: 'approved' }, select: { id: true, username: true, fullName: true, shopName: true, shopImageUrl: true, verificationStatus: true }, orderBy: [{ shopName: 'asc' }, { id: 'asc' }], take: 12 }),
+      prisma.profile.findMany({ where: { role: 'seller', sellerStatus: 'approved', shopName: { not: null } }, select: { id: true, username: true, fullName: true, shopName: true, shopImageUrl: true, verificationStatus: true }, orderBy: [{ shopName: 'asc' }, { id: 'asc' }], take: 12 }),
       prisma.profile.findMany({ where: { role: 'seller', verificationStatus: 'approved' }, select: { id: true, fullName: true, username: true, shopName: true, shopImageUrl: true }, orderBy: [{ shopName: 'asc' }, { id: 'asc' }] }),
       prisma.listing.findMany({ where: { status: 'active', ...excludedSellers }, include: { seller: { select: listingSellerSelect } }, orderBy: { createdAt: 'desc' }, take: 8 }),
       prisma.listing.findMany({ where: { status: 'active', isFeatured: true, ...excludedSellers }, include: { seller: { select: listingSellerSelect } }, orderBy: { createdAt: 'desc' }, take: 6 }),

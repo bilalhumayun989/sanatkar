@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   const pageSize = Math.min(Math.max(Number(request.nextUrl.searchParams.get('limit')) || 60, 1), 100);
   try {
     const profiles = await prisma.profile.findMany({
-      where: { role: 'seller', sellerStatus: 'approved' },
+      where: { role: 'seller', sellerStatus: 'approved', shopName: { not: null } },
       select: { id: true, username: true, fullName: true, shopName: true, shopDescription: true, shopImageUrl: true, city: true, verificationStatus: true },
       orderBy: [{ shopName: 'asc' }, { id: 'asc' }],
       take: pageSize,
