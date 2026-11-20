@@ -118,21 +118,28 @@ export default function Footer() {
 
                 </div>
 
-                {/* ── Bottom Bar ── */}
-                <div className="pt-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs font-medium text-slate-500">
-                    <p>© 2026 SanatKar Marketplace. All rights reserved.</p>
-                    
+            </div>
+
+            <div className="border-t border-slate-200 bg-slate-50/80 text-slate-500">
+                <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-3 px-4 py-5 text-center sm:px-6 md:grid-cols-3 md:text-left lg:px-8">
+                    <p className="text-[11px] font-medium sm:text-xs">© 2026 SanatKar Marketplace. All rights reserved.</p>
+
                     <a
                         href="https://broshtech.com"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-slate-600 hover:text-slate-900 hover:border-slate-300 transition-all duration-200"
+                        className="justify-self-center whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-600 transition-colors hover:text-[#006b80] sm:text-xs"
                     >
-                        <span>Designed & Developed by</span>
+                        Designed <span className="px-1 text-slate-300">||</span> Developed by{' '}
                         <span className="font-bold text-[#006b80]">BroshTech</span>
                     </a>
-                </div>
 
+                    <nav aria-label="Social media" className="flex items-center justify-center gap-5 text-xs font-medium md:justify-self-end">
+                        <a href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-[#006b80]">Instagram</a>
+                        <a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-[#006b80]">Facebook</a>
+                        <a href="https://www.tiktok.com/" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-[#006b80]">TikTok</a>
+                    </nav>
+                </div>
             </div>
         </footer>
     );
