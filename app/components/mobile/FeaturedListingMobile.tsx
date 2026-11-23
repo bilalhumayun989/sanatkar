@@ -26,7 +26,7 @@ export default function FeaturedListingsMobile({ initialListings }: { initialLis
       {/* Section Title */}
       <div className="mb-5 flex items-end justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold tracking-tight text-slate-900">Featured Items</h2>
+          <h2 className="text-lg font-semibold tracking-tight text-slate-900">Featured Items</h2>
           <p className="mt-1 text-xs text-slate-500">Featured listings from shops across Pakistan.</p>
         </div>
         <Link href="/buyer?featured=true#products" className="shrink-0 px-1 py-2 text-xs font-medium text-blue-600 transition hover:text-blue-800">

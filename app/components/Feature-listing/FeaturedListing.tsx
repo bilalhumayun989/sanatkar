@@ -125,7 +125,7 @@ export default function FeaturedListing({ initialListings }: { initialListings: 
       {/* Top Header */}
       <div className="mb-5 flex items-end justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">{t('featured_items')}</h2>
+          <h2 className="text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">{t('featured_items')}</h2>
           <p className="mt-1 text-xs text-slate-500 sm:text-sm">Featured listings from shops across Pakistan.</p>
         </div>
 

@@ -9,6 +9,7 @@ import {
   Globe, Wrench, Search, UserCheck
 } from 'lucide-react';
 import MakeOfferButton from '@/app/components/features/MakeOfferButton';
+import ListingViewTracker from '@/app/components/features/ListingViewTracker';
 import type { Metadata } from 'next';
 import { listingSellerSelect, serializeListing } from '@/lib/listings';
 
@@ -120,6 +121,7 @@ export default async function PartDetailPage({ params }: { params: Promise<{ id:
       <Navbar />
 
       <main className="flex-grow pt-36 lg:pt-28 pb-16 px-4">
+        <ListingViewTracker listingId={partDoc.id} />
         <div className="max-w-[1100px] mx-auto">
           {/* Breadcrumb Navigation */}
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-6 overflow-x-auto whitespace-nowrap pb-2 scrollbar-none">

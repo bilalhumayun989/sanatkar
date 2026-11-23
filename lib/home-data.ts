@@ -11,14 +11,38 @@ export const getHomeData = cache(async () => {
     const excludedSellers = deletedAccounts.length
       ? { sellerId: { notIn: deletedAccounts.map(account => account.userId) } }
       : {};
-    const [categoryRows, brandRows, shopProfiles, sellerProfiles, recentRows, featuredRows] = await Promise.all([
+    const [categoryRows, brandRows, shopProfiles, sellerProfiles, recentRows, featuredRows, trendingViewCounts] = await Promise.all([
       prisma.category.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.brand.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
       prisma.profile.findMany({ where: { role: 'seller', sellerStatus: 'approved', shopName: { not: null } }, select: { id: true, username: true, fullName: true, shopName: true, shopImageUrl: true, verificationStatus: true }, orderBy: [{ shopName: 'asc' }, { id: 'asc' }], take: 12 }),
       prisma.profile.findMany({ where: { role: 'seller', verificationStatus: 'approved' }, select: { id: true, fullName: true, username: true, shopName: true, shopImageUrl: true }, orderBy: [{ shopName: 'asc' }, { id: 'asc' }] }),
-      prisma.listing.findMany({ where: { status: 'active', ...excludedSellers }, include: { seller: { select: listingSellerSelect } }, orderBy: { createdAt: 'desc' }, take: 8 }),
+      prisma.listing.findMany({ where: { status: 'active', ...excludedSellers }, include: { seller: { select: listingSellerSelect } }, orderBy: { createdAt: 'desc' }, take: 12 }),
       prisma.listing.findMany({ where: { status: 'active', isFeatured: true, ...excludedSellers }, include: { seller: { select: listingSellerSelect } }, orderBy: { createdAt: 'desc' }, take: 6 }),
+      // Count unique viewers per listing from the last 30 days
+      prisma.listingView.groupBy({
+        by: ['listingId'],
+        where: { firstViewedAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
+        _count: { viewerId: true },
+        orderBy: { _count: { viewerId: 'desc' } },
+        take: 24, // fetch more than needed to filter by active/non-deleted after
+      }),
     ]);
+
+    // Resolve the top listing IDs to full listing rows, filtering to active & non-deleted sellers
+    const trendingListingIds = trendingViewCounts.map(v => v.listingId);
+    const trendingRows = trendingListingIds.length
+      ? await prisma.listing.findMany({
+          where: { id: { in: trendingListingIds }, status: 'active', ...excludedSellers },
+          include: { seller: { select: listingSellerSelect } },
+        })
+      : [];
+    // Re-sort by original view count order
+    const trendingRowsById = new Map(trendingRows.map(r => [r.id, r]));
+    const trendingListings = trendingListingIds
+      .map(id => trendingRowsById.get(id))
+      .filter(Boolean)
+      .slice(0, 12) as typeof trendingRows;
+
     const categories = categoryRows.length ? categoryRows.map(category => ({
       id: category.id, name: category.name,
       slug: category.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
@@ -32,12 +56,13 @@ export const getHomeData = cache(async () => {
       verifiedSellers: sellerProfiles.map(profile => ({ id: profile.id, full_name: profile.fullName, username: profile.username, avatar_url: null, shop_name: profile.shopName, shop_image_url: profile.shopImageUrl })),
       recentListings: recentRows.map(serializeListing),
       featuredListings: featuredRows.map(serializeListing),
+      trendingListings: trendingListings.map(serializeListing),
     };
   } catch (error) {
     console.error('Failed to load home page data:', error);
     return {
       categories: FIXED_CATEGORY_OPTIONS.map(item => ({ id: item.value, name: item.label, slug: item.value, icon_code: null, image_url: null, description: null, is_active: true, is_popular: false })),
-      brands: [], shops: [], verifiedSellers: [], recentListings: [], featuredListings: [],
+      brands: [], shops: [], verifiedSellers: [], recentListings: [], featuredListings: [], trendingListings: [],
     };
   }
 });

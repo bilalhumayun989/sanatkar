@@ -199,6 +199,12 @@ body {
   display: none;             /* Chrome, Safari */
 }
 
+/* Promote horizontal carousels to their own GPU layer to prevent scroll jank */
+.scrollbar-hide {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
 /* Defer painting heavier homepage sections until they approach the viewport. */
 .home-deferred {
   content-visibility: auto;

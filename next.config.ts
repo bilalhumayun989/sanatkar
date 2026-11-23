@@ -4,41 +4,10 @@ const nextConfig: NextConfig = {
   images: {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [
+      // Allow any HTTPS hostname — category/listing images come from arbitrary external URLs
       {
         protocol: 'https',
-        hostname: 'images.unsplash.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'ae01.alicdn.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 's.alicdn.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'www.har-tech.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'www.sewingpartsonline.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'm.media-amazon.com',
-      },
-      {
-        protocol: 'https',
-        hostname: 'ocjizhqjgaxutfhkzxud.supabase.co',
-      },
-      {
-        protocol: 'https',
-        hostname: 'lxhifemgfqxodgxlfroj.supabase.co',
-      },
-      {
-        protocol: 'https',
-        hostname: 'ljxsfnurjgrdyxmsjeio.supabase.co',
+        hostname: '**',
       },
     ],
   },

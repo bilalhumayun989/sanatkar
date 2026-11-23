@@ -96,7 +96,7 @@ export default function CategoriesSection({ categories = [], title, prioritizeFi
       {/* Header */}
       <div className="mb-4 flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-bold text-slate-900 sm:text-xl">{title || t('browse_categories')}</h2>
+          <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">{title || t('browse_categories')}</h2>
           {variant === 'popular' && <p className="mt-1 text-xs text-slate-600 sm:text-sm">Choose a category to see available listings.</p>}
         </div>
         <Link

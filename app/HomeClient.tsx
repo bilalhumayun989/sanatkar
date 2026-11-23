@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { refreshOnRealtime } from '@/lib/realtime/client';
 
@@ -14,6 +14,7 @@ import FeaturedListingsMobile from './components/mobile/FeaturedListingMobile';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import HomeAdSlot from './components/ads/HomeAdSlot';
+import TrendingSection from './components/TrendingSection';
 
 // Set to true when home-page advertising is ready.
 const SHOW_HOME_ADS = false;
@@ -67,8 +68,8 @@ interface HomeCategory {
 function SectionHeading({ title, href, linkLabel = 'View all', headingId }: { title: string; href: string; linkLabel?: string; headingId?: string }) {
   return (
     <div className="mb-4 flex items-center justify-between gap-4">
-      <h2 id={headingId} className="text-lg font-bold text-slate-900 sm:text-xl">{title}</h2>
-      <Link href={href} className="shrink-0 text-sm font-semibold text-[#006b80] hover:text-[#005466]">
+      <h2 id={headingId} className="text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">{title}</h2>
+      <Link href={href} className="shrink-0 text-sm font-medium text-[#006b80] hover:text-[#005466]">
         {linkLabel}
       </Link>
     </div>
@@ -97,14 +98,14 @@ function ProductCard({
   onToggleSave: (event: MouseEvent<HTMLButtonElement>, listingId: string) => void;
 }) {
   const condition = listing.condition?.toLowerCase();
-  const modelDetails = [listing.model, listing.year].filter(Boolean).join(' • ');
+  const modelDetails = [listing.model, listing.year].filter(Boolean).join(' â€¢ ');
 
   return (
     <Link
       href={`/listings/${listing.id}`}
-      className="group flex min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-2.5 transition-all duration-200 hover:-translate-y-0.5 hover:border-cyan-300 hover:shadow-md"
+      className="group flex min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-2.5 transition-shadow duration-150 hover:border-cyan-300 hover:shadow-md"
     >
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-slate-50">
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-slate-100">
         <Image
           src={listing.image_urls?.[0] || '/placeholder.png'}
           alt={listing.title}
@@ -112,8 +113,8 @@ function ProductCard({
           sizes="(max-width: 640px) 46vw, (max-width: 1024px) 30vw, 280px"
           loading="lazy"
           decoding="async"
-          quality={75}
-          className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+          quality={70}
+          className="object-contain p-2 transition-transform duration-200 group-hover:scale-105"
         />
         {condition && (
           <span className={`absolute left-2 top-2 rounded-full px-2.5 py-1 text-[10px] font-semibold capitalize shadow-sm ${
@@ -135,21 +136,21 @@ function ProductCard({
         </button>
       </div>
       <div className="flex min-w-0 flex-1 flex-col px-0.5 pb-0.5 pt-3">
-        <p className="truncate text-xs font-medium uppercase tracking-wider text-slate-500">{listing.brand || listing.category || 'Marketplace'}</p>
-        <h3 className="mt-1.5 line-clamp-2 min-h-10 text-sm font-semibold leading-5 text-slate-900 transition-colors group-hover:text-[#006b80]">{listing.title}</h3>
-        <p className="mt-1 min-h-4 truncate text-[11px] text-slate-500">
+        <p className="truncate text-xs font-medium uppercase tracking-wider text-slate-400">{listing.brand || listing.category || 'Marketplace'}</p>
+        <h3 className="mt-1.5 line-clamp-2 min-h-10 text-sm font-normal leading-5 text-slate-900 transition-colors group-hover:text-[#006b80]">{listing.title}</h3>
+        <p className="mt-1 min-h-4 truncate text-[11px] text-slate-400">
           {modelDetails ? `Model: ${modelDetails}` : 'Compatibility details on listing'}
         </p>
         <div className="mt-auto border-t border-slate-100 pt-2">
-          <p className="whitespace-nowrap text-lg font-bold text-slate-900">PKR {Number(listing.price || 0).toLocaleString()}</p>
-          <div className="mt-1 flex min-w-0 items-center gap-1.5 truncate text-xs text-slate-500">
+          <p className="whitespace-nowrap text-base font-medium text-slate-900">PKR {Number(listing.price || 0).toLocaleString()}</p>
+          <div className="mt-1 flex min-w-0 items-center gap-1.5 truncate text-xs text-slate-400">
             {listing.location && (
               <>
                 <MapPin className="h-3.5 w-3.5 shrink-0" />
                 <span className="truncate">{listing.location}</span>
               </>
             )}
-            {(listing.location && (listing.stock_status || formatPostedTime(listing.created_at))) && <span aria-hidden="true">•</span>}
+            {(listing.location && (listing.stock_status || formatPostedTime(listing.created_at))) && <span aria-hidden="true">·</span>}
             <span className="truncate">{listing.stock_status || formatPostedTime(listing.created_at)}</span>
           </div>
         </div>
@@ -165,6 +166,7 @@ export default function Home({
   verifiedSellers: initialVerifiedSellers,
   recentListings: initialListings,
   featuredListings,
+  trendingListings,
 }: {
   categories: HomeCategory[];
   brands: Brand[];
@@ -172,6 +174,7 @@ export default function Home({
   verifiedSellers: VerifiedSeller[];
   recentListings: Listing[];
   featuredListings: Listing[];
+  trendingListings: Listing[];
 }) {
   const router = useRouter();
   const [search, setSearch] = useState('');
@@ -192,40 +195,41 @@ export default function Home({
   useEffect(() => {
     const fetchFavorites = async () => {
       try {
-        const meResponse = await fetch('/api/auth/me', { cache: 'no-store' });
+        // Run auth check and favorites in parallel — avoids a sequential waterfall
+        const [meResponse, favoritesResponse] = await Promise.all([
+          fetch('/api/auth/me', { cache: 'no-store' }),
+          fetch('/api/favorites', { cache: 'no-store' }),
+        ]);
         const meResult = await meResponse.json();
         if (!meResponse.ok || !meResult.success || !meResult.user) return;
-
         setUserId(meResult.user.id);
-        const favoritesResponse = await fetch('/api/favorites', { cache: 'no-store' });
         const favoritesResult = await favoritesResponse.json();
-        if (!favoritesResponse.ok || !favoritesResult.success) {
-          throw new Error(favoritesResult.message || 'Failed to load saved listings.');
+        if (favoritesResponse.ok && favoritesResult.success) {
+          setSavedListingIds((favoritesResult.favorites || []).map((favorite: { listing_id: string }) => favorite.listing_id));
         }
-        setSavedListingIds((favoritesResult.favorites || []).map((favorite: { listing_id: string }) => favorite.listing_id));
       } catch (error) {
         console.error('Failed to load saved listings:', error);
       }
     };
-
     fetchFavorites();
   }, []);
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const unsubscribe = refreshOnRealtime(['listings', 'catalog'], (event) => {
-      if (event.topic !== 'ready') router.refresh();
+      if (event.topic === 'ready') return; // ignore initial connection ping
+      // debounce — multiple rapid events collapse into one refresh
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => router.refresh(), 3000);
     });
     return () => {
       unsubscribe();
+      if (timer) clearTimeout(timer);
     };
   }, [router]);
 
-  useEffect(() => {
-    setCategories(initialCategories);
-    setBrands(initialBrands);
-    setShops(initialShops);
-    setRecentListings(initialListings);
-  }, [initialCategories, initialBrands, initialShops, initialListings]);
+  // Props come from the server on initial load; they only change on router.refresh().
+  // No need to re-sync into state — the initial useState values are sufficient.
 
   const applySearch = () => {
     const params = new URLSearchParams();
@@ -293,7 +297,7 @@ export default function Home({
         ? "mx-auto grid w-full max-w-[1680px] grid-cols-1 gap-7 px-4 pb-10 pt-[124px] sm:px-6 lg:grid-cols-[minmax(0,1fr)_200px] lg:gap-6 lg:px-8 lg:pt-6"
         : "mx-auto w-full max-w-[1440px] px-4 pb-10 pt-[124px] sm:px-6 lg:px-8 lg:pt-6"}>
         {SHOW_HOME_ADS && <HomeAdSlot />}
-      <main className="min-w-0 space-y-7 lg:col-start-1 lg:row-start-1 lg:space-y-9">
+      <main className="min-w-0 space-y-6 lg:col-start-1 lg:row-start-1 lg:space-y-8">
         <form onSubmit={submitSearch} className="hidden lg:block">
           <div className="relative">
             <div className="flex h-14 w-full items-center gap-2 rounded-full border border-slate-200 bg-white p-1.5 shadow-[0_3px_12px_rgba(15,23,42,0.07)] transition focus-within:border-[#13bdc4] focus-within:ring-2 focus-within:ring-[#13bdc4]/15">
@@ -395,7 +399,7 @@ export default function Home({
                       <span className="text-lg font-bold text-[#006b80]">{brand.name.slice(0, 1).toUpperCase()}</span>
                     )}
                   </span>
-                  <span className="w-full truncate text-xs font-semibold text-slate-700">{brand.name}</span>
+                  <span className="w-full truncate text-xs font-medium text-slate-600">{brand.name}</span>
                 </Link>
               ))}
             </div>
@@ -414,7 +418,7 @@ export default function Home({
                 <Link
                   key={shop.id}
                   href={`/shop/${shop.seller_id}`}
-                  className="group flex w-[260px] shrink-0 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-cyan-200 hover:shadow-md"
+                  className="group flex w-[260px] shrink-0 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition-shadow duration-150 hover:border-cyan-200 hover:shadow-md"
                 >
                   <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#e8f7f8] text-[#006b80]">
                     {shop.image_urls?.[1] || shop.image_urls?.[0] ? (
@@ -424,7 +428,7 @@ export default function Home({
                     )}
                   </span>
                   <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                    <span className="whitespace-normal break-words text-sm font-semibold leading-5 text-slate-900 group-hover:text-[#006b80]">{shop.title}</span>
+                    <span className="whitespace-normal break-words text-sm font-normal leading-5 text-slate-900 group-hover:text-[#006b80]">{shop.title}</span>
                     {shop.verification_status === 'verified' && <BadgeCheck aria-label="Verified" className="h-4 w-4 shrink-0 text-emerald-600" />}
                   </span>
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-50 text-slate-400 transition-colors group-hover:bg-cyan-50 group-hover:text-[#006b80]">
@@ -483,10 +487,12 @@ export default function Home({
           <FeaturedListing initialListings={featuredListings} />
         </div>
 
+        <TrendingSection listings={trendingListings.length > 0 ? trendingListings : recentListings} />
+
         <section aria-labelledby="recent-listings-heading" className="home-deferred-listings">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h2 id="recent-listings-heading" className="text-lg font-bold text-slate-900 sm:text-xl">Recent Listings</h2>
-            <Link href="/buyer" className="shrink-0 text-sm font-semibold text-[#006b80] hover:text-[#005466]">
+            <h2 id="recent-listings-heading" className="text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">Recent Listings</h2>
+            <Link href="/buyer" className="shrink-0 text-sm font-medium text-[#006b80] hover:text-[#005466]">
               View all
             </Link>
           </div>

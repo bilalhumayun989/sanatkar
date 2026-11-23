@@ -1,146 +1,274 @@
+// 'use client';
+
+// import Link from 'next/link';
+// import Image from 'next/image';
+// import { Mail } from 'lucide-react';
+
+// const columns = [
+//   {
+//     heading: 'Marketplace',
+//     links: [
+//       { label: 'Browse Listings', href: '/buyer' },
+//       { label: 'Browse by Brand', href: '/brands' },
+//       { label: 'Explore Shops', href: '/shops' },
+//       { label: 'Post an Ad', href: '/seller' },
+//     ],
+//   },
+//   {
+//     heading: 'Sellers',
+//     links: [
+//       { label: 'Become a Seller', href: '/become-seller' },
+//       { label: 'My Shop', href: '/my-shop' },
+//       { label: 'Manage Listings', href: '/my-ads' },
+//       { label: 'Seller Verification', href: '/seller-verification' },
+//     ],
+//   },
+//   {
+//     heading: 'Support',
+//     links: [
+//       { label: 'Blogs', href: '/blogs' },
+//       { label: 'Contact Us', href: '/contact' },
+//     ],
+//   },
+//   {
+//     heading: 'Legal',
+//     links: [
+//       { label: 'Privacy Policy', href: '/privacy-policy' },
+//       { label: 'Terms of Service', href: '/terms-and-conditions' },
+//     ],
+//   },
+// ];
+
+// export default function Footer() {
+//   return (
+//     <footer className="hidden md:block bg-[#0e1a1f] text-slate-400" id="contact">
+
+//       {/* ── Main grid ── */}
+//       <div className="mx-auto max-w-7xl px-6 pb-14 pt-16 lg:px-8">
+//         <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1.8fr_repeat(4,1fr)]">
+
+//           {/* Brand column */}
+//           <div className="flex flex-col gap-5">
+//             <Link href="/" className="inline-flex items-center gap-2.5">
+//               <Image src="/favicon.png" alt="Sanatkar" width={36} height={36} className="h-9 w-9 object-contain" />
+//               <span className="text-xl font-extrabold tracking-tight text-white">
+//                 Sanat<span className="text-[#13bdc4]">kar</span>
+//               </span>
+//             </Link>
+
+//             <p className="text-sm leading-relaxed text-slate-400">
+//               Pakistan&apos;s industrial marketplace for machinery, parts, and vehicles — connecting buyers and sellers across the country.
+//             </p>
+
+//             <a
+//               href="mailto:support@sanatkar.com"
+//               className="inline-flex items-center gap-2 text-sm text-slate-400 transition-colors hover:text-[#13bdc4]"
+//             >
+//               <Mail size={15} />
+//               support@sanatkar.com
+//             </a>
+//           </div>
+
+//           {/* Link columns */}
+//           {columns.map((col) => (
+//             <div key={col.heading}>
+//               <h4 className="mb-5 text-[11px] font-bold uppercase tracking-[0.16em] text-white">
+//                 {col.heading}
+//               </h4>
+//               <ul className="flex flex-col gap-3">
+//                 {col.links.map((link) => (
+//                   <li key={link.label}>
+//                     <Link
+//                       href={link.href}
+//                       className="text-sm text-slate-400 transition-colors hover:text-white"
+//                     >
+//                       {link.label}
+//                     </Link>
+//                   </li>
+//                 ))}
+//               </ul>
+//             </div>
+//           ))}
+//         </div>
+//       </div>
+
+//       {/* ── Bottom bar ── */}
+//       <div className="border-t border-white/10">
+//         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-6 py-5 text-xs text-slate-500 sm:flex-row lg:px-8">
+//           <p>© 2026 SanatKar Marketplace. All rights reserved.</p>
+
+//           <a
+//             href="https://broshtech.com"
+//             target="_blank"
+//             rel="noopener noreferrer"
+//             className="transition-colors hover:text-slate-300"
+//           >
+//             Designed &amp; Developed by{' '}
+//             <span className="font-semibold text-[#13bdc4]">BroshTech</span>
+//           </a>
+
+//           <nav aria-label="Social media" className="flex items-center gap-5">
+//             <a href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-white">Instagram</a>
+//             <a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-white">Facebook</a>
+//             <a href="https://www.tiktok.com/" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-white">TikTok</a>
+//           </nav>
+//         </div>
+//       </div>
+
+//     </footer>
+//   );
+// }
+
+
+
+
+
+
+
+
 'use client';
 
-import { Mail, MapPin, Phone, Send } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
-import { useLanguage } from '@/lib/LanguageContext';
+import Image from 'next/image';
+import { ArrowUp } from 'lucide-react';
+
+const BROSH_TECH_LOGO =
+  'https://cdn.shopify.com/s/files/1/1122/0300/6290/files/html-logo.webp?v=1793360577';
+
+const columns = [
+  {
+    heading: 'Marketplace',
+    links: [
+      { label: 'Browse Listings', href: '/buyer' },
+      { label: 'Browse by Brand', href: '/brands' },
+      { label: 'Explore Shops', href: '/shops' },
+      { label: 'Post an Ad', href: '/seller' },
+    ],
+  },
+  {
+    heading: 'Sellers',
+    links: [
+      { label: 'Become a Seller', href: '/become-seller' },
+      { label: 'My Shop', href: '/my-shop' },
+      { label: 'Manage Listings', href: '/my-ads' },
+      { label: 'Seller Verification', href: '/seller-verification' },
+    ],
+  },
+  {
+    heading: 'Support',
+    links: [
+      { label: 'Blogs', href: '/blogs' },
+      { label: 'Contact Us', href: '/contact' },
+    ],
+  },
+  {
+    heading: 'Legal',
+    links: [
+      { label: 'Privacy Policy', href: '/privacy-policy' },
+      { label: 'Terms of Service', href: '/terms-and-conditions' },
+    ],
+  },
+];
 
 export default function Footer() {
-    const { t } = useLanguage();
-    const [newsletterEmail, setNewsletterEmail] = useState('');
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
-    const handleNewsletterSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        const subject = encodeURIComponent('Subscribe me to Sanatkar updates');
-        const body = encodeURIComponent(`Please add ${newsletterEmail} to the Sanatkar email updates list.`);
-        window.location.href = `mailto:support@sanatkar.com?subject=${subject}&body=${body}`;
-    };
+  return (
+    <footer className="hidden md:block bg-[#0e1a1f] text-slate-400" id="contact">
+      {/* ── Main grid ── */}
+      <div className="mx-auto max-w-7xl px-6 pb-16 pt-16 lg:px-8">
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-[2fr_repeat(4,1fr)] lg:gap-10">
+          {/* Brand column */}
+          <div className="flex max-w-xs flex-col gap-5">
+            <Link href="/" className="inline-flex items-center gap-2.5">
+              <Image
+                src="/favicon.png"
+                alt="Sanatkar"
+                width={36}
+                height={36}
+                className="h-9 w-9 object-contain"
+              />
+              <span className="text-xl font-extrabold tracking-tight text-white">
+                Sanat<span className="text-[#13bdc4]">kar</span>
+              </span>
+            </Link>
 
-    return (
-        <footer className="hidden md:block relative bg-white text-slate-600 pt-16 pb-8 border-t border-slate-200 font-sans" id="contact">
-            
-           
+            <p className="text-sm leading-[1.75] text-slate-400">
+              Pakistan&apos;s industrial marketplace for machinery, parts, and
+              vehicles — connecting buyers and sellers across the country.
+            </p>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-8 pb-12 border-b border-slate-100">
-                    
-                    {/* ── Brand & About ── */}
-                    <div className="lg:col-span-4 space-y-5">
-                        <Link href="/" className="inline-flex items-center gap-2">
-                            <span className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
-                                {t('brand_name_1')}<span className="text-[#0092B8] ml-1">{t('brand_name_2')}</span>
-                            </span>
-                        </Link>
+            <a
+              href="mailto:support@sanatkar.com"
+              className="mt-1 inline-block text-sm text-slate-300 transition-colors hover:text-[#13bdc4]"
+            >
+              support@sanatkar.com
+            </a>
+          </div>
 
-                        <p className="text-slate-500 text-sm leading-relaxed max-w-sm font-medium">
-                            {t('footer_desc')}
-                        </p>
+          {/* Link columns */}
+          {columns.map((col) => (
+            <div key={col.heading}>
+              <h4 className="text-[11px] font-bold uppercase tracking-[0.14em] text-white">
+                {col.heading}
+              </h4>
+              <span className="mt-2.5 mb-6 block h-[2px] w-6 rounded-full bg-[#13bdc4]" />
 
-                        <a href="mailto:support@sanatkar.com" className="inline-flex items-center gap-2 pt-2 text-sm font-semibold text-[#006b80] hover:underline"><Mail size={16} /> support@sanatkar.com</a>
-                    </div>
-
-
-                    <div className="lg:col-span-2">
-                        <h4 className="mb-5 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-900">
-                            <span className="h-1.5 w-1.5 rounded-full bg-[#0092B8]" /> Explore
-                        </h4>
-                        <nav aria-label="Footer links" className="flex flex-col items-start gap-3.5 text-sm font-medium">
-                            <Link href="/blogs" className="hover:text-[#0092B8]">Blogs</Link>
-                            <Link href="/terms-and-conditions" className="hover:text-[#0092B8]">Terms & Conditions</Link>
-                            <Link href="/privacy-policy" className="hover:text-[#0092B8]">Privacy Policy</Link>
-                        </nav>
-                    </div>
-
-                    {/* ── Contact Info ── */}
-                    <div className="lg:col-span-3">
-                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-900 mb-5 flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#0092B8]" />
-                            {t('get_in_touch')}
-                        </h4>
-                        <ul className="space-y-3.5 text-sm font-medium">
-                            <li className="flex items-start gap-3 group">
-                                <div className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-[#0092B8] shrink-0">
-                                    <MapPin size={16} />
-                                </div>
-                                <span className="text-slate-600 text-xs sm:text-sm leading-relaxed mt-0.5">
-                                    123 Industrial Area, Canal Bank Road,<br />Faisalabad, Pakistan
-                                </span>
-                            </li>
-                            <li className="flex items-center gap-3 group">
-                                <div className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-[#0092B8] shrink-0">
-                                    <Phone size={16} />
-                                </div>
-                                <span className="text-slate-600 text-xs sm:text-sm">
-                                    0800-SANAT-KAR
-                                </span>
-                            </li>
-                            <li className="flex items-center gap-3 group">
-                                <div className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-[#0092B8] shrink-0">
-                                    <Mail size={16} />
-                                </div>
-                                <a href="mailto:support@sanatkar.com" className="text-slate-600 text-xs sm:text-sm hover:text-[#0092B8]">
-                                    support@sanatkar.com
-                                </a>
-                            </li>
-                        </ul>
-                    </div>
-
-                    {/* ── Newsletter ── */}
-                    <div className="lg:col-span-3">
-                        <h4 className="text-xs font-bold uppercase tracking-widest text-slate-900 mb-5 flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#0092B8]" />
-                            {t('newsletter')}
-                        </h4>
-                        <p className="text-slate-500 text-xs leading-relaxed mb-4 font-medium">
-                            Receive daily stock updates and machinery deals.
-                        </p>
-                        <form onSubmit={handleNewsletterSubmit} className="space-y-3">
-                            <div className="relative">
-                                <input
-                                    type="email"
-                                    required
-                                    aria-label="Email address for Sanatkar updates"
-                                    value={newsletterEmail}
-                                    onChange={event => setNewsletterEmail(event.target.value)}
-                                    placeholder="Enter your email"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#0092B8] focus:ring-1 focus:ring-[#0092B8] transition-all pr-12 font-medium"
-                                />
-                                <button 
-                                    type="submit"
-                                    aria-label="Subscribe to email updates"
-                                    className="absolute right-1.5 top-1.5 bottom-1.5 bg-[#006b80] hover:bg-[#005466] text-white px-3 rounded-lg flex items-center justify-center transition-all active:scale-95 shadow-md shadow-[#006b80]/20"
-                                >
-                                    <Send size={14} />
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-
-                </div>
-
-            </div>
-
-            <div className="border-t border-slate-200 bg-slate-50/80 text-slate-500">
-                <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-3 px-4 py-5 text-center sm:px-6 md:grid-cols-3 md:text-left lg:px-8">
-                    <p className="text-[11px] font-medium sm:text-xs">© 2026 SanatKar Marketplace. All rights reserved.</p>
-
-                    <a
-                        href="https://broshtech.com"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="justify-self-center whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-600 transition-colors hover:text-[#006b80] sm:text-xs"
+              <ul className="flex flex-col gap-3.5">
+                {col.links.map((link) => (
+                  <li key={link.label}>
+                    <Link
+                      href={link.href}
+                      className="text-sm text-slate-400 transition-colors hover:text-white"
                     >
-                        Designed <span className="px-1 text-slate-300">||</span> Developed by{' '}
-                        <span className="font-bold text-[#006b80]">BroshTech</span>
-                    </a>
-
-                    <nav aria-label="Social media" className="flex items-center justify-center gap-5 text-xs font-medium md:justify-self-end">
-                        <a href="https://www.instagram.com/" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-[#006b80]">Instagram</a>
-                        <a href="https://www.facebook.com/" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-[#006b80]">Facebook</a>
-                        <a href="https://www.tiktok.com/" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-[#006b80]">TikTok</a>
-                    </nav>
-                </div>
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </div>
-        </footer>
-    );
+          ))}
+        </div>
+      </div>
+
+      {/* ── Bottom bar ── */}
+      <div className="border-t border-white/10">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-6 py-6 text-xs text-slate-400 sm:flex-row lg:px-8">
+          <div className="flex items-center gap-3">
+            <p>© 2026 SanatKar Marketplace</p>
+            <span className="text-white/20" aria-hidden="true">
+              |
+            </span>
+            <a
+              href="https://broshtech.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="BroshTech"
+              className="inline-flex items-center opacity-85 transition-opacity hover:opacity-100"
+            >
+              <Image
+                src={BROSH_TECH_LOGO}
+                alt="BroshTech"
+                width={24}
+                height={24}
+                unoptimized
+                className="h-6 w-6 rounded-sm object-contain"
+              />
+            </a>
+          </div>
+
+          <button
+            type="button"
+            onClick={scrollToTop}
+            className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-xs font-medium text-slate-200 transition-colors hover:border-[#13bdc4] hover:text-white"
+          >
+            <span>back to top</span>
+            <ArrowUp className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+    </footer>
+  );
 }
