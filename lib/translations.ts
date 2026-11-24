@@ -166,7 +166,7 @@ export const translations = {
         top_brands_desc: 'Discover quality parts from industry-leading manufacturers and trusted suppliers',
         browse_categories_desc: 'Explore curated industrial categories and discover precision parts and machinery',
         trending_badge: 'TRENDING',
-        shop_by_brand: 'SHOP BY BRAND',
+        shop_by_brand: 'Shop by brand',
         shop_by_category: 'SHOP BY CATEGORY',
         trusted_community: 'Trusted by the Industrial Community',
         trusted_desc: 'Thousands of buyers and sellers trust SANATKAR to find genuine industrial machinery and spare parts across Pakistan.',
@@ -565,7 +565,6 @@ export const translations = {
 
         // ── Home section headings (hardcoded) ──────────────────────────────
         recent_listings: 'Recent Listings',
-        view_all: 'View all',
         trending_pakistan: 'Trending across Pakistan',
         buyers_searching: 'Buyers are searching for these.',
         most_searched_desc: 'The most-searched machinery, parts, and vehicles on Sanatkar this week.',
@@ -575,7 +574,6 @@ export const translations = {
         popular_categories: 'Popular categories',
         choose_category_desc: 'Choose a category to see available listings',
         explore_shops: 'Explore shops',
-        shop_by_brand: 'Shop by brand',
         professional_seller_card: 'Professional Seller',
 
         // ── Footer ────────────────────────────────────────────────────────
@@ -1166,7 +1164,6 @@ export const translations = {
 
         // ── Home section headings (hardcoded) ──────────────────────────────
         recent_listings: 'حالیہ اشتہارات',
-        view_all: 'سب دیکھیں',
         trending_pakistan: 'پاکستان میں ٹرینڈنگ',
         buyers_searching: 'خریدار یہ تلاش کر رہے ہیں۔',
         most_searched_desc: 'اس ہفتے صنعت کار پر سب سے زیادہ تلاش کی گئی مشینری، پرزے اور گاڑیاں۔',
@@ -1176,7 +1173,6 @@ export const translations = {
         popular_categories: 'مقبول زمرہ جات',
         choose_category_desc: 'دستیاب اشتہارات دیکھنے کے لیے ایک زمرہ منتخب کریں',
         explore_shops: 'دکانیں دریافت کریں',
-        shop_by_brand: 'برانڈ کے لحاظ سے خریداری',
         professional_seller_card: 'پیشہ ور فروخت کنندہ',
 
         // ── Footer ────────────────────────────────────────────────────────
