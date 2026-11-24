@@ -97,13 +97,13 @@ export default function CategoriesSection({ categories = [], title, prioritizeFi
       <div className="mb-4 flex items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">{title || t('browse_categories')}</h2>
-          {variant === 'popular' && <p className="mt-1 text-xs text-slate-600 sm:text-sm">Choose a category to see available listings.</p>}
+          {variant === 'popular' && <p className="mt-1 text-xs text-slate-600 sm:text-sm">{t('choose_category_desc')}</p>}
         </div>
         <Link
           href="/buyer"
           className={variant === 'popular' ? 'shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#006b80] transition hover:border-cyan-300 hover:bg-cyan-50 sm:text-sm' : 'shrink-0 text-sm font-semibold text-[#006b80] hover:text-[#005466]'}
         >
-          View all
+          {t('view_all')}
         </Link>
       </div>
 

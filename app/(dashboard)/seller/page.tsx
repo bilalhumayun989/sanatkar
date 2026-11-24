@@ -105,9 +105,29 @@ function SellerPageContent() {
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState('');
     const [editingListing, setEditingListing] = useState(false);
-    const [categoryOptions] = useState(CATEGORY_OPTIONS);
+    const [categoryOptions, setCategoryOptions] = useState(CATEGORY_OPTIONS);
     const [activeStep, setActiveStep] = useState(1);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Load categories from admin panel on mount — fall back to static list on error
+    useEffect(() => {
+        fetch('/api/categories', { cache: 'no-store' })
+            .then(r => r.json())
+            .then(result => {
+                if (result.success && Array.isArray(result.categories) && result.categories.length > 0) {
+                    setCategoryOptions(
+                        result.categories
+                            .filter((c: any) => c.is_active !== false)
+                            .map((c: any) => ({
+                                slug: c.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+                                id: c.id,
+                                name: c.name,
+                            }))
+                    );
+                }
+            })
+            .catch(() => {});
+    }, []);
 
     useEffect(() => {
         setForm(prev => ({
@@ -312,7 +332,7 @@ function SellerPageContent() {
                         <h2 className="text-2xl font-bold text-gray-800 mb-2">{t('ad_posted_success')}</h2>
                         <p className="text-gray-500 mb-6">{t('listing_submitted')}</p>
                         <div className="flex gap-3 justify-center">
-                            <button onClick={() => { setSuccess(false); setImages([]); setPreviews([]); setExistingImages([]); }} className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:border-primary hover:text-primary transition-colors text-sm">
+                            <button onClick={() => { setSuccess(false); setImages([]); setPreviews([]); setExistingImages([]); setForm({ title: '', origin: '', city: '', make: '', model: '', year: '', condition: 'new', category: 'parts', price: '', description: '', phone: '', allowWhatsapp: true }); setActiveStep(1); }} className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:border-primary hover:text-primary transition-colors text-sm">
                                 {t('post_another')}
                             </button>
                             <Link href="/buyer" className="px-5 py-2.5 rounded-lg bg-primary text-white font-semibold hover:bg-primary-dark transition-colors text-sm">
@@ -432,7 +452,7 @@ function SellerPageContent() {
                                 <div className="grid grid-cols-3 gap-4 items-start">
                                     <label className="text-sm font-semibold text-gray-600 text-right pt-2.5 col-span-1">{t('year_label')} <span className="text-primary">*</span></label>
                                     <div className="col-span-2 grid grid-cols-2 gap-3">
-                                        <input name="year" type="number" required value={form.year} onChange={handleChange}
+                                        <input name="year" type="number" required value={form.year} onChange={handleChange} onWheel={e => e.currentTarget.blur()}
                                             min="1900" max={new Date().getFullYear() + 1}
                                             className="border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
                                     </div>
@@ -446,7 +466,7 @@ function SellerPageContent() {
                                     <div className="col-span-2 space-y-1">
                                         <div className="flex">
                                             <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-gray-300 bg-gray-100 text-sm text-gray-500 font-semibold">PKR</span>
-                                            <input name="price" type="number" min="1" required value={form.price} onChange={handleChange}
+                                            <input name="price" type="number" min="1" required value={form.price} onChange={handleChange} onWheel={e => e.currentTarget.blur()}
                                                 placeholder={t('price')}
                                                 className="flex-1 border border-gray-300 rounded-r-lg px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary" />
                                         </div>

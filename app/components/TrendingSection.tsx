@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export interface TrendingListing {
   id: string;
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function TrendingSection({ listings }: Props) {
+  const { t } = useLanguage();
   const items = listings.slice(0, 12);
   if (items.length === 0) return null;
 
@@ -32,23 +34,20 @@ export default function TrendingSection({ listings }: Props) {
       <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div className="max-w-xl">
           <p className="mb-1.5 text-xs font-medium uppercase tracking-[0.18em] text-slate-400">
-            Trending across Pakistan
+            {t('trending_pakistan')}
           </p>
-          <h2
-            id="trending-heading"
-            className="text-2xl font-normal tracking-tight text-slate-900 sm:text-3xl"
-          >
-            Buyers are searching for these.
+          <h2 id="trending-heading" className="text-2xl font-normal tracking-tight text-slate-900 sm:text-3xl">
+            {t('buyers_searching')}
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-slate-500">
-            The most-searched machinery, parts, and vehicles on Sanatkar this week.
+            {t('most_searched_desc')}
           </p>
         </div>
         <Link
           href="/buyer"
           className="group inline-flex shrink-0 items-center gap-2 self-start rounded-full bg-[#006b80] px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#005466] md:self-auto"
         >
-          Explore All Trends
+          {t('explore_all_trends')}
           <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
         </Link>
       </div>

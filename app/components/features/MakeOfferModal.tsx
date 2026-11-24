@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Send, Loader2, CheckCircle } from 'lucide-react';
 
@@ -19,6 +19,11 @@ export default function MakeOfferModal({ listingId, sellerId, isOpen, onClose, c
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [step, setStep] = useState('');
+
+    useEffect(() => {
+        document.body.style.overflow = isOpen ? 'hidden' : '';
+        return () => { document.body.style.overflow = ''; };
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -71,7 +76,7 @@ export default function MakeOfferModal({ listingId, sellerId, isOpen, onClose, c
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[10002] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden relative">
                 <div className="flex justify-between items-center p-6 border-b border-gray-100">
                     <h3 className="text-xl font-black text-secondary">Make an Offer</h3>

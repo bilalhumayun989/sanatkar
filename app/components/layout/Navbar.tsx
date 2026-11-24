@@ -113,7 +113,7 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-2.5 group transition-opacity hover:opacity-80 active:opacity-70 shrink-0 z-10">
                         <Image src="/favicon.png" alt="" width={40} height={40} className="h-10 w-10 object-contain" />
-                        <span className="text-xl font-extrabold leading-none text-slate-900">Sanatkar</span>
+                        <span className="text-xl leading-none text-slate-900" style={{ fontWeight: 800, fontFamily: 'Arimo, sans-serif' }}>Sanatkar</span>
                     </Link>
 
                     {/* Desktop Navigation Links */}
@@ -139,7 +139,6 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                             onMouseEnter={() => setPostAdOpen(true)}
                             onMouseLeave={() => setPostAdOpen(false)}
                         >
-                            <div className="flex items-center gap-1.5 cursor-pointer">
                                 <Link
                                     href={authLoading ? '/seller' : (authUser ? "/seller" : `/login?next=${encodeURIComponent('/seller')}`)}
                                     onClick={(e) => { if (authLoading) e.preventDefault(); }}
@@ -147,17 +146,6 @@ export default function Navbar({ forceSolid = false }: NavbarProps) {
                                 >
                                     {t('post_ad')}
                                 </Link>
-
-                                <button
-                                    type="button"
-                                    aria-label={postAdOpen ? 'Close listing menu' : 'Open listing menu'}
-                                    aria-expanded={postAdOpen}
-                                    onClick={() => setPostAdOpen(!postAdOpen)}
-                                    className="flex h-8 w-8 items-center justify-center rounded-full text-slate-800 transition-colors hover:bg-slate-100 hover:text-[#09ACC9]"
-                                >
-                                    <ChevronDown size={16} aria-hidden="true" />
-                                </button>
-                            </div>
                         </div>
 
                         {isAdmin && (

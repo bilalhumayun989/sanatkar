@@ -15,6 +15,7 @@ import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import HomeAdSlot from './components/ads/HomeAdSlot';
 import TrendingSection from './components/TrendingSection';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Set to true when home-page advertising is ready.
 const SHOW_HOME_ADS = false;
@@ -65,12 +66,13 @@ interface HomeCategory {
   is_popular?: boolean;
 }
 
-function SectionHeading({ title, href, linkLabel = 'View all', headingId }: { title: string; href: string; linkLabel?: string; headingId?: string }) {
+function SectionHeading({ title, href, linkLabel, headingId }: { title: string; href: string; linkLabel?: string; headingId?: string }) {
+  const { t } = useLanguage();
   return (
     <div className="mb-4 flex items-center justify-between gap-4">
       <h2 id={headingId} className="text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">{title}</h2>
       <Link href={href} className="shrink-0 text-sm font-medium text-[#006b80] hover:text-[#005466]">
-        {linkLabel}
+        {linkLabel ?? t('view_all')}
       </Link>
     </div>
   );
@@ -177,6 +179,7 @@ export default function Home({
   trendingListings: Listing[];
 }) {
   const router = useRouter();
+  const { t } = useLanguage();
   const [search, setSearch] = useState('');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -379,7 +382,7 @@ export default function Home({
         </form>
 
         <section aria-labelledby="brands-heading" className="min-h-[152px]">
-            <SectionHeading title="Shop by brand" href="/brands" headingId="brands-heading" />
+            <SectionHeading title={t('shop_by_brand')} href="/brands" headingId="brands-heading" />
             {storefrontLoading ? (
               <div aria-hidden="true" className="flex gap-4 overflow-hidden pb-2 sm:gap-6">
                 {Array.from({ length: 6 }, (_, index) => <div key={index} className="flex w-[76px] shrink-0 flex-col items-center gap-2 sm:w-[88px]"><span className="aspect-square w-full animate-pulse rounded-full bg-slate-200" /><span className="h-3 w-14 animate-pulse rounded bg-slate-200" /></div>)}
@@ -407,7 +410,7 @@ export default function Home({
         </section>
 
         <section aria-labelledby="shops-heading" className="min-h-[132px]">
-            <SectionHeading title="Explore shops" href="/shops" headingId="shops-heading" />
+            <SectionHeading title={t('explore_shops')} href="/shops" headingId="shops-heading" />
             {storefrontLoading ? (
               <div aria-hidden="true" className="flex gap-3 overflow-hidden">
                 {Array.from({ length: 3 }, (_, index) => <div key={index} className="flex h-[72px] w-[210px] shrink-0 animate-pulse items-center gap-3 rounded-lg border border-slate-200 bg-white p-3"><span className="h-12 w-12 rounded-full bg-slate-200" /><span className="h-4 w-28 rounded bg-slate-200" /></div>)}
@@ -441,7 +444,7 @@ export default function Home({
         </section>
 
         <CategoriesSection categories={categories} prioritizeFirstImage maxItems={8} />
-        {categories.some(category => category.is_popular) && <CategoriesSection categories={categories.filter(category => category.is_popular)} title="Popular categories" variant="popular" maxItems={8} />}
+        {categories.some(category => category.is_popular) && <CategoriesSection categories={categories.filter(category => category.is_popular)} title={t('popular_categories')} variant="popular" maxItems={8} />}
 
         {/* <section aria-labelledby="verified-sellers-heading">
           <SectionHeading title="Verified sellers" href="/shops" linkLabel="Meet our sellers" />
@@ -491,9 +494,9 @@ export default function Home({
 
         <section aria-labelledby="recent-listings-heading" className="home-deferred-listings">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <h2 id="recent-listings-heading" className="text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">Recent Listings</h2>
+            <h2 id="recent-listings-heading" className="text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">{t('recent_listings')}</h2>
             <Link href="/buyer" className="shrink-0 text-sm font-medium text-[#006b80] hover:text-[#005466]">
-              View all
+              {t('view_all')}
             </Link>
           </div>
           <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Filter recent listings by category">
@@ -515,7 +518,7 @@ export default function Home({
           </div>
           {filteredRecentListings.length > 0 ? (
             <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-5 sm:gap-y-8 xl:grid-cols-4">
-              {filteredRecentListings.map((listing) => (
+              {filteredRecentListings.slice(0, 8).map((listing) => (
                 <ProductCard
                   key={listing.id}
                   listing={listing}

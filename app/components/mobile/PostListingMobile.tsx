@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, MessageSquare, Upload, Info, ChevronDown, X, Loader } from 'lucide-react';
 import BrandSelect from '@/app/components/BrandSelect';
@@ -8,6 +8,24 @@ import { FIXED_CATEGORY_OPTIONS } from '@/lib/categoryConstants';
 
 export default function PostListingMobile() {
   const [selectedCategory, setSelectedCategory] = useState<string>('parts');
+  const [categoryOptions, setCategoryOptions] = useState<{ value: string; label: string }[]>(
+    FIXED_CATEGORY_OPTIONS
+  );
+
+  useEffect(() => {
+    fetch('/api/categories', { cache: 'no-store' })
+      .then(r => r.json())
+      .then(result => {
+        if (result.success && Array.isArray(result.categories) && result.categories.length > 0) {
+          setCategoryOptions(
+            result.categories
+              .filter((c: any) => c.is_active !== false)
+              .map((c: any) => ({ value: c.name.toLowerCase().replace(/\s+/g, '-'), label: c.name }))
+          );
+        }
+      })
+      .catch(() => {}); // keep static fallback on error
+  }, []);
   
   const [condition, setCondition] = useState('Used');
   const [contactOption, setContactOption] = useState('Call');
@@ -308,7 +326,7 @@ export default function PostListingMobile() {
         <div className="space-y-1.5">
           <label className="text-[10px] font-bold text-slate-500 uppercase">Category *</label>
           <select aria-label="Category" value={selectedCategory} onChange={event => setSelectedCategory(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm">
-            {FIXED_CATEGORY_OPTIONS.map(category => <option key={category.value} value={category.value}>{category.value === 'others' ? 'Other' : category.label}</option>)}
+            {categoryOptions.map(category => <option key={category.value} value={category.value}>{category.label}</option>)}
           </select>
         </div>
 

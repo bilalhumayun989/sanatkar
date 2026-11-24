@@ -79,6 +79,7 @@ function createEmptyForm(): ListingFormState {
 }
 
 async function uploadImages(images: File[]) {
+  if (images.length === 0) return [];
   const formData = new FormData();
   images.forEach(image => formData.append('files', image));
   const response = await fetch('/api/upload', { method: 'POST', body: formData });
@@ -372,17 +373,12 @@ export default function MyAdsPage() {
                   </div>
                   <div>
                     <label className="mb-2 block text-xs font-bold uppercase text-slate-600">{t('price_pkr')}</label>
-                    <input name="price" type="number" value={form.price} onChange={handleFormChange}
+                    <input name="price" type="number" value={form.price} onChange={handleFormChange} onWheel={e => e.currentTarget.blur()}
                       className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-primary focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all" />
                   </div>
                   <div>
                     <label className="mb-2 block text-xs font-bold uppercase text-slate-600">{t('year')}</label>
-                    <input name="year" type="number" value={form.year} onChange={handleFormChange}
-                      className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all" />
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-xs font-bold uppercase text-slate-600">{t('hours_mileage')}</label>
-                    <input name="hours" type="number" value={form.hours} onChange={handleFormChange}
+                    <input name="year" type="number" value={form.year} onChange={handleFormChange} onWheel={e => e.currentTarget.blur()}
                       className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all" />
                   </div>
                 </div>

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { MapPin } from 'lucide-react';
+import { useLanguage } from '@/lib/LanguageContext';
 
 interface Listing {
   id: string;
@@ -17,6 +18,7 @@ interface Listing {
 }
 
 export default function FeaturedListingsMobile({ initialListings }: { initialListings: Listing[] }) {
+  const { t } = useLanguage();
   const featuredListings = initialListings;
 
   if (featuredListings.length === 0) return null;
@@ -26,11 +28,11 @@ export default function FeaturedListingsMobile({ initialListings }: { initialLis
       {/* Section Title */}
       <div className="mb-5 flex items-end justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight text-slate-900">Featured Items</h2>
-          <p className="mt-1 text-xs text-slate-500">Featured listings from shops across Pakistan.</p>
+          <h2 className="text-lg font-semibold tracking-tight text-slate-900">{t('featured_items')}</h2>
+          <p className="mt-1 text-xs text-slate-500">{t('featured_desc')}</p>
         </div>
         <Link href="/buyer?featured=true#products" className="shrink-0 px-1 py-2 text-xs font-medium text-blue-600 transition hover:text-blue-800">
-          View all
+          {t('view_all_featured')}
         </Link>
       </div>
 

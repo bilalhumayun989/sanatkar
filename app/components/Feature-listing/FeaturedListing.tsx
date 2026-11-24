@@ -126,14 +126,14 @@ export default function FeaturedListing({ initialListings }: { initialListings: 
       <div className="mb-5 flex items-end justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">{t('featured_items')}</h2>
-          <p className="mt-1 text-xs text-slate-500 sm:text-sm">Featured listings from shops across Pakistan.</p>
+          <p className="mt-1 text-xs text-slate-500 sm:text-sm">{t('featured_desc')}</p>
         </div>
 
         <Link
           href="/buyer?featured=true#products"
           className="shrink-0 px-1 py-2 text-sm font-medium text-[#006b80] transition hover:text-[#004f60] sm:text-base"
         >
-          View all featured products
+          {t('view_all_featured')}
         </Link>
       </div>
 

@@ -122,8 +122,8 @@ export default function SellerVerificationPage() {
             <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/50">
               <h2 className="text-lg font-black text-slate-900">Attach payment proof</h2>
               <p className="mt-1 text-sm text-slate-500">Upload a receipt or screenshot showing the amount and transaction reference.</p>
-              <label className="relative mt-5 flex min-h-48 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-primary/30 bg-primary/[0.03] p-5 text-center hover:border-primary">
-                {preview ? <img src={preview} alt="Payment proof preview" className="absolute inset-0 h-full w-full object-contain bg-slate-100" /> : <><Upload className="mb-2 text-primary" /><span className="text-sm font-bold text-slate-700">Choose payment proof</span><span className="mt-1 text-xs text-slate-400">Image or PDF screenshot</span></>}
+              <label className="relative mt-5 flex min-h-48 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-primary/40 bg-primary/[0.03] p-5 text-center transition-colors hover:border-primary hover:bg-primary/[0.06]">
+                {preview ? <img src={preview} alt="Payment proof preview" className="absolute inset-0 h-full w-full object-contain bg-slate-100" /> : <><div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10"><Upload className="h-6 w-6 text-primary" /></div><span className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-primary/20"><Upload className="h-4 w-4" />Upload Payment Proof</span><span className="mt-3 text-xs text-slate-400">JPG, PNG or PDF screenshot · Max 5MB</span></>}
                 <input type="file" accept="image/*,.pdf" onChange={handleFileChange} className="sr-only" />
               </label>
               {proofFile && <p className="mt-3 truncate text-xs font-semibold text-slate-500">{proofFile.name}</p>}

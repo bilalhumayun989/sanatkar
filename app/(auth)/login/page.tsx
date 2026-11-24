@@ -329,7 +329,7 @@ export default function LoginPage() {
                             alt="Sanatkar Logo"
                             className="h-7 sm:h-8 w-auto object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.12)]"
                         />
-                        <span className="text-xl sm:text-2xl font-extrabold text-[#0F172A] tracking-tight -mt-0.5">
+                        <span className="text-xl sm:text-2xl text-[#0F172A] tracking-tight -mt-0.5" style={{ fontWeight: 800, fontFamily: 'Arimo, sans-serif' }}>
                             sanatkar
                         </span>
                     </div>
@@ -530,7 +530,7 @@ export default function LoginPage() {
                         <Link href="/terms" className="hover:underline transition-all">
                             Terms
                         </Link>
-                        <Link href="/become-seller" className="hover:underline transition-all">
+                        <Link href="/signup?type=seller" className="hover:underline transition-all">
                             Become a Seller
                         </Link>
                         <Link href="/contact" className="hover:underline transition-all">
