@@ -9,7 +9,7 @@ import { FIXED_CATEGORY_OPTIONS } from '@/lib/categoryConstants';
 export default function PostListingMobile() {
   const [selectedCategory, setSelectedCategory] = useState<string>('parts');
   const [categoryOptions, setCategoryOptions] = useState<{ value: string; label: string }[]>(
-    FIXED_CATEGORY_OPTIONS
+    [...FIXED_CATEGORY_OPTIONS]
   );
 
   useEffect(() => {
